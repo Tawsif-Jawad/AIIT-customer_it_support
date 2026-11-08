@@ -1,0 +1,41 @@
+{
+  "modifiedExisting": [
+    "docs/IMPLEMENTATION_STATUS.md",
+    "docs/ROADMAP.md"
+  ],
+  "createdRequiredDocuments": [
+    "docs/audits/WEEK1_BASELINE.md",
+    "docs/REQUIREMENTS_TRACEABILITY.md",
+    "docs/TECHNICAL_DEBT.md",
+    "docs/MIGRATION_PLAN.md"
+  ],
+  "createdSupportingEvidence": [
+    "docs/audits/evidence/all-tests.log",
+    "docs/audits/evidence/browser-smoke-server.mjs",
+    "docs/audits/evidence/browser-smoke.json",
+    "docs/audits/evidence/build.log",
+    "docs/audits/evidence/changed-files.json",
+    "docs/audits/evidence/commands.json",
+    "docs/audits/evidence/day1-probes.mjs",
+    "docs/audits/evidence/dependencies.log",
+    "docs/audits/evidence/dependency-audit.log",
+    "docs/audits/evidence/e2e.log",
+    "docs/audits/evidence/findings.json",
+    "docs/audits/evidence/initial-baseline.json",
+    "docs/audits/evidence/integration.log",
+    "docs/audits/evidence/lint.log",
+    "docs/audits/evidence/preservation.json",
+    "docs/audits/evidence/probe-results.json",
+    "docs/audits/evidence/responsive.json",
+    "docs/audits/evidence/runtime-smoke.json",
+    "docs/audits/evidence/screenshots/cto.jpg",
+    "docs/audits/evidence/screenshots/employee.jpg",
+    "docs/audits/evidence/screenshots/it.jpg",
+    "docs/audits/evidence/screenshots/landing.jpg",
+    "docs/audits/evidence/screenshots/mobile.jpg",
+    "docs/audits/evidence/screenshots/ticket.jpg",
+    "docs/audits/evidence/status-matrix.json",
+    "docs/audits/evidence/typecheck.log",
+    "docs/audits/evidence/unit.log"
+  ]
+}

@@ -1,0 +1,3 @@
+npm error code ENOTCACHED
+npm error request to https://registry.npmjs.org/typescript failed: cache mode is 'only-if-cached' but no cached response is available.
+npm error A complete log of this run can be found in: /Users/tawsifjawad/.npm/_logs/2026-11-08T11_59_19_243Z-debug-0.log

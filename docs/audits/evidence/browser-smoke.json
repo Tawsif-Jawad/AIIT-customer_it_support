@@ -1,0 +1,25 @@
+{
+  "sharedRuntime": {
+    "landing": "Rendered in browser; HTTP 200",
+    "workspace": "Read-only sign-in screen with explicit development identities and MOCK MODE health; HTTP 200",
+    "mutations": "None"
+  },
+  "isolatedRuntime": {
+    "host": "127.0.0.1, separate ephemeral web/API ports and mkdtemp dataset",
+    "employee": "Development login, overview, ticket list/detail, new-request form and assistant inspected",
+    "assistant": "Created isolated REQ-2026-1004 and observed RESOLVED_PENDING_CONFIRMATION with mock guidance",
+    "it": "Development login, operational greeting and Approvals navigation observed",
+    "cto": "Development login and executive escalation queue observed",
+    "mobile": "Drawer aria-expanded true then false after catalog selection",
+    "responsive": "Catalog at actual CSS widths 320, 390, 768, 1024, 1440, 1920; scrollWidth equals innerWidth",
+    "console": "No error entries in fresh isolated session; shared public error list empty",
+    "teardown": "Isolated browser tab closed; helper server stopped with SIGINT, exit 0; temporary fixture directory removed"
+  },
+  "limits": [
+    "No shared-data sign-in or ticket mutation",
+    "No physical touch device, screen-reader or OS reduced-motion audit",
+    "No full hover/performance benchmark today; renderer produced 2766 dots in inspected shared page",
+    "No complete Playwright CLI execution",
+    "Customer API checks performed; separate customer browser login was not repeated in this audit"
+  ]
+}

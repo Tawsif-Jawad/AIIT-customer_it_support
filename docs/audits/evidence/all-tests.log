@@ -1,0 +1,44 @@
+
+> it-support-system@1.0.0 test
+> node --test tests/unit.test.ts tests/integration.test.ts tests/recovery.test.ts tests/ui.test.ts
+
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (2.484667ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (2.080583ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (1.958583ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (0.553792ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (2.001208ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (2.697ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (2.342791ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (0.372041ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (1.053417ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (19.159ms)
+✔ generated browser JavaScript parses, AIIT renders without JS, requests have a deadline (1.212416ms)
+✔ production rejects development identity enumeration and email-only sign-in (6.211375ms)
+✔ corrupted persistence fails without replacing existing records with demo data (3.365917ms)
+✔ development tokens validate issuer/audience/expiry and are rejected in production (0.744333ms)
+✔ public presentation, application and allowlisted assets are served separately (44.870666ms)
+✔ browser scripts and landing markup maintain original signature and safe demo labels (0.61925ms)
+✔ a response from an earlier session cannot populate the next user workspace (1.324833ms)
+✔ footer renderer honors reduced motion, suspends offscreen, and cleans up lifecycle observers (6.479333ms)
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (7.207375ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.2105ms)
+✔ Ticket Workflow State Machine & Role Guards (8.386084ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.172083ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.284167ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.449542ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.190792ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.125667ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.185167ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (1.097292ms)
+ℹ tests 24
+ℹ suites 4
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 154.944459

@@ -1,0 +1,25 @@
+
+> it-support-system@1.0.0 test:unit
+> node --test tests/unit.test.ts
+
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (0.634375ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.0655ms)
+✔ Ticket Workflow State Machine & Role Guards (1.1725ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.063334ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.119042ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.374792ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.159708ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.102834ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.158875ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (0.92325ms)
+ℹ tests 7
+ℹ suites 3
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 83.852084

@@ -1,0 +1,284 @@
+// Prisma Schema for Enterprise Multi-SBU IT Support System
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  CUSTOMER
+  EMPLOYEE
+  IT_ADMIN
+  CTO
+  SYSTEM_SERVICE
+}
+
+enum TicketStatus {
+  NEW
+  TRIAGED
+  AI_HANDLING
+  RESOLVED_PENDING_CONFIRMATION
+  CLOSED
+  ASSIGNED_TO_IT
+  IN_PROGRESS
+  ESCALATED_TO_CTO
+  REOPENED
+  AWAITING_USER
+  AWAITING_APPROVAL
+  FAILED_RETRY
+}
+
+enum TicketSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  HANDOVER_PENDING_ACK
+  TAKEOVER_PENDING_ACK
+  MAINTENANCE
+  RETIRED
+}
+
+model SBU {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  slaTier     String   @default("STANDARD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  tickets     Ticket[]
+  assets      Asset[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String
+  permissions Json
+  createdAt   DateTime @default(now())
+
+  users       User[]
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  displayName    String
+  oidcSubject    String?  @unique
+  adDistinguishedName String?
+  sbuId          String
+  roleId         String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sbu            SBU      @relation(fields: [sbuId], references: [id])
+  role           Role     @relation(fields: [roleId], references: [id])
+  requestedTickets Ticket[] @relation("TicketRequester")
+  assignedTickets  Ticket[] @relation("TicketAssignee")
+  comments       TicketComment[]
+  assets         Asset[]
+  approvals      Approval[] @relation("ApproverUser")
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+}
+
+model ServiceCategory {
+  id                   String   @id @default(uuid())
+  slug                 String   @unique
+  name                 String
+  description          String
+  defaultSeverity      TicketSeverity @default(LOW)
+  aiEligible           Boolean  @default(true)
+  requiresApprovalRole RoleName?
+  formSchema           Json
+  slaResponseMinutes   Int      @default(60)
+  slaResolutionMinutes Int      @default(480)
+  createdAt            DateTime @default(now())
+
+  tickets              Ticket[]
+}
+
+model Ticket {
+  id                 String         @id @default(uuid())
+  ticketNumber       String         @unique
+  title              String
+  description        String
+  status             TicketStatus   @default(NEW)
+  severity           TicketSeverity @default(LOW)
+  sbuId              String
+  requesterId        String
+  assigneeId         String?
+  serviceCategoryId  String
+  customFormPayload  Json?
+  aiSummary          String?
+  aiSuggestedFix     String?
+  aiConfidence       Float?
+  escalationReason   String?
+  slaDueAt           DateTime
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  sbu                SBU             @relation(fields: [sbuId], references: [id])
+  requester          User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee           User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  serviceCategory    ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+  events             TicketEvent[]
+  comments           TicketComment[]
+  approvals          Approval[]
+  aiActionLogs       AIActionLog[]
+  notifications      Notification[]
+}
+
+model TicketEvent {
+  id          String        @id @default(uuid())
+  ticketId    String
+  actorId     String?
+  eventType   String
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus?
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+
+  ticket      Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model TicketComment {
+  id          String   @id @default(uuid())
+  ticketId    String
+  authorId    String
+  body        String
+  isInternal  Boolean  @default(false)
+  attachments Json?
+  createdAt   DateTime @default(now())
+
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [authorId], references: [id])
+}
+
+model Asset {
+  id                   String      @id @default(uuid())
+  assetTag             String      @unique
+  serialNumber         String      @unique
+  category             String
+  modelName            String
+  status               AssetStatus @default(AVAILABLE)
+  sbuId                String
+  assignedUserId       String?
+  handoverAckStatus    String      @default("ACKNOWLEDGED")
+  handoverNotes        String?
+  history              Json
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  sbu                  SBU         @relation(fields: [sbuId], references: [id])
+  assignedUser         User?       @relation(fields: [assignedUserId], references: [id])
+}
+
+model Approval {
+  id             String         @id @default(uuid())
+  ticketId       String
+  actionType     String
+  requiredRole   RoleName
+  status         ApprovalStatus @default(PENDING)
+  requestedById  String
+  approverId     String?
+  justification  String
+  decisionNotes  String?
+  decidedAt      DateTime?
+  createdAt      DateTime       @default(now())
+
+  ticket         Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  approver       User?          @relation("ApproverUser", fields: [approverId], references: [id])
+}
+
+model Notification {
+  id             String             @id @default(uuid())
+  ticketId       String?
+  recipientId    String
+  recipientEmail String
+  channel        String             @default("EMAIL_AND_IN_APP")
+  subject        String
+  body           String
+  status         NotificationStatus @default(QUEUED)
+  errorDetails   String?
+  readAt         DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime           @default(now())
+
+  ticket         Ticket?            @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  recipient      User               @relation(fields: [recipientId], references: [id])
+}
+
+model AIActionLog {
+  id                String   @id @default(uuid())
+  ticketId          String
+  provider          String
+  modelName         String
+  redactedPrompt    String
+  classification    String
+  recommendedSeverity TicketSeverity
+  confidence        Float
+  proposedTool      String?
+  policyDecision    String
+  dryRun            Boolean  @default(true)
+  toolOutput        Json?
+  escalatedToIT     Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actorEmail  String?
+  actorRole   String?
+  sbuId       String?
+  action      String
+  resource    String
+  resourceId  String?
+  ipAddress   String?
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  category    String
+  tags        String[]
+  content     String
+  isApproved  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

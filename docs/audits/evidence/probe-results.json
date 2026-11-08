@@ -1,0 +1,181 @@
+{
+  "environment": "isolated temporary fixtures; NODE_ENV=test, AUTH_MODE=dev_oidc, MAIL_PROVIDER=mock",
+  "observations": [
+    {
+      "id": "P01",
+      "secureOrFunctionalExpectation": "Unauthenticated ticket access rejected",
+      "observed": 401,
+      "conforms": true
+    },
+    {
+      "id": "P02",
+      "secureOrFunctionalExpectation": "Cross-SBU employee ticket identifier denied",
+      "observed": 403,
+      "conforms": true
+    },
+    {
+      "id": "P03 /api/approvals",
+      "secureOrFunctionalExpectation": "Customer cannot access privileged route",
+      "observed": 403,
+      "conforms": true
+    },
+    {
+      "id": "P03 /api/audit-logs",
+      "secureOrFunctionalExpectation": "Customer cannot access privileged route",
+      "observed": 403,
+      "conforms": true
+    },
+    {
+      "id": "P03 /api/connectors/ad/lookup",
+      "secureOrFunctionalExpectation": "Customer cannot access privileged route",
+      "observed": 403,
+      "conforms": true
+    },
+    {
+      "id": "F03",
+      "secureOrFunctionalExpectation": "Logout invalidates the presented bearer session",
+      "observed": {
+        "logout": 200,
+        "bearerAfterLogout": 200
+      },
+      "conforms": false
+    },
+    {
+      "id": "F04",
+      "secureOrFunctionalExpectation": "Approval decisions are one-time, require rationale, and reject replay",
+      "observed": {
+        "first": 200,
+        "replay": 200,
+        "finalStatus": "REJECTED",
+        "emptyRationaleAccepted": true
+      },
+      "conforms": false
+    },
+    {
+      "id": "F05",
+      "secureOrFunctionalExpectation": "Requester cannot bypass CTO review and close an escalated incident",
+      "observed": {
+        "status": 200,
+        "result": "CLOSED"
+      },
+      "conforms": false
+    },
+    {
+      "id": "F06",
+      "secureOrFunctionalExpectation": "Customer summary does not disclose global approval totals",
+      "observed": {
+        "accessibleTickets": 0,
+        "pendingApprovals": 1
+      },
+      "conforms": false
+    },
+    {
+      "id": "F07",
+      "secureOrFunctionalExpectation": "Audit and notification records redact secret-like transition notes",
+      "observed": {
+        "auditContainsCanary": true,
+        "notificationContainsCanary": true
+      },
+      "conforms": false
+    },
+    {
+      "id": "F08",
+      "secureOrFunctionalExpectation": "Mailpit delivery is not marked successful when only a failed TCP attempt occurs",
+      "observed": {
+        "reportedDelivered": true,
+        "health": "MAILPIT_READY"
+      },
+      "conforms": false
+    },
+    {
+      "id": "F01",
+      "secureOrFunctionalExpectation": "Independent store writers preserve both committed changes",
+      "observed": {
+        "writerOnePreserved": false,
+        "writerTwoPreserved": true
+      },
+      "conforms": false
+    },
+    {
+      "id": "P04",
+      "secureOrFunctionalExpectation": "Single-writer records survive store reconstruction",
+      "observed": true,
+      "conforms": true
+    },
+    {
+      "id": "P05",
+      "secureOrFunctionalExpectation": "API restart/reconstruction reloads ticket and audit data",
+      "observed": {
+        "sameTicketCount": true,
+        "hasAudit": true
+      },
+      "conforms": true
+    },
+    {
+      "id": "F09",
+      "secureOrFunctionalExpectation": "Transient notification failure is retried after recovery",
+      "observed": "FAILED",
+      "conforms": false
+    },
+    {
+      "id": "F10",
+      "secureOrFunctionalExpectation": "Critical classification cannot be suppressed by caller LOW severity",
+      "observed": {
+        "status": 201,
+        "recommended": "CRITICAL",
+        "persisted": "LOW"
+      },
+      "conforms": false
+    },
+    {
+      "id": "P06",
+      "secureOrFunctionalExpectation": "Local integrations are labeled mock/unknown",
+      "observed": {
+        "status": "MOCK MODE",
+        "oidc": "UNKNOWN"
+      },
+      "conforms": true
+    },
+    {
+      "id": "P07",
+      "secureOrFunctionalExpectation": "Approved-looking mock requests never execute real AD/mail writes",
+      "observed": {
+        "adExecuted": false,
+        "adStatus": "BLOCKED_PRODUCTION_DISABLED",
+        "mailProvisioned": false
+      },
+      "conforms": true
+    },
+    {
+      "id": "P09",
+      "secureOrFunctionalExpectation": "Assigned user can list and acknowledge an owned fixture asset",
+      "observed": {
+        "listed": true,
+        "ack": 200,
+        "status": "ACKNOWLEDGED"
+      },
+      "conforms": true
+    },
+    {
+      "id": "P10",
+      "secureOrFunctionalExpectation": "Unapproved knowledge is not returned by the KB API",
+      "observed": false,
+      "conforms": true
+    },
+    {
+      "id": "P11",
+      "secureOrFunctionalExpectation": "Internal ticket notes are excluded from requester detail",
+      "observed": false,
+      "conforms": true
+    },
+    {
+      "id": "P08",
+      "secureOrFunctionalExpectation": "Production rejects development login and tokens",
+      "observed": {
+        "login": 503,
+        "me": 401
+      },
+      "conforms": true
+    }
+  ]
+}

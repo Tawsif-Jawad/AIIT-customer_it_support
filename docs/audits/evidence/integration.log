@@ -1,0 +1,23 @@
+
+> it-support-system@1.0.0 test:integration
+> node --test tests/integration.test.ts
+
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (1.841375ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (1.720458ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (1.9165ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (0.390292ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (1.44375ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (2.85875ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (1.917584ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (0.299417ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (1.080292ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (16.95325ms)
+ℹ tests 9
+ℹ suites 1
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.770417

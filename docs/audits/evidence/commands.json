@@ -1,0 +1,74 @@
+[
+  {
+    "group": "dependencies",
+    "command": "npm ls --depth=0",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 1,
+    "seconds": 0.655,
+    "log": "docs/audits/evidence/dependencies.log"
+  },
+  {
+    "group": "dependency-audit",
+    "command": "npm audit --offline --ignore-scripts",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 1,
+    "seconds": 0.141,
+    "log": "docs/audits/evidence/dependency-audit.log"
+  },
+  {
+    "group": "lint",
+    "command": "npm run lint",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 0,
+    "seconds": 0.201,
+    "log": "docs/audits/evidence/lint.log"
+  },
+  {
+    "group": "typecheck",
+    "command": "npm exec --offline --no --package=typescript@5.7.2 -- tsc --noEmit",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 1,
+    "seconds": 0.188,
+    "log": "docs/audits/evidence/typecheck.log"
+  },
+  {
+    "group": "unit",
+    "command": "npm run test:unit",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 0,
+    "seconds": 0.206,
+    "log": "docs/audits/evidence/unit.log"
+  },
+  {
+    "group": "integration",
+    "command": "npm run test:integration",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 0,
+    "seconds": 0.223,
+    "log": "docs/audits/evidence/integration.log"
+  },
+  {
+    "group": "all-tests",
+    "command": "npm test",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 0,
+    "seconds": 0.269,
+    "log": "docs/audits/evidence/all-tests.log"
+  },
+  {
+    "group": "build",
+    "command": "npm run build",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 0,
+    "seconds": 0.171,
+    "log": "docs/audits/evidence/build.log"
+  },
+  {
+    "group": "e2e",
+    "command": "npm run test:e2e",
+    "environment": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm_config_offline=true npm_config_yes=false",
+    "exitCode": 1,
+    "seconds": 1.043,
+    "log": "docs/audits/evidence/e2e.log"
+  }
+]

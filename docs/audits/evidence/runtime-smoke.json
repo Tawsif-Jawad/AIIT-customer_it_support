@@ -1,0 +1,63 @@
+[
+  {
+    "url": "http://localhost:3000/",
+    "httpStatus": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "url": "http://localhost:3000/app",
+    "httpStatus": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "url": "http://127.0.0.1:4000/api/health",
+    "httpStatus": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Cache-Control": "no-store"
+    },
+    "health": {
+      "status": "MOCK MODE",
+      "components": {
+        "database": {
+          "status": "CONNECTED",
+          "mode": "local-json-development-store"
+        },
+        "redisQueue": {
+          "status": "MOCK MODE",
+          "details": "Local notification queue only. Redis connectivity and worker heartbeat are not verified."
+        },
+        "keycloakOidc": {
+          "status": "UNKNOWN",
+          "note": "Live Keycloak connectivity and federation are not verified; development tokens are locally issued.",
+          "issuer": "http://localhost:8080/realms/upstra-enterprise",
+          "mode": "dev_oidc"
+        },
+        "activeDirectory": {
+          "status": "MOCK_READY",
+          "details": "Milestone 1 Mock AD Adapter active. Real on-prem AD LDAPS connections and write operations are disabled by security policy."
+        },
+        "emailSystem": {
+          "status": "MOCK_READY",
+          "details": "Development email transport (in-memory-dev-mail-transport) ready. Real external/corporate SMTP delivery is disabled until server parameters are verified."
+        },
+        "aiOrchestrator": {
+          "status": "MOCK MODE",
+          "provider": "deterministic-mock-ai-provider",
+          "model": "policy-governed-mock-v1 (NON-LIVE SIMULATION)",
+          "note": "Deterministic policy-governed mock provider (not a live LLM)"
+        }
+      }
+    }
+  }
+]

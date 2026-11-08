@@ -1,0 +1,182 @@
+[
+  {
+    "id": "F01",
+    "severity": "HIGH",
+    "description": "JSON writers can overwrite committed data",
+    "evidence": "`store.ts:69\u201394` loads one snapshot and replaces the file; `worker/src/main.ts` creates another store. Probe F01 loses writer one while preserving writer two.",
+    "impact": "API/worker or multiple API processes can silently lose tickets, comments, notifications or audit records. Atomic rename prevents a partial replacement, not lost updates.",
+    "recommendedAction": "Day 3: implement the approved transactional repository and concurrency control; until then document single-writer use.",
+    "verificationApproach": "Run a barrier-synchronized multi-process create/update test and require both commits, unique numbers and audit events to survive."
+  },
+  {
+    "id": "F02",
+    "severity": "HIGH",
+    "description": "Enterprise identity is absent; startup defaults to development",
+    "evidence": "`auth.ts:23\u201366`, `app.ts:279\u2013342`, package start scripts. Tokens are locally signed; no discovery/JWKS/code exchange. A development signing-key fallback exists. `.env` matches the example, but scripts do not load it automatically.",
+    "impact": "Copying a production-looking .env does not activate production safeguards. Explicit production/non-dev mode correctly rejects login, leaving enterprise login unavailable rather than bypassed.",
+    "recommendedAction": "Day 2 identity/session ADR; Day 4 implement approved Keycloak flow, explicit environment validation and production fail-closed startup. Do not deploy email-only dev login.",
+    "verificationApproach": "Real test-realm code/PKCE flow, issuer/audience/signature/expiry tests, missing-config startup rejection and dev-login rejection in every deployment mode."
+  },
+  {
+    "id": "F03",
+    "severity": "HIGH",
+    "description": "Logout does not revoke the bearer token",
+    "evidence": "`app.ts:345\u2013349` clears only a cookie; `auth.ts` issues an eight-hour token; `web/src/server.ts:368` also uses localStorage. Probe F03: logout 200, subsequent bearer /auth/me 200.",
+    "impact": "A copied token remains usable after sign-out until expiration or account deactivation. This is a development-session limitation, not a demonstrated external intrusion.",
+    "recommendedAction": "Day 2 choose server-side session/revocation/refresh design; Day 4 implement logout invalidation and cross-tab handling.",
+    "verificationApproach": "Replay both bearer and cookie sessions after logout, account disable and role changes; verify expected revocation policy."
+  },
+  {
+    "id": "F04",
+    "severity": "HIGH",
+    "description": "Approval decisions can be replayed and rationale is UI-only",
+    "evidence": "`app.ts:960\u20131023` has role checks but no PENDING-only compare-and-set, parameter hash or required rationale. Probe F04: APPROVED without notes then REJECTED both return 200.",
+    "impact": "Prior decisions and approver identity can be overwritten; the frontend justification control is bypassable. No real infrastructure execution currently follows these approvals.",
+    "recommendedAction": "Enforce server-side rationale and immutable, one-time versioned decisions; bind approval to exact validated action parameters before enabling execution.",
+    "verificationApproach": "Concurrent opposing decisions must yield one success; replay/empty rationale/changed parameters/self-approval rules need negative tests."
+  },
+  {
+    "id": "F05",
+    "severity": "HIGH",
+    "description": "Requester can close an incident already escalated to CTO",
+    "evidence": "`shared/src/index.ts:240\u2013307` allows ESCALATED_TO_CTO \u2192 CLOSED and owner targets include CLOSED. Probe F05: employee closes own escalated ticket, HTTP 200/CLOSED.",
+    "impact": "Direct API requests bypass the UI restriction and can remove an unresolved escalation from the active queue without CTO review.",
+    "recommendedAction": "Day 2 approve a transition permission matrix; Day 4 enforce actor, approval, resolution and requester-confirmation preconditions in backend policy.",
+    "verificationApproach": "Direct API tests for every role/state pair, including escalated and awaiting-approval closure."
+  },
+  {
+    "id": "F06",
+    "severity": "MEDIUM",
+    "description": "Customer analytics expose an unrelated approval count",
+    "evidence": "`app.ts:1091\u20131108` scopes tickets but counts all pending approvals. Probe F06: customer has zero tickets and receives a nonzero global approval total.",
+    "impact": "Leaks an operational aggregate across ownership boundaries; the probe did not expose other ticket contents.",
+    "recommendedAction": "Scope approval aggregates to the caller or omit privileged metrics for customers/employees.",
+    "verificationApproach": "Customer with no owned records sees zero/absent privileged aggregates; admins retain approved scope."
+  },
+  {
+    "id": "F07",
+    "severity": "HIGH",
+    "description": "Secret-like transition notes persist in audit and notifications",
+    "evidence": "`app.ts` stores transition notes in events, recordAudit details and notification body without calling the redactor. Probe F07 finds a synthetic canary in both audit details and notification body.",
+    "impact": "Sensitive text can spread into durable logs and future email delivery even though AI prompt redaction works. No real secret or external message was used in the probe.",
+    "recommendedAction": "Define permitted fields and redaction rules at each logging/notification boundary; restrict and minimize retained sensitive content.",
+    "verificationApproach": "Canary tests for notes, escalation reasons, custom fields, errors and outbound payloads; preserve useful non-sensitive context."
+  },
+  {
+    "id": "F08",
+    "severity": "MEDIUM",
+    "description": "Mailpit mode reports delivery without SMTP delivery",
+    "evidence": "`connectors/src/index.ts:203\u2013253` records success and swallows errors; the helper merely connects and closes a TCP socket. Probe F08 against loopback port 1 reports delivered=true and MAILPIT_READY.",
+    "impact": "SENT/ready is unreliable in Mailpit mode. In-memory mock delivery is a simulation and must not be confused with actual delivery.",
+    "recommendedAction": "Implement a verified local SMTP transport and truthful failure/health semantics; keep corporate transport disabled.",
+    "verificationApproach": "An isolated fake SMTP server must receive a full message; connection, TLS and SMTP rejection must not produce SENT."
+  },
+  {
+    "id": "F09",
+    "severity": "MEDIUM",
+    "description": "Failed notifications are never selected for retry",
+    "evidence": "`queue.ts:92\u2013122` selects only QUEUED, changes failures to FAILED, and contains no retry/backoff/reclaim mechanism. Probe F09 stays FAILED after transport recovery and another processing cycle.",
+    "impact": "Transient errors can permanently suppress updates; the separate worker also has a stale snapshot.",
+    "recommendedAction": "Day 3/5 durable retry policy, attempt limits, idempotency, claim/recovery and worker liveness.",
+    "verificationApproach": "Recover a transient failure, crash mid-job, and start two workers; prove retry and no duplicate delivery."
+  },
+  {
+    "id": "F10",
+    "severity": "MEDIUM",
+    "description": "Caller priority can suppress critical classification",
+    "evidence": "`app.ts` only applies recommended severity when input severity is absent. Probe F10 recommends CRITICAL but persists caller LOW for a synthetic production outage.",
+    "impact": "Critical issues can be under-prioritized. The probe still routed the request to IT; it did not authorize automation.",
+    "recommendedAction": "Approve deterministic severity floors and escalation rules; enforce them after classification.",
+    "verificationApproach": "Explicit LOW plus critical/security symptoms must retain the approved severity floor and escalation behavior."
+  },
+  {
+    "id": "F11",
+    "severity": "HIGH",
+    "description": "Full SBU/customer isolation model is incomplete",
+    "evidence": "`User` has one sbuId; no customer organization/membership model exists. `canAccessTicket` gives IT_ADMIN/CTO global access; KB retrieval filters approval only; Role.permissions is returned but not used as the general authorization mechanism.",
+    "impact": "Ticket ownership + SBU restrictions work for current employees/customers, but organization isolation, scoped IT administration and KB visibility cannot meet expanded requirements. Global IT access matches the current SRS and is not reported as an exploit by itself.",
+    "recommendedAction": "Day 2 reconcile the approved permission matrix and customer boundaries; Day 3 model them; Day 4 enforce consistently.",
+    "verificationApproach": "Fixtures for two organizations in one SBU, multi-membership, assigned support SBUs and private KB articles; test list/detail/aggregate/action endpoints."
+  },
+  {
+    "id": "F12",
+    "severity": "MEDIUM",
+    "description": "Mock diagnostic wording implies a real verification",
+    "evidence": "`connectors/src/index.ts:315,597` returns hardcoded reachable/healthy gateway data and says gateway health was verified. All classification/confidence values are deterministic; no LLM or real network diagnostic exists.",
+    "impact": "Mock labels reduce risk, but users can still interpret a simulated recommendation as an actual measurement.",
+    "recommendedAction": "Make result-level simulation labels explicit; require measured evidence and post-action verification for future execution.",
+    "verificationApproach": "Assert mock results never claim a live check; provider evaluations must distinguish recommendation, execution and verified outcome."
+  },
+  {
+    "id": "F13",
+    "severity": "MEDIUM",
+    "description": "Health is a development summary, not readiness monitoring",
+    "evidence": "`store.ts:59` checks only a simulation flag; `app.ts:208\u2013239` lacks real DB/worker/JWKS probes and distinct readiness/liveness routes. Overall MOCK MODE is truthful.",
+    "impact": "A healthy-looking local store component does not prove durable I/O or dependency availability. No operational alerting/heartbeat is implemented.",
+    "recommendedAction": "Day 5 define readiness/liveness, bounded dependency checks, queue heartbeat and metrics without exposing secrets.",
+    "verificationApproach": "Fail actual temporary I/O and dependencies; require correct component and HTTP readiness states within deadlines."
+  },
+  {
+    "id": "F14",
+    "severity": "MEDIUM",
+    "description": "Local persistence and audit lack enterprise data protections",
+    "evidence": "Initial dataset file mode is 0644; JSON relationships/uniqueness are not enforced; audit entries are mutable arrays in the same file; no executed backup/restore or retention mechanism exists.",
+    "impact": "Other local accounts may read data under applicable directory permissions; audit tamper resistance and recovery are not established. Corrupt-data fail-closed behavior is already tested.",
+    "recommendedAction": "Day 3 data validation and least-privilege storage/backup controls; Day 5 restore exercise and audit retention/export design.",
+    "verificationApproach": "Verify permissions, relationship checks, tamper detection policy and an isolated restore with exact row/reference checks."
+  },
+  {
+    "id": "F15",
+    "severity": "HIGH",
+    "description": "Documented seed command resets existing storage without a guard",
+    "evidence": "`apps/api/src/prisma/seed.ts:9` calls resetAndSeed unconditionally; `store.ts:63` replaces state. README/DEPLOYMENT quick starts suggest running this command. It was deliberately not run today.",
+    "impact": "An operator can destroy existing local tickets and audit history when following startup instructions. Missing files also cause automatic demo seeding.",
+    "recommendedAction": "Require explicit development/disposable dataset consent and path validation; distinguish first initialization from reset and back up before any approved reset.",
+    "verificationApproach": "Production and existing non-disposable paths must reject reset; test initialization and explicit disposable reset separately."
+  },
+  {
+    "id": "F16",
+    "severity": "HIGH",
+    "description": "Dependency integrity and compiler/build baseline are missing",
+    "evidence": "No node_modules or lockfile. Declared pnpm 9.15.0 differs from installed 11.25.0. npm ls exits 1; audit needs a lockfile. lint/build only import modules and parse browser JS; worker import is not actually verified despite the printed package label.",
+    "impact": "A passing build label does not prove TypeScript, lint, dependencies, bundling or production runtime compatibility. Node >=20 in engines is not a tested support range here.",
+    "recommendedAction": "Day 2 reconcile runtime/package-manager policy; Day 5 install reviewed pinned dependencies, commit the chosen lockfile and establish real compiler/linter/build checks.",
+    "verificationApproach": "Frozen clean install, full TS/TSX compilation, actual lint and production artifact smoke tests on the approved Node version."
+  },
+  {
+    "id": "F17",
+    "severity": "HIGH",
+    "description": "PostgreSQL migration path cannot preserve current IDs as written",
+    "evidence": "SQL migration uses UUID keys; live seed/runtime IDs contain prefixes. Prisma String IDs lack explicit @db.Uuid while raw SQL uses UUID. No runtime Prisma client or migration ledger exists.",
+    "impact": "Direct import is unsafe and schema/migration parity is unproven. Native JSON includes denormalized fields not present in SQL.",
+    "recommendedAction": "Day 2 approve ID compatibility and target schema; Day 3 implement a non-destructive importer and migration rehearsal after backups. No migration today.",
+    "verificationApproach": "Import an isolated snapshot twice; compare IDs/mappings, row counts, references, timestamps and audit history; prove rollback."
+  },
+  {
+    "id": "F18",
+    "severity": "MEDIUM",
+    "description": "Deployment-facing HTTP/session hardening is incomplete",
+    "evidence": "API defaults CORS to wildcard, permits but does not validate X-CSRF-Token, and uses non-Secure SameSite=Lax cookies. Frontend has inline JS/no CSP; proxy always uses http.request even for an HTTPS target URL. Rate limit is process-local/per socket IP.",
+    "impact": "Local HTTP development explains some settings; these are production hardening gaps. SameSite=Lax mitigates some CSRF and no cross-site cookie exploit or XSS was demonstrated. Proxy targets need explicit protocol validation.",
+    "recommendedAction": "Approve same-origin BFF/cookie/CSRF/TLS/header/proxy-trust design on Day 2; implement and test before staging exposure.",
+    "verificationApproach": "Origin/CSRF negative tests, secure cookie/header assertions, local TLS proxy fixture, rate-limit behavior behind the approved reverse proxy."
+  },
+  {
+    "id": "F19",
+    "severity": "LOW",
+    "description": "Documentation mixes requirements, scaffolds and verified behavior",
+    "evidence": "SRS/SECURITY/AD/EMAIL/DEPLOYMENT/TEST_REPORT still contain claims of live OIDC, SMTP, transactional dual storage, immutable audit, resilient retries or old sandbox limitations. UI/recovery notes correct some but not all claims. No independent office IT task-list file was found.",
+    "impact": "Reviewers can mistake planned infrastructure and demo company structures for implemented/approved systems.",
+    "recommendedAction": "Day 2 reconcile SRS, architecture, identity/security ADRs and IT task sources; preserve business requirements and mark proposed vs approved decisions.",
+    "verificationApproach": "Every requirement must map to current code and executed evidence; distinguish declaration, simulation, test and production verification."
+  },
+  {
+    "id": "F20",
+    "severity": "HIGH",
+    "description": "Release engineering and staging have no implementation baseline",
+    "evidence": "No CI configuration, application Dockerfiles, staging environment definition, release tags or Git remote/commits in this checkout. Compose contains dependency services only and uses development Keycloak startup.",
+    "impact": "No reproducible release, validated staging or rollback/restore evidence supports the production-readiness target.",
+    "recommendedAction": "Day 5 implement CI and approved staging configuration after Days 2\u20134 gates. Initial source-control baseline requires review; do not create a misleading release now.",
+    "verificationApproach": "CI from clean checkout, isolated deployment/migrations/smoke tests, rollback and restore drills with recorded artifacts."
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "realm": "upstra-enterprise",
+  "enabled": true,
+  "displayName": "Upstra Enterprise IT Support OIDC",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "description": "External/Authorized Customer within SBU scope" },
+      { "name": "EMPLOYEE", "description": "Internal SBU Employee" },
+      { "name": "IT_ADMIN", "description": "IT Operations & Support Administrator" },
+      { "name": "CTO", "description": "Chief Technology Officer - Executive Escalation & Approvals" },
+      { "name": "SYSTEM_SERVICE", "description": "Non-interactive service identity" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "it-support-web",
+      "name": "IT Support Portal Web & API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"]
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "onprem-ad-ldaps-blueprint-disabled",
+        "providerId": "ldap",
+        "config": {
+          "enabled": ["false"],
+          "vendor": ["ad"],
+          "connectionUrl": ["ldaps://CONFIGURE_ONPREM_AD_DC_HOSTNAME:636"],
+          "startTls": ["false"],
+          "useTruststoreSpi": ["always"],
+          "editMode": ["READ_ONLY"],
+          "usersDn": ["OU=Users,DC=CONFIGURE_DOMAIN,DC=INTERNAL"],
+          "bindDn": ["CN=svc-keycloak-ldap-ro,OU=ServiceAccounts,DC=CONFIGURE_DOMAIN,DC=INTERNAL"]
+        }
+      }
+    ]
+  }
+}

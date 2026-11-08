@@ -1,0 +1,5 @@
+
+> it-support-system@1.0.0 lint
+> node scripts/verify-types.ts
+
+{"status":"PASSED","step":"MONOREPO_BUILD_AND_MODULE_VERIFICATION","verifiedPackages":["@it-support/shared","@it-support/connectors","@it-support/api","@it-support/worker","@it-support/web"],"timestamp":"2026-11-08T11:59:19.172Z"}

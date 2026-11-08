@@ -1,0 +1,54 @@
+it-support-system@1.0.0 /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+├── UNMET DEPENDENCY @it-support/api@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api
+├── UNMET DEPENDENCY @it-support/connectors@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/packages/connectors
+├── UNMET DEPENDENCY @it-support/shared@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/packages/shared
+├── UNMET DEPENDENCY @it-support/web@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/web
+├── UNMET DEPENDENCY @it-support/worker@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/worker
+├── UNMET DEPENDENCY @nestjs/common@10.4.15
+├── UNMET DEPENDENCY @nestjs/core@10.4.15
+├── UNMET DEPENDENCY @nestjs/swagger@8.0.7
+├── UNMET DEPENDENCY @playwright/test@1.49.1
+├── UNMET DEPENDENCY @prisma/client@6.1.0
+├── UNMET DEPENDENCY @types/node@22.10.2
+├── UNMET DEPENDENCY @types/react@19.0.2
+├── UNMET DEPENDENCY bullmq@5.34.3
+├── UNMET DEPENDENCY eslint@9.17.0
+├── UNMET DEPENDENCY ioredis@5.4.2
+├── UNMET DEPENDENCY next@15.1.3
+├── UNMET DEPENDENCY nodemailer@6.9.16
+├── UNMET DEPENDENCY openid-client@6.1.7
+├── UNMET DEPENDENCY prettier@3.4.2
+├── UNMET DEPENDENCY prisma@6.1.0
+├── UNMET DEPENDENCY react-dom@19.0.0
+├── UNMET DEPENDENCY react@19.0.0
+├── UNMET DEPENDENCY tailwindcss@3.4.17
+├── UNMET DEPENDENCY typescript@5.7.2
+└── UNMET DEPENDENCY zod@3.24.1
+
+npm error code ELSPROBLEMS
+npm error missing: @it-support/api@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api, required by it-support-system@1.0.0
+npm error missing: @it-support/connectors@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/packages/connectors, required by it-support-system@1.0.0
+npm error missing: @it-support/shared@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/packages/shared, required by it-support-system@1.0.0
+npm error missing: @it-support/web@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/web, required by it-support-system@1.0.0
+npm error missing: @it-support/worker@file:/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/worker, required by it-support-system@1.0.0
+npm error missing: @nestjs/common@10.4.15, required by it-support-system@1.0.0
+npm error missing: @nestjs/core@10.4.15, required by it-support-system@1.0.0
+npm error missing: @nestjs/swagger@8.0.7, required by it-support-system@1.0.0
+npm error missing: @playwright/test@1.49.1, required by it-support-system@1.0.0
+npm error missing: @prisma/client@6.1.0, required by it-support-system@1.0.0
+npm error missing: @types/node@22.10.2, required by it-support-system@1.0.0
+npm error missing: @types/react@19.0.2, required by it-support-system@1.0.0
+npm error missing: bullmq@5.34.3, required by it-support-system@1.0.0
+npm error missing: eslint@9.17.0, required by it-support-system@1.0.0
+npm error missing: ioredis@5.4.2, required by it-support-system@1.0.0
+npm error missing: next@15.1.3, required by it-support-system@1.0.0
+npm error missing: nodemailer@6.9.16, required by it-support-system@1.0.0
+npm error missing: openid-client@6.1.7, required by it-support-system@1.0.0
+npm error missing: prettier@3.4.2, required by it-support-system@1.0.0
+npm error missing: prisma@6.1.0, required by it-support-system@1.0.0
+npm error missing: react-dom@19.0.0, required by it-support-system@1.0.0
+npm error missing: react@19.0.0, required by it-support-system@1.0.0
+npm error missing: tailwindcss@3.4.17, required by it-support-system@1.0.0
+npm error missing: typescript@5.7.2, required by it-support-system@1.0.0
+npm error missing: zod@3.24.1, required by it-support-system@1.0.0
+npm error A complete log of this run can be found in: /Users/tawsifjawad/.npm/_logs/2026-11-08T11_59_18_415Z-debug-0.log
