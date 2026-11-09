@@ -292,7 +292,8 @@ export function validateStatusTransition(
     if (!isTicketOwner) {
       return { valid: false, reason: 'Employees/Customers may only transition their own tickets.' };
     }
-    const employeeAllowedTargets: TicketStatus[] = ['CLOSED', 'REOPENED', 'IN_PROGRESS'];
+    // Employees and customers can confirm or reject a resolution, not advance IT work.
+    const employeeAllowedTargets: TicketStatus[] = ['CLOSED', 'REOPENED'];
     if (!employeeAllowedTargets.includes(to)) {
       return {
         valid: false,
