@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {validateRecordSchemas} from './persistence-schema.ts';
 import type {
   AIActionLog,
   Approval,
@@ -131,6 +132,7 @@ export class EnterpriseDataStore {
 }
 
 export function validateDatabaseState(state: DatabaseState): void {
+  validateRecordSchemas(state);
   const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
   for (const name of collections) {
     if (!state || !Array.isArray(state[name])) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
@@ -140,23 +142,6 @@ export function validateDatabaseState(state: DatabaseState): void {
       ids.add(row.id);
     }
   }
-  const requiredText: Record<string, string[]> = {
-    sbus: ['code','name'], roles: ['name'], users: ['email','displayName','sbuId','roleId','roleName'],
-    serviceCategories: ['slug','name'], tickets: ['ticketNumber','title','description','status','severity','requesterId','sbuId','serviceCategoryId'],
-    ticketEvents: ['ticketId','eventType'], ticketComments: ['ticketId','authorId','body'], assets: ['assetTag','serialNumber','sbuId','status'],
-    approvals: ['ticketId','actionType','requiredRole','status','requestedById'], notifications: ['recipientId','recipientEmail','subject','body','status'],
-    aiActionLogs: ['ticketId','provider','classification','policyDecision'], auditLogs: ['action','resource'], knowledgeArticles: ['slug','title','content'],
-  };
-  for (const name of collections) for (const row of state[name]) {
-    for (const key of requiredText[name]) if (typeof (row as any)[key] !== 'string' || !(row as any)[key]) throw new Error('PERSISTENCE_INVALID: Missing required field in ' + name);
-    if (typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))) throw new Error('PERSISTENCE_INVALID: Invalid creation timestamp');
-  }
-  const statuses = ['NEW','TRIAGED','AI_HANDLING','RESOLVED_PENDING_CONFIRMATION','CLOSED','ASSIGNED_TO_IT','IN_PROGRESS','ESCALATED_TO_CTO','REOPENED','AWAITING_USER','AWAITING_APPROVAL','FAILED_RETRY'];
-  for (const t of state.tickets) if (!statuses.includes(t.status) || !['LOW','MEDIUM','HIGH','CRITICAL'].includes(t.severity)) throw new Error('PERSISTENCE_INVALID: Invalid ticket lifecycle');
-  for (const a of state.approvals) if (!['PENDING','APPROVED','REJECTED'].includes(a.status) || !['IT_ADMIN','CTO'].includes(a.requiredRole)) throw new Error('PERSISTENCE_INVALID: Invalid approval lifecycle');
-  for (const n of state.notifications) if (!['QUEUED','PROCESSING','SENT','FAILED'].includes(n.status)) throw new Error('PERSISTENCE_INVALID: Invalid notification lifecycle');
-  for (const u of state.users) if (typeof u.isActive !== 'boolean' || !['CUSTOMER','EMPLOYEE','IT_ADMIN','CTO','SYSTEM_SERVICE'].includes(u.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user');
-  if (state.authSessions !== undefined && (!Array.isArray(state.authSessions) || state.authSessions.some(s => !s || !/^[a-f0-9]{64}$/.test(s.id) || !Number.isFinite(s.expiresAt) || !state.users.some(u => u.id === s.userId)))) throw new Error('PERSISTENCE_INVALID: Invalid session');
   const has = (name: Exclude<keyof DatabaseState, 'authSessions'>, id: string) => state[name].some(row => row.id === id);
   for (const user of state.users) {
     if (!has('sbus', user.sbuId) || !has('roles', user.roleId) || !state.roles.some(r => r.id === user.roleId && r.name === user.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user scope/role');
@@ -168,6 +153,22 @@ export function validateDatabaseState(state: DatabaseState): void {
   }
   for (const name of ['ticketEvents','ticketComments','approvals','aiActionLogs','notifications'] as const)
     for (const row of state[name]) if (row.ticketId && !has('tickets', row.ticketId)) throw new Error('PERSISTENCE_INVALID: Broken ticket reference in ' + name);
+  if(new Set((state.authSessions || []).map(s=>s.id)).size!==(state.authSessions || []).length) throw new Error('PERSISTENCE_INVALID: Duplicate session ID');
+  const references: [keyof DatabaseState,string,keyof DatabaseState][] = [
+    ['tickets','assigneeId','users'],['ticketEvents','actorId','users'],['ticketComments','authorId','users'],
+    ['assets','sbuId','sbus'],['assets','assignedUserId','users'],['approvals','requestedById','users'],['approvals','approverId','users'],
+    ['notifications','recipientId','users'],['auditLogs','actorId','users'],['auditLogs','sbuId','sbus'],['authSessions','userId','users'],
+  ];
+  for(const [source,field,target] of references) for(const row of state[source] || []) {
+    const id=(row as unknown as Record<string,unknown>)[field];
+    if(id!==null&&id!==undefined&&!(state[target] || []).some(r=>r.id===id)) throw new Error('PERSISTENCE_INVALID: Orphaned '+source+'.'+field);
+  }
+  for(const [collection,field] of [['users','email'],['sbus','code'],['roles','name'],['serviceCategories','slug'],['assets','assetTag'],['assets','serialNumber'],['knowledgeArticles','slug']] as const) {
+    const values=state[collection].map(row=>String((row as unknown as Record<string,unknown>)[field]).toLowerCase());
+    if(new Set(values).size!==values.length) throw new Error('PERSISTENCE_INVALID: Duplicate '+collection+'.'+field);
+  }
+  for(const user of state.users) if(!state.sbus.some(s=>s.id===user.sbuId&&s.code===user.sbuCode)) throw new Error('PERSISTENCE_INVALID: Inconsistent SBU mapping');
+
 }
 
 export function createInitialSeedState(): DatabaseState {

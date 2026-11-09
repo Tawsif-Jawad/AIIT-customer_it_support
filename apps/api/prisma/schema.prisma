@@ -61,13 +61,13 @@ enum AssetStatus {
 }
 
 model SBU {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   code        String   @unique
   name        String
   description String?
   slaTier     String   @default("STANDARD")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   users       User[]
   tickets     Ticket[]
@@ -75,17 +75,17 @@ model SBU {
 }
 
 model Role {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   name        RoleName @unique
   description String
   permissions Json
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
   users       User[]
 }
 
 model User {
-  id             String   @id @default(uuid())
+  id             String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   email          String   @unique
   displayName    String
   oidcSubject    String?  @unique
@@ -93,11 +93,11 @@ model User {
   sbuId          String
   roleId         String
   isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
-  sbu            SBU      @relation(fields: [sbuId], references: [id])
-  role           Role     @relation(fields: [roleId], references: [id])
+  sbu            SBU      @relation(fields: [sbuId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  role           Role     @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   requestedTickets Ticket[] @relation("TicketRequester")
   assignedTickets  Ticket[] @relation("TicketAssignee")
   comments       TicketComment[]
@@ -105,10 +105,12 @@ model User {
   approvals      Approval[] @relation("ApproverUser")
   notifications  Notification[]
   auditLogs      AuditLog[]
+  sessions       AuthSession[]
+  requestedApprovals Approval[] @relation("ApprovalRequester")
 }
 
 model ServiceCategory {
-  id                   String   @id @default(uuid())
+  id                   String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   slug                 String   @unique
   name                 String
   description          String
@@ -118,13 +120,13 @@ model ServiceCategory {
   formSchema           Json
   slaResponseMinutes   Int      @default(60)
   slaResolutionMinutes Int      @default(480)
-  createdAt            DateTime @default(now())
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
 
   tickets              Ticket[]
 }
 
 model Ticket {
-  id                 String         @id @default(uuid())
+  id                 String         @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketNumber       String         @unique
   title              String
   description        String
@@ -139,16 +141,20 @@ model Ticket {
   aiSuggestedFix     String?
   aiConfidence       Float?
   escalationReason   String?
-  slaDueAt           DateTime
-  resolvedAt         DateTime?
-  closedAt           DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  slaDueAt           DateTime @db.Timestamptz(6)
+  resolvedAt         DateTime? @db.Timestamptz(6)
+  closedAt           DateTime? @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
 
-  sbu                SBU             @relation(fields: [sbuId], references: [id])
-  requester          User            @relation("TicketRequester", fields: [requesterId], references: [id])
-  assignee           User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
-  serviceCategory    ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+  sbu                SBU             @relation(fields: [sbuId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  requester          User            @relation("TicketRequester", fields: [requesterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignee           User?           @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  serviceCategory    ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  @@index([requesterId, createdAt])
+  @@index([sbuId, status, slaDueAt])
+  @@index([assigneeId, status])
+
   events             TicketEvent[]
   comments           TicketComment[]
   approvals          Approval[]
@@ -157,33 +163,36 @@ model Ticket {
 }
 
 model TicketEvent {
-  id          String        @id @default(uuid())
+  id          String        @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketId    String
   actorId     String?
+  actorName   String?
   eventType   String
   fromStatus  TicketStatus?
   toStatus    TicketStatus?
   metadata    Json?
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
 
-  ticket      Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket      Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model TicketComment {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketId    String
   authorId    String
+  authorName  String?
+  authorRole  RoleName?
   body        String
   isInternal  Boolean  @default(false)
   attachments Json?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
-  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author      User     @relation(fields: [authorId], references: [id])
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  author      User     @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Asset {
-  id                   String      @id @default(uuid())
+  id                   String      @id @default(dbgenerated("(uuid_generate_v4())::text"))
   assetTag             String      @unique
   serialNumber         String      @unique
   category             String
@@ -193,16 +202,16 @@ model Asset {
   assignedUserId       String?
   handoverAckStatus    String      @default("ACKNOWLEDGED")
   handoverNotes        String?
-  history              Json
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  history              Json @default("[]")
+  createdAt            DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
 
-  sbu                  SBU         @relation(fields: [sbuId], references: [id])
-  assignedUser         User?       @relation(fields: [assignedUserId], references: [id])
+  sbu                  SBU         @relation(fields: [sbuId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignedUser         User?       @relation(fields: [assignedUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Approval {
-  id             String         @id @default(uuid())
+  id             String         @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketId       String
   actionType     String
   requiredRole   RoleName
@@ -211,15 +220,18 @@ model Approval {
   approverId     String?
   justification  String
   decisionNotes  String?
-  decidedAt      DateTime?
-  createdAt      DateTime       @default(now())
+  decidedAt      DateTime? @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(6)
 
-  ticket         Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  approver       User?          @relation("ApproverUser", fields: [approverId], references: [id])
+  ticket         Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  approver       User?          @relation("ApproverUser", fields: [approverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  requester User @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: NoAction)
+  @@index([requiredRole, status])
+
 }
 
 model Notification {
-  id             String             @id @default(uuid())
+  id             String             @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketId       String?
   recipientId    String
   recipientEmail String
@@ -228,16 +240,16 @@ model Notification {
   body           String
   status         NotificationStatus @default(QUEUED)
   errorDetails   String?
-  readAt         DateTime?
-  sentAt         DateTime?
-  createdAt      DateTime           @default(now())
+  readAt         DateTime? @db.Timestamptz(6)
+  sentAt         DateTime? @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(6)
 
-  ticket         Ticket?            @relation(fields: [ticketId], references: [id], onDelete: SetNull)
-  recipient      User               @relation(fields: [recipientId], references: [id])
+  ticket         Ticket?            @relation(fields: [ticketId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  recipient      User               @relation(fields: [recipientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model AIActionLog {
-  id                String   @id @default(uuid())
+  id                String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   ticketId          String
   provider          String
   modelName         String
@@ -250,13 +262,13 @@ model AIActionLog {
   dryRun            Boolean  @default(true)
   toolOutput        Json?
   escalatedToIT     Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
-  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   actorId     String?
   actorEmail  String?
   actorRole   String?
@@ -266,19 +278,28 @@ model AuditLog {
   resourceId  String?
   ipAddress   String?
   details     Json?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
-  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 }
 
 model KnowledgeArticle {
-  id          String   @id @default(uuid())
+  id          String   @id @default(dbgenerated("(uuid_generate_v4())::text"))
   slug        String   @unique
   title       String
   category    String
-  tags        String[]
+  tags        String[] @default([])
   content     String
   isApproved  Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+}
+
+model AuthSession {
+  id String @id
+  userId String
+  expiresAt DateTime @db.Timestamptz(6)
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction)
+  @@index([userId])
+  @@index([expiresAt])
 }
