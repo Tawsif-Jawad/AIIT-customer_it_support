@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawn,execFileSync} from 'node:child_process';
 import {EnterpriseDataStore,createInitialSeedState,validateDatabaseState} from '../apps/api/src/store.ts';
+import {runVerification} from '../scripts/verify-local.ts';
 
 test('partial temporary write preserves original bytes and recovers memory',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-partial-'));const file=path.join(dir,'db.json');
@@ -54,4 +55,26 @@ test('backup restoration preserves all collection counts, references and exact s
   const restored=path.join(dir,'restored.json');fs.copyFileSync(backup,restored);
   assert.deepEqual(new EnterpriseDataStore(restored).getState(),new EnterpriseDataStore(file).getState());assert.equal(hash(file),hash(restored));
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('local verifier reports child startup failures and never overwrites existing evidence',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-verifier-fault-'));
+ const evidence=path.join(root,'results');const previous=process.env.PATH;
+ try {
+  // Fault fixture only: removing npm from PATH must cause a real nonzero result,
+  // not an always-green summary. This is not evidence of application checks.
+  process.env.PATH='';
+  const result=await runVerification(evidence);
+  assert.equal(result.exitCode,1);
+  const summary=JSON.parse(fs.readFileSync(path.join(evidence,'summary.json'),'utf8'));
+  assert.equal(summary.results.length,10);
+  assert.ok(summary.results.every((row:{exitCode:number})=>row.exitCode!==0));
+  assert.equal(summary.hostedCiPassed,false);assert.equal(summary.preservation.operationalUnchanged,true);
+  const original=fs.readFileSync(path.join(evidence,'summary.json'),'utf8');
+  await assert.rejects(runVerification(evidence),/EEXIST/);
+  assert.equal(fs.readFileSync(path.join(evidence,'summary.json'),'utf8'),original);
+ }finally{
+  if(previous===undefined)delete process.env.PATH;else process.env.PATH=previous;
+  fs.rmSync(root,{recursive:true,force:true});
+ }
 });

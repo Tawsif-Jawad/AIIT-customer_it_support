@@ -84,3 +84,7 @@ Development only: use the quick-selector on the login screen (`http://localhost:
 | `farhana.ahmed@upstra.local` | `CTO` | `SBU-CORP` | Review CTO Escalation Queue, approve critical changes, inspect Audit Logs |
 
 > **Important Security Note**: `tawsif.zawad@upstra.com` is used strictly as a seeded user identity record. No real emails are sent to this address, and no SMTP/AD server parameters are assumed.
+
+## No-cloud-cost verification fallback
+
+Run `node scripts/verify-local.ts` to execute all ten mandatory checks and save actual logs/exit codes in a temporary evidence directory. PostgreSQL binaries and Chromium prerequisites must be installed; missing prerequisites fail the run. This is local development verification, not hosted CI acceptance. See [no-cost recovery and CircleCI preparation](docs/ci/NO_COST_VERIFICATION.md) and the [prepared GitHub Support request](docs/ci/GITHUB_SUPPORT_REQUEST.md). CircleCI is not connected; existing GitHub checks/protection remain required.
