@@ -194,3 +194,19 @@ test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () 
   assert.equal(result.data.ticket.severity, 'HIGH');
   assert.equal(result.data.ticket.status, 'ASSIGNED_TO_IT');
 }));
+
+test('F05 API denies employee IT-controlled work while allowing IT to resume it', () => fixture(async file => {
+  const app = createApiServer(file);
+  const employee = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const it = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'kamal.hossain@upstra.local'}})).data.token;
+  const ticket = app.store.getState().tickets.find(t => t.requesterId === 'user-emp-tawsif')!;
+  ticket.status = 'REOPENED';
+  app.store.persist();
+  const url = `/api/tickets/${ticket.id}/transition`;
+  const denied = await app.inject({method:'POST',url,token:employee,body:{status:'IN_PROGRESS'}});
+  assert.equal(denied.status,403);
+  assert.equal(app.store.getState().tickets.find(t => t.id === ticket.id)!.status,'REOPENED');
+  const allowed = await app.inject({method:'POST',url,token:it,body:{status:'IN_PROGRESS'}});
+  assert.equal(allowed.status,200);
+  assert.equal(allowed.data.ticket.status,'IN_PROGRESS');
+}));
