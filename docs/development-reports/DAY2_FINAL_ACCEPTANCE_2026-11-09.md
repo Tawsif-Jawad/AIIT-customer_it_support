@@ -156,3 +156,12 @@ Next: owner resolves GitHub billing and reruns PR #2; then implement transaction
 ## Public repository CI revalidation — 9 November 2026
 
 The repository visibility has been confirmed **public** via the GitHub repository API after the earlier report was written. Prior `startup_failure` runs were created before this visibility change. Public visibility by itself is **not** evidence that the account-level workflow scheduling restriction is resolved. A fresh CI run must actually schedule and complete quality, tests, database, and browser jobs before marking hosted acceptance PASS.
+
+
+## Public-repository runner retest
+
+After repository visibility changed to public, a non-destructive documentation commit (`73bc0b6`) triggered GitHub Actions run [42598208806](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42598208806). This confirms the public repository can register and dispatch the existing four-job workflow.
+
+GitHub API reports the `quality`, `tests`, `database`, and `browser` jobs all **completed with conclusion failure**, but every job has `steps: []`; attempts to read each job log returned HTTP 404 `BlobNotFound`. No project commands, tests, or database migrations ran in those jobs. This is runner provisioning / pre-execution failure, not a test assertion failure and not an indication that public visibility fixed the earlier account restriction.
+
+The previous authenticated GitHub annotation explicitly cited account payments/spending limits. The current four-job run has the same no-step signature; confirm the actual annotation from the Actions run page before asserting the precise reason for this newer run. Account owner should check Billing & plans / Budgets and contact GitHub Support with the new run ID if necessary. Hosted CI remains BLOCKED and PR #2 must stay unmerged until actual required checks pass.
