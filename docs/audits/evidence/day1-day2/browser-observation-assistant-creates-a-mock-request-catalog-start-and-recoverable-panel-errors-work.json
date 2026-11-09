@@ -1,0 +1,15 @@
+{
+  "test": "assistant creates a mock request; catalog start and recoverable panel errors work",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "path": "/api/assets",
+      "status": 503
+    }
+  ]
+}

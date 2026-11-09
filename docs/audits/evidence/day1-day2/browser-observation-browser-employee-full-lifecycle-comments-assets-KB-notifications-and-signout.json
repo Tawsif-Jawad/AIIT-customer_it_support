@@ -1,0 +1,15 @@
+{
+  "test": "browser employee full lifecycle, comments, assets, KB, notifications and signout",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test
+
+[WebServer] (node:8088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 16 tests using 1 worker
+
+(node:8089) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:28:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (2.4s)
+  ✓   2 tests/e2e/audit.spec.ts:40:1 › browser customer creates and rejects mock resolution without IT privileges (761ms)
+  ✓   3 tests/e2e/audit.spec.ts:44:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (2.1s)
+  ✓   4 tests/e2e/audit.spec.ts:56:1 › AU08 logout failure remains signed in and shows retry feedback (630ms)
+  ✓   5 tests/e2e/audit.spec.ts:60:1 › assistant creates a mock request; catalog start and recoverable panel errors work (598ms)
+  ✓   6 tests/e2e/audit.spec.ts:65:39 › responsive landing/workspace, menu and keyboard at 320px (1.1s)
+  ✓   7 tests/e2e/audit.spec.ts:65:39 › responsive landing/workspace, menu and keyboard at 390px (1.1s)
+  ✓   8 tests/e2e/audit.spec.ts:65:39 › responsive landing/workspace, menu and keyboard at 768px (507ms)
+  ✓   9 tests/e2e/audit.spec.ts:65:39 › responsive landing/workspace, menu and keyboard at 1440px (487ms)
+  ✘  10 tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket (321ms)
+(node:8266) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 tests/e2e/audit.spec.ts:84:1 › ticket filters, pagination, keyboard activation and required form fields work (929ms)
+  ✓  12 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (584ms)
+  ✓  13 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (391ms)
+  ✓  14 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (402ms)
+  ✓  15 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (485ms)
+  ✓  16 tests/e2e/portal.spec.ts:44:1 › slow initial data cannot reset an early support-form navigation (315ms)
+
+
+  1) tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 1
+    Received:   1
+
+      72 |
+      73 | test('AU09 a delayed older detail response cannot replace the selected ticket',async({page})=>{
+    > 74 |  await signIn(page);await tab(page,'tickets');const rows=page.locator('[data-ticket-id]');expect(await rows.count()).toBeGreaterThan(1);
+         |                                                                                                                      ^
+      75 |  const first=await rows.nth(0).getAttribute('data-ticket-id');const second=await rows.nth(1).getAttribute('data-ticket-id');
+      76 |  let release!:()=>void;const gate=new Promise<void>(r=>{release=r;});
+      77 |  await page.route('**/api/tickets/'+first,async route=>{await gate;await route.continue();});
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:74:118
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket
+  15 passed (15.6s)
