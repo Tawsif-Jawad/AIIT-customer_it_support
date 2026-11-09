@@ -1,3 +1,5 @@
+> Closure revalidation2026-11-09: all ten commands pass again (72 native/17 browser). AU01–AU11 reviewed, no additional confirmed defect. PR3 created against remediation; both PRs unmerged. Hosted account lock, independent approval and business-identifier privacy classification remain open. See [current acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md) and [privacy review](security/DAY1_DAY2_PUBLIC_PRIVACY_REVIEW_2026-11-09.md). No future foundation was closed.
+
 # Current verification status — 2026-11-09
 
 Supersedes historical statuses below. Final local verification:72 native,17 browser,25 security subset,1 PostgreSQL fixture subset; all pass. Hosted CI remains BLOCKED. See [full audit](audits/DAY1_DAY2_FULL_FUNCTIONAL_AUDIT.md). Closed means the specific observed defect was verified resolved, not production completeness.
