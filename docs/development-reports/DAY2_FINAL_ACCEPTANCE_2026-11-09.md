@@ -2,6 +2,9 @@
 
 9 November 2026 · Asia/Dhaka · **Verdict: BLOCKED — hosted CI account restriction.**
 
+> Latest no-cost work: executable local fallback passes all ten commands (55 native tests and 5 Chromium tests). CircleCI is prepared but NOT CONFIGURED; GitHub remains account-locked. No payment, provider authorization or required-check change occurred. See the final no-cost section.
+
+
 > Latest recheck: public-repository run 42598208806 and fresh manual run 42599568751 both explicitly report an account billing lock. Four jobs registered, zero steps executed. All ten requested local commands passed again; see the final section and evidence/day2-ci-recheck/.
 
 ## Executive Summary
@@ -218,3 +221,57 @@ Gates A–D and all executed local portions of E remain PASS within the approved
 The account owner must resolve the **account billing lock** in [GitHub billing settings](https://github.com/settings/billing), or contact GitHub Support with runs 42598208806 and 42599568751 if billing is already corrected. Making the repository public alone did not unlock the account. After GitHub unlocks it, rerun the existing workflow on the current PR head and require all four jobs to execute real steps and pass. Then verify review/conversation/protection requirements before readiness/merge and post-merge validation.
 
 Final verdict remains **BLOCKED**. Day 3 is **GO only for isolated development**, and **NO-GO for accepted merge/deployment or corporate integration enablement** until the required gates pass. Only this report and verification evidence changed; no application/workflow modifications were made merely to trigger jobs.
+
+
+## Zero-cost recovery and verification — 9 November 2026
+
+### Verified eligibility and remaining account dependency
+
+Official [GitHub Actions billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions) confirms free standard hosted runners for public repositories. AIIT is public and uses standard ubuntu-24.04 runners. That eligibility does not unlock the account. Latest inspected run [42599910372](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42599910372) still has four failed jobs with no steps; each annotation explicitly says the account is locked due to a billing issue. [Structured annotations](evidence/day2-no-cost/hosted-lock.json).
+
+[GitHub's lock guidance](https://docs.github.com/en/billing/how-tos/troubleshooting/locked-account) documents failed authorization holds as one possible reason free-tier access can remain blocked and directs owners with no actionable billing issue to Support for review. Repository/job access does not establish whether this account has a failed hold, unpaid usage or another billing flag. No payment-method information was accessed or changed. Restoring free access without payment is a legitimate Support request, not a completed or guaranteed unlock. The [prepared request](../ci/GITHUB_SUPPORT_REQUEST.md) is ready for owner review at the [official portal](https://support.github.com/contact), and was not submitted. No authorized support-submission connector is available. No alternate account or unauthorized runner was used.
+
+### Repository implementation
+
+- Added executable `scripts/verify-local.ts`. It runs every required command using pinned pnpm 9.15.0, enforces Node 26.8.1 and required disposable PostgreSQL tests, records logs/actual exit codes/signals/counts, refuses existing evidence directories and exits nonzero on command failure or protected-file hash changes. It explicitly records that local results are not hosted CI. Default evidence is private temporary local storage; nothing is published to GitHub status APIs.
+- Added a fault regression to `tests/integrity.test.ts`, which is already included in the preserved GitHub workflow. Deliberately removing npm from PATH causes the verifier to return failure for all child-start errors; existing evidence cannot be overwritten. This synthetic fault test does not count as passing the real verification commands.
+- Added `.circleci/config.yml` as a prepared optional hosted alternative using a verified vendor Node 26.8.1 image/digest, distribution PostgreSQL tools, Chromium prerequisites and the same all-gates verifier. YAML and embedded bash syntax pass locally. There is no connected CircleCI project/account, CLI or local Docker execution; provider validation/execution/status reporting are NOT VERIFIED. No GitHub required checks were removed/replaced, and no paid service was activated.
+- During the first real verifier run, Chromium exposed a pre-existing initialization race: the login badge/navigation became usable before initial data finished loading, then a delayed dashboard switch hid the support form. The verifier correctly returned exit 1 with 3 passed/1 failed browser tests. Fixed the actual UI behavior by keeping workspace navigation hidden until initialization/default-tab setup completes. Added a delayed-response browser regression without weakening assertions. The original failure is retained as [initial-browser-failure.log](evidence/day2-no-cost/initial-browser-failure.log).
+- Added [no-cost setup/recovery documentation](../ci/NO_COST_VERIFICATION.md), pricing/permissions/eligibility limitations, exact owner actions and prepared Support text. Existing application architecture, mocks, credentials and operational dataset are preserved.
+
+### Current local results
+
+Command executed: `node scripts/verify-local.ts --output /tmp/aiit-no-cost-verification-accepted`. The script performed the following real commands through `npm exec --yes --package=pnpm@9.15.0 -- pnpm`:
+
+| Command | Exit | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| install --frozen-lockfile --ignore-scripts | 0 | — | — | — |
+| db:generate | 0 | — | — | — |
+| typecheck | 0 | — | — | — |
+| lint | 0 | — | — | — |
+| build | 0 | — | — | — |
+| test | 0 | **55** | 0 | 0 |
+| test:security | 0 | 25 | 0 | 0 |
+| test:db | 0 | 1 | 0 | 0 |
+| test:e2e | 0 | **5** | 0 | 0 |
+| audit --audit-level=moderate | 0 | — | — | — |
+
+Final verifier exit: **0**. Security/database counts overlap native totals; browser tests are separate. The new fifth Chromium case proves delayed initialization cannot reset early form navigation. The native count increased from 54 to 55 for the verifier fault/evidence-protection regression. [Final summary, exact commands/exits and preservation](evidence/day2-no-cost/summary.json); individual logs are in the same directory. No corporate infrastructure was contacted. Source `.env` and operational JSON hashes remain unchanged throughout both verifier runs, including the failed run. Audit success is a registry snapshot, not a permanent vulnerability guarantee.
+
+### Alternative provider: CircleCI Free, not yet configured
+
+Official [credits documentation](https://circleci.com/docs/guides/plans-pricing/credits/) describes a personal/non-open-source Free allowance of 30,000 monthly credits, 1 GB transfer and 2 GB-months storage, with up to 400,000 credits for eligible public Linux open-source builds. This repository has no license file, so expanded open-source eligibility is not assumed and no license was introduced. The project owner must confirm actual Free entitlement/limits and avoid paid plans, trials or automatic charges before activation.
+
+The existing repository can be connected through CircleCI's GitHub App, with appropriate status/check reporting and repository-scoped access. The vendor image tag/digest was verified through Docker Hub; Node/pnpm, PostgreSQL and Chromium commands are specified. No deployment secrets or corporate credentials are needed. Account creation, terms acceptance, GitHub App authorization, provider-side config validation and an actual hosted run remain owner/setup dependencies. No claim of an active integration or equivalent accepted merge gate is made. Existing GitHub branch protection remains strict and unchanged; CircleCI cannot silently replace quality/tests/database/browser checks. Full documentation and primary sources: [NO_COST_VERIFICATION.md](../ci/NO_COST_VERIFICATION.md).
+
+### Final status and next steps
+
+| Verification path | Status |
+|---|---|
+| All mandatory local checks | **PASS**, actual ten-command run |
+| CircleCI alternative | **NOT CONFIGURED**, repository preparation only |
+| GitHub-hosted required jobs | **BLOCKED**, verified account billing lock |
+| Operational/configuration preservation | **PASS**, content hashes unchanged |
+| Day 2 hosted/PR acceptance | **BLOCKED**, policy unchanged |
+
+The prepared fallback is useful for zero-cloud-cost development, but does not satisfy hosted acceptance. Account owner: review/send the Support request for no-payment restoration, or explicitly authorize a verified CircleCI Free project and formal equivalent-gate policy after successful execution. Do not change payment methods, disable GitHub protection or merge failing code. PR #2 remains draft/unmerged. Day 3 isolated development can proceed; production readiness and fully accepted Day 2 remain unclaimed.

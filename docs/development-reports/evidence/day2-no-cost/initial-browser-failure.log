@@ -1,0 +1,69 @@
+
+> it-support-system@1.0.0 test:e2e /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> npx playwright test
+
+[WebServer] (node:3226) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:3228) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (30.3s)
+(node:3295) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (820ms)
+  ✓  3 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (481ms)
+  ✓  4 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (533ms)
+
+
+  1) tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('#submit-ticket-btn')
+        - locator resolved to <button type="submit" class="btn-primary" id="submit-ticket-btn">Submit Ticket for AI Triage & Routing</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+        - element is not stable
+      - retrying click action
+        - waiting for element to be visible, enabled and stable
+        - element is not visible
+      - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not visible
+        - retrying click action
+          - waiting 100ms
+        56 × waiting for element to be visible, enabled and stable
+           - element is not visible
+         - retrying click action
+           - waiting 500ms
+        - waiting for element to be visible, enabled and stable
+
+
+      17 |     await page.fill('#ticket-title', 'Outlook STARTTLS setup prompt on macOS');
+      18 |     await page.fill('#ticket-description', 'Please provide steps to configure IMAP 993 and SMTP 587 STARTTLS.');
+    > 19 |     await page.click('#submit-ticket-btn');
+         |                ^
+      20 |
+      21 |     await page.click('button[data-tab="tickets"]');
+      22 |     await expect(page.getByTestId('detail-ticket-status')).toContainText('RESOLVED_PENDING_CONFIRMATION');
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/portal.spec.ts:19:16
+
+    Error Context: test-results/portal-Enterprise-IT-Suppo-51337--and-views-mock-AI-guidance/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/portal-Enterprise-IT-Suppo-51337--and-views-mock-AI-guidance/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/portal-Enterprise-IT-Suppo-51337--and-views-mock-AI-guidance/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance 
+  3 passed (34.8s)
+ ELIFECYCLE  Command failed with exit code 1.

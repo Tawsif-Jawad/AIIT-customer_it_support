@@ -1,0 +1,22 @@
+{
+  "circleCiYamlParse": "PASS",
+  "circleCiShellSyntax": "PASS",
+  "circleCiProviderSchemaValidation": "NOT EXECUTED: CLI/project unavailable",
+  "circleCiImageExecution": "NOT EXECUTED: Docker unavailable",
+  "circleCiHosted": "NOT CONFIGURED",
+  "githubHosted": "BLOCKED: account billing lock",
+  "supportRequestSubmitted": false,
+  "paymentOrBillingChanges": false,
+  "branchProtection": {
+    "requiredChecks": [
+      "quality",
+      "tests",
+      "database",
+      "browser"
+    ],
+    "strict": true,
+    "enforceAdmins": true,
+    "forcePushesAllowed": false,
+    "deletionAllowed": false
+  }
+}
