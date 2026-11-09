@@ -1,0 +1,35 @@
+Scope: all 6 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +282
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 282, reused 282, downloaded 0, added 266
+Progress: resolved 282, reused 282, downloaded 0, added 282, done
+
+dependencies:
++ @nestjs/common 12.4.1
++ @nestjs/core 12.4.1
++ @nestjs/swagger 12.1.1
++ @prisma/client 6.19.3
++ bullmq 5.81.5
++ ioredis 5.11.1
++ next 15.5.29
++ nodemailer 10.4.0
++ openid-client 6.8.9
++ react 19.3.1
++ react-dom 19.3.1
++ zod 4.6.7
+
+devDependencies:
++ @playwright/test 1.65.0
++ @types/node 26.6.6
++ @types/react 19.3.0
++ @typescript-eslint/eslint-plugin 8.72.1
++ @typescript-eslint/parser 8.72.1
++ eslint 9.39.5
++ prettier 3.4.2
++ prisma 6.19.3
++ tailwindcss 3.4.17
++ typescript 5.7.2
+
+Done in 2.2s

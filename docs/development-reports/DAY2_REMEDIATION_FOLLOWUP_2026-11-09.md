@@ -25,3 +25,7 @@ GitHub reports synthetic Actions runs with empty workflow name, path `BuildFaile
 5. Complete compiler/ESLint/Playwright and real PostgreSQL, Keycloak/AD, backup/restore and staging acceptance separately. The original Day 2 report identifies these unfulfilled prerequisites.
 
 Status: **candidate fixes committed to review branch; not yet accepted or production-ready**.
+
+## Final completion follow-up
+
+The four candidate regression cases have now executed successfully locally. Additional compilation, ESLint, dependency, browser, persistence-recovery and disposable PostgreSQL checks are implemented and evidenced in DAY2_FINAL_ACCEPTANCE_2026-11-09.md. The GitHub run-page annotation has now identified the precise pre-job failure: recent account payments failed or the spending limit must be increased. Repository Actions are enabled; zero hosted jobs ran. Keep PR #2 in draft until that external restriction is resolved and required checks run. Earlier “not executed” statements above describe the previous session only.

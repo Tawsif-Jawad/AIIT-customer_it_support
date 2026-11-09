@@ -48,3 +48,9 @@ Proposed: preserve IDs with text PK/FKs and explicit source mapping, atomic impo
 ### Correction to ADR-002 and ADR-003 historical claims
 
 ADR-002 records the PostgreSQL/Prisma target. Its earlier “transactional” local store and Docker dual-mode wording was inaccurate: Docker starts dependencies only, runtime database switching is absent. Day 2 implements local containment, not that target integration. ADR-003 constrains the current fixed simulated tool registry; it cannot guarantee safety for an arbitrary future LLM adapter without reviewed execution-policy enforcement and adversarial tests.
+
+## ADR-008: Final Day 2 toolchain and database compatibility
+
+Implemented under the explicit final-completion request: retain Node 26.8.1 native application, pnpm 9.15.0 and a checked-in lockfile; run actual TypeScript/ESLint plus native smoke build. Previously unused framework/integration declarations remain scaffolds, updated to registry-verified releases to remove known advisories; no Next/Nest application replacement occurred. Targeted transitive overrides remediate PostCSS, Prisma config deepmerge-ts and TypeScript-ESLint minimatch advisories; compiler/lint/Prisma/migration tests execute against those resolutions. Ignored installation scripts are followed by explicit Prisma generation and Playwright browser installation.
+
+Implement text-ID compatibility as an additive transactional migration after the preserved UUID baseline; maintain existing UUID values and prefixed JSON IDs without remapping links. Disposable import/reimport, populated UUID upgrade, rollback, schema parity and backup/restore are tested. This resolves ADR-007's development compatibility decision; operational cutover and expanded organization policy remain unapproved. GitHub hosted CI acceptance is blocked by its explicit account-payment/spending-limit diagnostic, not by a passing-job claim.

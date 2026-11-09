@@ -16,7 +16,7 @@ The current local application runs a TypeScript Node HTTP frontend/proxy and API
 
 Recovery fixed a generated browser-script syntax error that prevented login, dashboard rendering, and health initialization. Requests now have deadlines and health identifies mock or unverified dependencies. Development identity enumeration, email-only login, and development token verification are disabled in production or non-development authentication modes. Live OIDC is not yet implemented.
 
-See [implementation status](docs/IMPLEMENTATION_STATUS.md) for evidence and release blockers. `npm run build` checks module imports and generated browser-script syntax; it is not a TypeScript compiler or production bundle.
+See [implementation status](docs/IMPLEMENTATION_STATUS.md) for evidence and release blockers. `npm run build` now runs real TypeScript checking followed by native module/browser-script smoke verification. It produces no framework bundle because the executing application uses native Node TypeScript. `npm run lint` now runs ESLint.
 
 ## Repository Structure
 ```text
@@ -40,16 +40,25 @@ See [implementation status](docs/IMPLEMENTATION_STATUS.md) for evidence and rele
 ## Quick Start Commands
 
 ### 1. Local runtime
-Use Node 26.8.1 (`.node-version`). The running native modules require no installed third-party packages. The declared pnpm toolchain and dependency lockfile still need reconciliation before a production build.
+Use Node 26.8.1 (`.node-version`) and pnpm 9.15.0 (`packageManager`). The runtime now uses Zod for full persisted-record validation. Install the locked toolchain before starting:
 
 ```bash
-npm test
-npm run build
+npm exec --yes --package=pnpm@9.15.0 -- pnpm install --frozen-lockfile --ignore-scripts
+npm exec --yes --package=pnpm@9.15.0 -- pnpm db:generate
+npm exec --yes --package=pnpm@9.15.0 -- pnpm typecheck
+npm exec --yes --package=pnpm@9.15.0 -- pnpm lint
+npm exec --yes --package=pnpm@9.15.0 -- pnpm test
+npm exec --yes --package=pnpm@9.15.0 -- pnpm build
+# Chromium E2E uses disposable loopback servers and data:
+npm exec --yes --package=pnpm@9.15.0 -- pnpm exec playwright install chromium
+npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e
 # Explicit local demo opt-in; .env is not loaded automatically.
 NODE_ENV=development AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm run start:api
 # In another terminal:
 npm run start:web
 ```
+
+Database tests create and remove a synthetic local PostgreSQL cluster when initdb/pg_ctl/psql/pg_dump are available; they never use an external DATABASE_URL. Set DB_REQUIRED=true and PG_BINDIR to require the database gate. Current import/migration verification does not switch runtime storage.
 
 A missing local JSON file initializes demo fixtures. Existing files are never reset: `db:seed` now refuses destructive reset. Do not start the standalone worker in JSON mode; notifications run within the API transaction. Development sign-in requires both explicit environment settings above. Enterprise authentication remains unavailable and fails closed.
 
