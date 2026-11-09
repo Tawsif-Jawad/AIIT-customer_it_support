@@ -39,29 +39,22 @@ See [implementation status](docs/IMPLEMENTATION_STATUS.md) for evidence and rele
 
 ## Quick Start Commands
 
-### 1. Prepare Environment & Seed Development Data
-```bash
-cp .env.example .env
-npm run db:seed
-```
+### 1. Local runtime
+Use Node 26.8.1 (`.node-version`). The running native modules require no installed third-party packages. The declared pnpm toolchain and dependency lockfile still need reconciliation before a production build.
 
-### 2. Run Verification & Acceptance Tests
 ```bash
-npm run build
 npm test
-```
-
-### 3. Start the Application Locally
-```bash
-# Terminal 1: Start Backend REST API (http://127.0.0.1:4000)
-npm run start:api
-
-# Terminal 2: Start Background Notification Worker
-npm run start:worker
-
-# Terminal 3: Start Enterprise Web Portal (http://127.0.0.1:3000)
+npm run build
+# Explicit local demo opt-in; .env is not loaded automatically.
+NODE_ENV=development AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm run start:api
+# In another terminal:
 npm run start:web
 ```
+
+A missing local JSON file initializes demo fixtures. Existing files are never reset: `db:seed` now refuses destructive reset. Do not start the standalone worker in JSON mode; notifications run within the API transaction. Development sign-in requires both explicit environment settings above. Enterprise authentication remains unavailable and fails closed.
+
+See [Day 2 report](docs/development-reports/DAY2_REPORT_2026-11-09.md) and [persistence recovery](docs/architecture/PERSISTENCE_RECOVERY.md). Never remove a writer lease while a process may still be using the dataset.
+
 *(Optional)* If Docker is installed on your machine, start PostgreSQL, Redis, Keycloak, and Mailpit via:
 ```bash
 docker compose -f infra/docker-compose.yml up -d

@@ -20,3 +20,31 @@
 - **Context**: `tawsif.zawad@upstra.com` is a known user email address, not a verified server configuration, and the self-hosted mail server platform is not yet specified.
 - **Decision**: Split email integration into `EmailTransportAdapter` (for ticket notifications via mock/Mailpit/configurable SMTP) and `MailboxProvisioningAdapter` (kept disabled until the actual mail platform API is approved).
 - **Consequences**: Prevents unsafe assumptions or accidental external email transmission during Milestone 1 while supporting end-to-end notification queueing and testing.
+
+## ADR-005: Day 2 JSON containment (implemented interim decision)
+
+Problem: F01 proves independent snapshots overwrite committed data. Atomic rename alone and in-process mutexes cannot protect API/worker processes.
+
+Alternatives: immediately switch to PostgreSQL (target but unavailable and schema incompatible); lifetime single-writer process ownership (would need lifecycle cleanup across existing embedding/tests); per-request local filesystem exclusive lease plus complete reload/atomic commit; elaborate expiring distributed lock (rejected).
+
+Selected interim: one request transaction owner in API, local serial queue, exclusive `open(wx)` lease across processes, reload at start, buffered response, one validated fsynced-temp/rename commit; direct persistence checks source bytes under the same lease. Standalone snapshot worker and non-mock mail are disabled. No automatic abandoned-lock stealing. See PERSISTENCE_RECOVERY.md.
+
+Consequences: prevents silent stale writes and enables whole-request rollback; sacrifices throughput and availability on contention/crash. Filesystem sharing/path aliases unsupported. Not a replacement for PostgreSQL; no power-loss/exactly-once claim. Authorized as reversible Day 2 containment, not enterprise architecture approval.
+
+## ADR-006: Identity/session and scope boundary (interim implemented + target proposal)
+
+Problem: default dev authentication and nonrevocable bearer tokens; ambiguous expanded SBU scope.
+
+Selected interim: explicit development opt-in, persisted hashed session allowlist, transactional logout, current active user role lookup, no interactive service identity. Preserve existing SRS cross-SBU IT/CTO grants; narrower support assignments remain an unapproved schema/policy refinement. Alternative of trusting token/body role or relying on cookie deletion rejected.
+
+Target proposal: existing Keycloak/AD LDAPS direction with PKCE, server sessions, group/SBU mapping and privilege refresh. Binding approvals to exact actions is required before real execution. No live connector implemented or approved by this ADR.
+
+## ADR-007: Database ID compatibility (proposed, awaiting review)
+
+Problem: existing SQL UUID keys cannot import prefixed source IDs; Prisma/raw SQL parity unverified.
+
+Proposed: preserve IDs with text PK/FKs and explicit source mapping, atomic import and checksums. Alternative UUID surrogate + durable legacy-ID map adds compatibility work. Existing initial SQL is retained unchanged pending a reviewed replacement sequence. See architecture/DATABASE_DESIGN.md. No migration executed.
+
+### Correction to ADR-002 and ADR-003 historical claims
+
+ADR-002 records the PostgreSQL/Prisma target. Its earlier “transactional” local store and Docker dual-mode wording was inaccurate: Docker starts dependencies only, runtime database switching is absent. Day 2 implements local containment, not that target integration. ADR-003 constrains the current fixed simulated tool registry; it cannot guarantee safety for an arbitrary future LLM adapter without reviewed execution-policy enforcement and adversarial tests.

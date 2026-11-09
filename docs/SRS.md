@@ -36,3 +36,25 @@ The Enterprise IT Support System provides a unified, multi-SBU service desk, ass
    - Tracks asset tag, serial number, SBU ownership, assigned employee, digital handover acknowledgment status, and custody history.
 7. **Notifications & Resilient Queue Processing**:
    - Queues and delivers email and in-app notifications via a provider abstraction (`DevelopmentEmailTransport` / Mailpit / SMTP) that fails safely without losing tickets.
+
+## Day 2 requirements and evidence (2026-11-09)
+
+The earlier milestone label describes historical scope, not production acceptance or external sign-off. Current runtime is native Node HTTP + local JSON + explicitly opted-in development sessions. Production OIDC, multi-SBU memberships, immutable audit and resilient real mail are requirements/scaffolds, not implemented capabilities. Seed organizational structures are demo data.
+
+| ID | Requirement and testable acceptance | Status / evidence |
+|---|---|---|
+| FR-D2-01 | Actor identity must be server verified; body role/SBU cannot grant privilege; missing dev opt-in denies login | Implemented; day2 test parallel requests/missing opt-in |
+| FR-D2-02 | Employee/customer may list/read only own tickets in own SBU | Implemented existing shared policy; integration test 4 and day2 object authorization |
+| FR-D2-03 | IT scope follows explicitly granted support assignments; current SRS grants global support | Existing global grant retained; narrower assignment model unresolved |
+| FR-D2-04 | Only CTO may change escalated case state; closure requires proposed resolution | Implemented; F05 and object authorization tests |
+| FR-D2-05 | AI failure enters IT queue; only authorized human escalation reaches CTO | Existing integration tests 5–7 pass; internal system triage narrowly bounded |
+| FR-D2-06 | Approval requires authorized role, pending state and rationale; replay cannot change decision | Implemented; F04 and opposing-decision tests |
+| FR-D2-07 | Approval must bind exact action parameters, expiry and segregation of duties before real privileged execution | Planned; actual AD/mail writes disabled |
+| FR-D2-08 | Logout invalidates current bearer/cookie session; disabled accounts lose access | Implemented server digest allowlist; F03/account tests; production IdP revocation remains planned |
+| FR-D2-09 | Record history/audit and notification intent with business changes; redact transition secrets | Implemented JSON request transaction and core redactor; failure/secret tests; immutable audit planned |
+| NFR-D2-01 | Concurrent processes never silently replace committed records with stale snapshots | Implemented exclusive lease + stale CAS; F01 and child-process test |
+| NFR-D2-02 | Failed pre-rename writes return failure, preserve source bytes and roll back memory | Implemented injected replacement-failure test; power-loss durability not proven |
+| NFR-D2-03 | Invalid source core schemas/references fail closed; never reseed over existing records | Implemented core validator and reset rejection; full field validation outstanding |
+| NFR-D2-04 | Recovery must preserve originals, validate backup and require quiesced writers | Runbook designed; synthetic restart tested; operational restore not executed |
+| NFR-D2-05 | Enterprise persistence supports atomic business/audit/outbox transactions and durable worker retry | PostgreSQL target; schema/migration proposal; no DB execution |
+| NFR-D2-06 | AD authentication uses verified LDAPS federation, least privilege and bounded revocation | Designed only; no live directory/IdP integration |

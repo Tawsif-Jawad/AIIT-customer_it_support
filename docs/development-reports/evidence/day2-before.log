@@ -1,0 +1,100 @@
+✖ F01 stale independent writer cannot overwrite a committed record (8.40825ms)
+✖ F14 invalid collections and duplicate IDs fail closed (1.246333ms)
+✖ F05 requester cannot close unresolved escalation or approval (0.283084ms)
+✖ F04 approvals require rationale and cannot be replayed (5.013542ms)
+✖ F03 logout invalidates bearer session (2.103083ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 150.159625
+
+✖ failing tests:
+
+test at tests/day2.test.ts:14:1
+✖ F01 stale independent writer cannot overwrite a committed record (8.40825ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:18:10
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:12:39
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /PERSISTENCE_CONFLICT/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/day2.test.ts:21:1
+✖ F14 invalid collections and duplicate IDs fail closed (1.246333ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:24:10
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:12:39
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /PERSISTENCE_INVALID/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/day2.test.ts:26:1
+✖ F05 requester cannot close unresolved escalation or approval (0.283084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:28:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/day2.test.ts:30:1
+✖ F04 approvals require rationale and cannot be replayed (5.013542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 400
+  
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:36:10
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/day2.test.ts:40:1
+✖ F03 logout invalidates bearer session (2.103083ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/day2.test.ts:45:10
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

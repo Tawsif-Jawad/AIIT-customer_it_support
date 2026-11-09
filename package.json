@@ -6,7 +6,7 @@
   "description": "Enterprise Multi-SBU AI-Powered IT Support Platform",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=26.8.1 <27"
   },
   "workspaces": [
     "apps/*",
@@ -20,9 +20,9 @@
     "start:worker": "node apps/worker/src/main.ts",
     "start:web": "node apps/web/src/server.ts",
     "db:seed": "node apps/api/src/prisma/seed.ts",
-    "test": "node --test tests/unit.test.ts tests/integration.test.ts tests/recovery.test.ts tests/ui.test.ts",
-    "test:unit": "node --test tests/unit.test.ts",
-    "test:integration": "node --test tests/integration.test.ts",
+    "test": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/*.test.ts",
+    "test:unit": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/unit.test.ts",
+    "test:integration": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/integration.test.ts",
     "test:e2e": "npx playwright test",
     "lint": "node scripts/verify-types.ts",
     "build": "node scripts/verify-types.ts"

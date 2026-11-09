@@ -23,6 +23,7 @@ import type {
 } from '../../../packages/shared/src/index.ts';
 
 export interface DatabaseState {
+  authSessions?: { id: string; userId: string; expiresAt: number }[];
   sbus: SBU[];
   roles: Role[];
   users: User[];
@@ -38,67 +39,135 @@ export interface DatabaseState {
   knowledgeArticles: KnowledgeArticle[];
 }
 
+/** Local JSON containment only: exclusive transaction lease + stale-snapshot rejection.
+ * A crashed writer leaves a lease; recovery requires operator inspection, never auto-stealing.
+ */
 export class EnterpriseDataStore {
   private state: DatabaseState;
   private readonly filePath: string;
+  private baseline = '';
+  private transactionActive = false;
   private simulateDatabaseOutage = false;
 
   constructor(customFilePath?: string) {
-    const dataDir = path.resolve(process.cwd(), '.data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    this.filePath = customFilePath || path.join(dataDir, 'enterprise-db.json');
-    this.state = this.loadOrSeed();
-  }
-
-  public setSimulateDatabaseOutage(outage: boolean) {
-    this.simulateDatabaseOutage = outage;
-  }
-
-  public isHealthy(): boolean {
-    return !this.simulateDatabaseOutage;
-  }
-
-  public resetAndSeed(): DatabaseState {
-    this.state = createInitialSeedState();
-    this.persist();
-    return this.state;
-  }
-
-  private loadOrSeed(): DatabaseState {
-    if (fs.existsSync(this.filePath)) {
+    this.filePath = path.resolve(customFilePath || path.join(process.cwd(), '.data', 'enterprise-db.json'));
+    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
+    if (!fs.existsSync(this.filePath)) {
+      const release = this.acquire();
       try {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
-        const parsed = JSON.parse(raw) as DatabaseState;
-        if (parsed && Array.isArray(parsed.sbus) && parsed.sbus.length > 0) {
-          return parsed;
-        }
-      } catch {
-        throw new Error('PERSISTENCE_CORRUPT: Existing data could not be loaded. Restore a verified backup; the file has not been overwritten.');
-      }
-      throw new Error('PERSISTENCE_INVALID: Existing data schema is invalid; the file has not been overwritten.');
+        if (!fs.existsSync(this.filePath)) this.replace(createInitialSeedState());
+      } finally { release(); }
     }
-    const seeded = createInitialSeedState();
-    fs.writeFileSync(this.filePath, JSON.stringify(seeded, null, 2), 'utf-8');
-    return seeded;
+    this.state = this.read();
   }
-
+  private acquire(): () => void {
+    const lock = this.filePath + '.lock';
+    let fd: number;
+    try { fd = fs.openSync(lock, 'wx', 0o600); }
+    catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('PERSISTENCE_BUSY: Another writer or an unrecovered writer lease exists.');
+      throw err;
+    }
+    try { fs.writeFileSync(fd, JSON.stringify({pid: process.pid, createdAt: new Date().toISOString()})); }
+    catch (err) { fs.closeSync(fd); fs.unlinkSync(lock); throw err; }
+    return () => { fs.closeSync(fd); fs.unlinkSync(lock); };
+  }
+  private read(): DatabaseState {
+    const raw = fs.readFileSync(this.filePath, 'utf8');
+    let state: DatabaseState;
+    try { state = JSON.parse(raw); }
+    catch { throw new Error('PERSISTENCE_CORRUPT: Restore a verified backup; existing file is untouched.'); }
+    validateDatabaseState(state);
+    this.baseline = raw;
+    return state;
+  }
+  private replace(state: DatabaseState) {
+    validateDatabaseState(state);
+    const raw = JSON.stringify(state, null, 2);
+    const temp = this.filePath + '.' + crypto.randomUUID() + '.tmp';
+    let fd: number | undefined;
+    try {
+      fd = fs.openSync(temp, 'wx', 0o600);
+      fs.writeFileSync(fd, raw); fs.fsyncSync(fd); fs.closeSync(fd); fd = undefined;
+      fs.renameSync(temp, this.filePath);
+      this.baseline = raw;
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd);
+      if (fs.existsSync(temp)) fs.unlinkSync(temp);
+    }
+  }
+  public setSimulateDatabaseOutage(outage: boolean) { this.simulateDatabaseOutage = outage; }
+  public isHealthy(): boolean { return !this.simulateDatabaseOutage; }
+  public resetAndSeed(): DatabaseState {
+    throw new Error('RESET_DISABLED: Existing datasets must never be reset by the seed command. Use a new disposable path.');
+  }
   public persist(): void {
-    if (this.simulateDatabaseOutage) {
-      throw new Error('DATABASE_UNAVAILABLE: Primary persistence store is currently unreachable.');
-    }
-    const tempFile = `${this.filePath}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(this.state, null, 2), 'utf-8');
-    fs.renameSync(tempFile, this.filePath);
+    if (this.simulateDatabaseOutage) throw new Error('DATABASE_UNAVAILABLE: Persistence unavailable.');
+    if (this.transactionActive) { validateDatabaseState(this.state); return; }
+    const release = this.acquire();
+    try {
+      validateDatabaseState(this.state);
+      if (fs.readFileSync(this.filePath, 'utf8') !== this.baseline) throw new Error('PERSISTENCE_CONFLICT: Stale snapshot; reload and retry the whole operation.');
+      this.replace(this.state);
+    } catch (err) { this.state = this.read(); throw err; }
+    finally { release(); }
   }
-
+  /** Caller must buffer success until this resolves. False discards every mutation. */
+  public async transaction(operation: () => Promise<boolean>): Promise<void> {
+    if (this.simulateDatabaseOutage) throw new Error('DATABASE_UNAVAILABLE: Persistence unavailable.');
+    const release = this.acquire();
+    try {
+      this.state = this.read();
+      this.transactionActive = true;
+      if (await operation()) this.replace(this.state);
+      else this.state = this.read();
+    } catch (err) { this.state = this.read(); throw err; }
+    finally { this.transactionActive = false; release(); }
+  }
   public getState(): DatabaseState {
-    if (this.simulateDatabaseOutage) {
-      throw new Error('DATABASE_UNAVAILABLE: Primary persistence store is currently unreachable.');
-    }
+    if (this.simulateDatabaseOutage) throw new Error('DATABASE_UNAVAILABLE: Persistence unavailable.');
     return this.state;
   }
+}
+
+export function validateDatabaseState(state: DatabaseState): void {
+  const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
+  for (const name of collections) {
+    if (!state || !Array.isArray(state[name])) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
+    const ids = new Set<string>();
+    for (const row of state[name]) {
+      if (!row || typeof row.id !== 'string' || !row.id || ids.has(row.id)) throw new Error('PERSISTENCE_INVALID: Invalid or duplicate ID in ' + name);
+      ids.add(row.id);
+    }
+  }
+  const requiredText: Record<string, string[]> = {
+    sbus: ['code','name'], roles: ['name'], users: ['email','displayName','sbuId','roleId','roleName'],
+    serviceCategories: ['slug','name'], tickets: ['ticketNumber','title','description','status','severity','requesterId','sbuId','serviceCategoryId'],
+    ticketEvents: ['ticketId','eventType'], ticketComments: ['ticketId','authorId','body'], assets: ['assetTag','serialNumber','sbuId','status'],
+    approvals: ['ticketId','actionType','requiredRole','status','requestedById'], notifications: ['recipientId','recipientEmail','subject','body','status'],
+    aiActionLogs: ['ticketId','provider','classification','policyDecision'], auditLogs: ['action','resource'], knowledgeArticles: ['slug','title','content'],
+  };
+  for (const name of collections) for (const row of state[name]) {
+    for (const key of requiredText[name]) if (typeof (row as any)[key] !== 'string' || !(row as any)[key]) throw new Error('PERSISTENCE_INVALID: Missing required field in ' + name);
+    if (typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))) throw new Error('PERSISTENCE_INVALID: Invalid creation timestamp');
+  }
+  const statuses = ['NEW','TRIAGED','AI_HANDLING','RESOLVED_PENDING_CONFIRMATION','CLOSED','ASSIGNED_TO_IT','IN_PROGRESS','ESCALATED_TO_CTO','REOPENED','AWAITING_USER','AWAITING_APPROVAL','FAILED_RETRY'];
+  for (const t of state.tickets) if (!statuses.includes(t.status) || !['LOW','MEDIUM','HIGH','CRITICAL'].includes(t.severity)) throw new Error('PERSISTENCE_INVALID: Invalid ticket lifecycle');
+  for (const a of state.approvals) if (!['PENDING','APPROVED','REJECTED'].includes(a.status) || !['IT_ADMIN','CTO'].includes(a.requiredRole)) throw new Error('PERSISTENCE_INVALID: Invalid approval lifecycle');
+  for (const n of state.notifications) if (!['QUEUED','PROCESSING','SENT','FAILED'].includes(n.status)) throw new Error('PERSISTENCE_INVALID: Invalid notification lifecycle');
+  for (const u of state.users) if (typeof u.isActive !== 'boolean' || !['CUSTOMER','EMPLOYEE','IT_ADMIN','CTO','SYSTEM_SERVICE'].includes(u.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user');
+  if (state.authSessions !== undefined && (!Array.isArray(state.authSessions) || state.authSessions.some(s => !s || !/^[a-f0-9]{64}$/.test(s.id) || !Number.isFinite(s.expiresAt) || !state.users.some(u => u.id === s.userId)))) throw new Error('PERSISTENCE_INVALID: Invalid session');
+  const has = (name: Exclude<keyof DatabaseState, 'authSessions'>, id: string) => state[name].some(row => row.id === id);
+  for (const user of state.users) {
+    if (!has('sbus', user.sbuId) || !has('roles', user.roleId) || !state.roles.some(r => r.id === user.roleId && r.name === user.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user scope/role');
+  }
+  const numbers = new Set<string>();
+  for (const ticket of state.tickets) {
+    if (!has('users', ticket.requesterId) || !has('sbus', ticket.sbuId) || !has('serviceCategories', ticket.serviceCategoryId) || typeof ticket.title !== 'string' || !ticket.title || numbers.has(ticket.ticketNumber)) throw new Error('PERSISTENCE_INVALID: Invalid ticket reference or number');
+    numbers.add(ticket.ticketNumber);
+  }
+  for (const name of ['ticketEvents','ticketComments','approvals','aiActionLogs','notifications'] as const)
+    for (const row of state[name]) if (row.ticketId && !has('tickets', row.ticketId)) throw new Error('PERSISTENCE_INVALID: Broken ticket reference in ' + name);
 }
 
 export function createInitialSeedState(): DatabaseState {

@@ -1,3 +1,5 @@
+> Day 2 status: only explicitly opted-in development HMAC sessions are implemented. Session digests persist server-side; logout revokes them. Production OIDC/LDAPS, CSRF/TLS, immutable audit, scoped support memberships and exact-action approvals remain unimplemented. See architecture/AUTHENTICATION_AUTHORIZATION.md and security/ROLE_PERMISSION_MATRIX.md. Historical production claims below are requirements, not verification.
+
 # Security, Governance & Privacy Controls
 **Project:** Enterprise Multi-SBU IT Support System
 

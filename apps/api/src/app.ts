@@ -26,7 +26,7 @@ import {
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
 import { EnterpriseDataStore } from './store.ts';
-import { issueOIDCToken, verifyOIDCToken } from './auth.ts';
+import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
 
 export interface AppInstance {
@@ -46,7 +46,15 @@ export interface AppInstance {
   queueProcessor: NotificationQueueProcessor;
 }
 
+function redactValue(value: unknown): any {
+  if (typeof value === 'string') return redactSensitiveData(value);
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, /password|passwd|secret|token|api[_-]?key/i.test(key) ? '[REDACTED_SECRET]' : redactValue(item)]));
+  return value;
+}
+
 export function createApiServer(customStorePath?: string): AppInstance {
+  if (process.env.MAIL_PROVIDER && process.env.MAIL_PROVIDER !== 'mock') throw new Error('JSON_MODE_REQUIRES_MOCK_MAIL: External delivery requires a transactional outbox.');
   const store = new EnterpriseDataStore(customStorePath);
   const aiOrchestrator = new DeterministicMockAIOrchestrator();
   const adAdapter = new MockActiveDirectoryAdapter();
@@ -64,7 +72,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
   function logStructured(level: 'INFO' | 'WARN' | 'ERROR', event: string, meta: Record<string, unknown> = {}) {
     // Ensure tokens/passwords never leak in logs
-    const safeMeta = JSON.parse(redactSensitiveData(JSON.stringify(meta)));
+    const safeMeta = redactValue(meta);
     if (process.env.NODE_ENV !== 'test') {
       console.log(
         JSON.stringify({
@@ -97,7 +105,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       resource: params.resource,
       resourceId: params.resourceId || null,
       ipAddress: params.ipAddress || '127.0.0.1',
-      details: params.details || {},
+      details: redactValue(params.details || {}),
       createdAt: new Date().toISOString(),
     });
     store.persist();
@@ -128,7 +136,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
     });
   }
 
-  async function readBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
+  async function consumeBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       let totalBytes = 0;
@@ -157,6 +165,9 @@ export function createApiServer(customStorePath?: string): AppInstance {
     });
   }
 
+  const bodies = new WeakMap<http.IncomingMessage, Promise<Record<string, unknown>>>();
+  function readBody(req: http.IncomingMessage) { return bodies.get(req) || consumeBody(req); }
+
   function extractAuthenticatedUser(req: http.IncomingMessage): User | null {
     let token: string | null = null;
     const authHeader = req.headers.authorization;
@@ -172,11 +183,13 @@ export function createApiServer(customStorePath?: string): AppInstance {
     if (!claims) return null;
 
     const state = store.getState();
-    const user = state.users.find((u) => u.id === claims.sub && u.isActive);
+    const sessionId = crypto.createHash('sha256').update(token).digest('hex');
+    if (!state.authSessions?.some(s => s.id === sessionId && s.userId === claims.sub && s.expiresAt > Date.now())) return null;
+    const user = state.users.find((u) => u.id === claims.sub && u.isActive && u.roleName !== 'SYSTEM_SERVICE');
     return user || null;
   }
 
-  const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+  const runRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const method = req.method || 'GET';
     const rawUrl = req.url || '/';
     const parsedUrl = new URL(rawUrl, `http://${req.headers?.host || 'localhost'}`);
@@ -277,7 +290,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       // 2. AUTHENTICATION & DEVELOPMENT OIDC IDENTITY ENDPOINTS
       // ======================================================================
       if (method === 'GET' && pathname === '/api/auth/identities') {
-        if (process.env.NODE_ENV === 'production' || (process.env.AUTH_MODE && process.env.AUTH_MODE !== 'dev_oidc')) {
+        if (!isDevelopmentAuthEnabled()) {
           sendError(res, 503, 'IDENTITY_PROVIDER_NOT_CONFIGURED', 'Development sign-in is disabled. Live OIDC integration must be configured before deployment.');
           return;
         }
@@ -297,7 +310,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       }
 
       if (method === 'POST' && pathname === '/api/auth/login') {
-        if (process.env.NODE_ENV === 'production' || (process.env.AUTH_MODE && process.env.AUTH_MODE !== 'dev_oidc')) {
+        if (!isDevelopmentAuthEnabled()) {
           sendError(res, 503, 'IDENTITY_PROVIDER_NOT_CONFIGURED', 'Development sign-in is disabled. Live OIDC integration must be configured before deployment.');
           return;
         }
@@ -308,7 +321,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           return;
         }
         const state = store.getState();
-        const user = state.users.find((u) => u.email.toLowerCase() === email && u.isActive);
+        const user = state.users.find((u) => u.email.toLowerCase() === email && u.isActive && u.roleName !== 'SYSTEM_SERVICE');
         if (!user) {
           recordAudit({
             actor: null,
@@ -322,6 +335,8 @@ export function createApiServer(customStorePath?: string): AppInstance {
         }
 
         const token = issueOIDCToken(user);
+        state.authSessions = (state.authSessions || []).filter(s => s.expiresAt > Date.now());
+        state.authSessions.push({id: crypto.createHash('sha256').update(token).digest('hex'), userId: user.id, expiresAt: Date.now() + 28800_000});
         recordAudit({
           actor: user,
           action: 'AUTH_LOGIN_SUCCESS',
@@ -343,6 +358,11 @@ export function createApiServer(customStorePath?: string): AppInstance {
       }
 
       if (method === 'POST' && pathname === '/api/auth/logout') {
+        const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7).trim() : decodeURIComponent(req.headers.cookie?.match(/(?:^|;\s*)itsupport_session=([^;]+)/)?.[1] || '');
+        const state = store.getState();
+        const id = crypto.createHash('sha256').update(token).digest('hex');
+        state.authSessions = (state.authSessions || []).filter(s => s.id !== id);
+        store.persist();
         res.setHeader('Set-Cookie', 'itsupport_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
         sendJson(res, 200, { loggedOut: true });
         return;
@@ -727,7 +747,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
         if (method === 'POST' && subAction === 'transition') {
           const body = await readBody(req);
           const targetStatus = body.status as TicketStatus;
-          const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
+          const notes = typeof body.notes === 'string' ? redactSensitiveData(body.notes.trim()) : '';
 
           if (!targetStatus) {
             sendError(res, 400, 'VALIDATION_ERROR', 'Target status is required.');
@@ -836,7 +856,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           }
 
           const body = await readBody(req);
-          const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+          const reason = typeof body.reason === 'string' ? redactSensitiveData(body.reason.trim()) : '';
           if (reason.length < 5) {
             sendError(res, 400, 'VALIDATION_ERROR', 'Escalation reason (min 5 chars) is mandatory.');
             return;
@@ -979,7 +999,13 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
         const body = await readBody(req);
         const decision = body.decision as 'APPROVED' | 'REJECTED';
-        const decisionNotes = typeof body.decisionNotes === 'string' ? body.decisionNotes.trim() : '';
+        const decisionNotes = typeof body.decisionNotes === 'string' ? redactSensitiveData(body.decisionNotes.trim()) : '';
+        if (approval.status !== 'PENDING') {
+          sendError(res, 409, 'APPROVAL_ALREADY_DECIDED', 'Approval decisions are immutable.'); return;
+        }
+        if (!decisionNotes) {
+          sendError(res, 400, 'VALIDATION_ERROR', 'Decision rationale is required.'); return;
+        }
 
         if (!['APPROVED', 'REJECTED'].includes(decision)) {
           sendError(res, 400, 'VALIDATION_ERROR', 'decision must be APPROVED or REJECTED');
@@ -1104,7 +1130,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           aiResolvedPendingConfirmation: visibleTickets.filter((t) => t.status === 'RESOLVED_PENDING_CONFIRMATION').length,
           assignedToIT: visibleTickets.filter((t) => t.status === 'ASSIGNED_TO_IT' || t.status === 'IN_PROGRESS').length,
           escalatedToCTO: visibleTickets.filter((t) => t.status === 'ESCALATED_TO_CTO').length,
-          pendingApprovals: state.approvals.filter((a) => a.status === 'PENDING').length,
+          pendingApprovals: state.approvals.filter((a) => a.status === 'PENDING' && visibleTickets.some(t => t.id === a.ticketId)).length,
           byStatus,
           bySbu,
         });
@@ -1145,6 +1171,37 @@ export function createApiServer(customStorePath?: string): AppInstance {
       logStructured('ERROR', 'UNHANDLED_API_ERROR', { error: String(err), path: pathname });
       sendError(res, 500, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred while processing the request.');
     }
+  };
+
+  // Attach body listeners before waiting for the local serial queue.
+  let tail: Promise<void> = Promise.resolve();
+  const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const body = consumeBody(req);
+    body.catch(() => {});
+    bodies.set(req, body);
+    const previous = tail;
+    let done!: () => void;
+    tail = new Promise<void>(resolve => { done = resolve; });
+    await previous;
+    let code = 200;
+    const headers: Record<string, string> = {};
+    let output = '';
+    const buffered = {
+      setHeader(k: string, v: string) { headers[k] = String(v); },
+      writeHead(c: number, h: Record<string, string> = {}) { code = c; Object.assign(headers, h); },
+      end(chunk = '') { output += chunk; },
+    } as unknown as http.ServerResponse;
+    try {
+      await store.transaction(async () => {
+        await runRequest(req, buffered);
+        // Denials may contain a security audit event; only server failures roll back.
+        return code < 500;
+      });
+      res.writeHead(code, headers); res.end(output);
+    } catch (err) {
+      sendError(res, /PERSISTENCE_BUSY|PERSISTENCE_CONFLICT/.test(String(err)) ? 409 : 503,
+        'PERSISTENCE_FAILURE', 'Operation was not committed. Retry after recovery or contention clears.');
+    } finally { bodies.delete(req); done(); }
   };
 
   const server = http.createServer(handleRequest);

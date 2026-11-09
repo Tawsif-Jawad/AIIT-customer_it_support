@@ -34,3 +34,24 @@ Cutomer_IT_Support_System/
    - The CTO reviews cross-SBU escalations and pending executive approvals.
 4. **Resilience & Graceful Degradation**:
    - If the AI provider, Redis broker, or SMTP server is unreachable, ticket creation and state transitions still succeed transactionally; notifications remain safely `QUEUED` for retry.
+
+## Day 2 authoritative runtime update (2026-11-09)
+
+Earlier descriptions of live Keycloak, resilient retry and production transactional persistence remain target requirements. Implemented runtime:
+
+```mermaid
+flowchart LR
+  Browser[HTML/CSS/JS; development bearer] --> Web[Node HTTP proxy]
+  Web --> API[API: verified session and current user]
+  API --> Policy[Shared ownership/SBU/state policy + route role guards]
+  Policy --> Tx[Serial request transaction; exclusive local lease]
+  Tx --> JSON[Validated JSON: tickets/history/audit/session/notifications]
+  API --> AI[Deterministic mock AI and fixed typed policy tools]
+  API --> Mock[Mock AD and mail only]
+  DB[PostgreSQL/Prisma target] -. not connected .-> API
+  IdP[Keycloak with AD LDAPS target] -. not connected .-> API
+```
+
+Request body listeners attach before serial queueing; transaction loads current storage, captures business mutation/history/audit/notification intent, buffers response then atomically replaces the file before sending success. Storage failures discard state and return failure. Standalone JSON worker exits without storage access. All requests contend on the same local filesystem lease; no multi-host or high-availability claim. Restart reload and injected write-failure tests pass; crash/power-loss durability is not certified.
+
+See architecture/PERSISTENCE_RECOVERY.md, architecture/DATABASE_DESIGN.md, architecture/AUTHENTICATION_AUTHORIZATION.md and security/ROLE_PERMISSION_MATRIX.md for implemented vs designed vs blocked boundaries. Integrations remain simulated; AD/mail privileged writes remain disabled. Existing Role.permissions is descriptive, not a universal permission evaluator. Real outbox/worker, scoped support memberships, CSRF/TLS/BFF, enterprise IdP and immutable audit remain release work.

@@ -1,0 +1,19 @@
+# Identity and authorization foundation
+
+## Implemented and tested
+
+Development authentication requires `NODE_ENV=development|test` AND `AUTH_MODE=dev_oidc`. All other combinations reject development issuance/verification and login/identity enumeration. Tokens remain explicitly local HMAC development simulations, with issuer/audience/signature/expiry checks; each issued token is unique. API access also requires its SHA-256 digest in the persisted session allowlist. Logout removes bearer/cookie token digest transactionally, surviving API reconstruction; current active user/role is resolved on each request. Historical tokens issued before this change are intentionally invalidated because no allowlist session exists. Tokens are never stored raw in the session collection. No remote session administration endpoint exists.
+
+Approval rationale and one-time decisions are enforced server-side. Ticket ownership and SBU scope use shared policy. See `../security/ROLE_PERMISSION_MATRIX.md`. No real OIDC authentication provider, directory credential verification or privilege executor has been implemented. Login by known email is acceptable only in explicitly opted-in local demo mode.
+
+## Production design — not implemented / not independently approved
+
+Retain the existing Keycloak OIDC direction, federated with on-premises AD through LDAPS, instead of exposing directory passwords to browsers or writing a new LDAP authentication server. The existing `ActiveDirectoryAdapter` and mock remain lookup/write boundaries, not proof of authentication. Authentication provider should resolve `{subject, issuer, sessionId, authenticatedAt, expiresAt}`; server-side mapping produces `{userId, roleIds, sbuMemberships, supportSbuAssignments, accountActive}`. Authorization evaluates actor, operation, resource, state and approval. Never derive role from request headers/body or unverified claims.
+
+Use authorization-code + PKCE, state/nonce validation and bounded issuer/JWKS discovery; validate signature/issuer/audience/time and map stable subject to internal user ID. Server stores session/refresh credentials, browser gets a Secure HttpOnly same-origin cookie, with CSRF token/origin validation on mutations. Define BFF cookie flow and remove localStorage bearer storage before staging. Expiry and logout invalidate server sessions; refresh rotation/reuse detection and IdP backchannel logout require integration tests. Administrative service identities use separately scoped credentials/audiences, never human impersonation.
+
+Directory requirements: verified DC hostname and route, LDAPS certificate chain and hostname checks with managed corporate CA; no certificate bypass or plain LDAP credentials. A read-only service account may read only necessary attributes/groups. Store secrets in a managed deployment secret facility, never in client HTML, logs or source. Map immutable AD object identity/Keycloak subject, approved security group IDs and approved SBU mapping tables; unknown or conflicting mappings deny access. No configuration is inferred from a mailbox address.
+
+Disabled accounts and removed groups must revoke sessions/privileges within an owner-approved maximum interval (not yet specified). Privileged requests require fresh account/group checks and bound, unexpired approvals; directory outages/timeout or uncertain entitlement deny privileged operations. Do not silently use indefinitely cached roles. Nonprivileged outage grace, if any, needs explicit policy. Audit identity, resource, decision, reason and execution result without passwords/tokens; prevent notification/audit secret propagation.
+
+Missing prerequisites: approved test realm, AD test directory connectivity/CA and minimal service account, group/SBU mappings, session revocation SLA, supported OIDC library/toolchain, cookie/CSRF/TLS deployment design. No corporate server was contacted. Real AD and mail write adapters stay disabled.

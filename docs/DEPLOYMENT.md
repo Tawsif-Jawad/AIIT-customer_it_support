@@ -1,3 +1,5 @@
+> Day 2 safety correction: do not run db:seed against existing data; it now refuses reset. Standalone worker is disabled in JSON mode. Use explicit NODE_ENV=development AUTH_MODE=dev_oidc MAIL_PROVIDER=mock for local API only. No production/staging deployment has been verified; instructions below are historical targets. See README and the Day 2 report.
+
 # Production Deployment & Operations Guide
 **Project:** Enterprise Multi-SBU AI-Powered IT Support System
 

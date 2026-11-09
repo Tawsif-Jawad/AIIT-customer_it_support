@@ -1,0 +1,21 @@
+name: Native runtime verification
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native-tests:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      AUTH_MODE: dev_oidc
+      MAIL_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.8.1'
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+# Runtime tests need no installed dependencies. Compiler, dependency audit and
+# Playwright jobs require a reviewed lockfile/toolchain before adding them here.
