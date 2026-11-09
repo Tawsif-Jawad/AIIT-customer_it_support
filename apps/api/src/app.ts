@@ -579,8 +579,12 @@ export function createApiServer(customStorePath?: string): AppInstance {
         };
         state.aiActionLogs.unshift(aiLog);
 
-        // Update ticket fields from AI evaluation
-        if (!validInput.severity) {
+        // A requester's chosen priority may raise severity, but cannot lower a
+        // critical/high severity determined by the policy-governed classifier.
+        const severityRank: Record<TicketSeverity, number> = {
+          LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3,
+        };
+        if (severityRank[aiDecision.recommendedSeverity] > severityRank[ticket.severity]) {
           ticket.severity = aiDecision.recommendedSeverity;
         }
         ticket.aiSummary = `Classification: ${aiDecision.classification} (${Math.round(aiDecision.confidence * 100)}% confidence) | Policy: ${aiDecision.policyDecision}`;
@@ -589,7 +593,8 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
         const itAdmin = state.users.find((u) => u.roleName === 'IT_ADMIN');
 
-        if (aiDecision.canAutoResolve && category.aiEligible) {
+        // High/critical requests always require human review, even when text resembles a low-risk FAQ.
+        if (aiDecision.canAutoResolve && category.aiEligible && severityRank[ticket.severity] < severityRank.HIGH) {
           // Transition AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION
           ticket.status = 'RESOLVED_PENDING_CONFIRMATION';
           ticket.resolvedAt = new Date().toISOString();
