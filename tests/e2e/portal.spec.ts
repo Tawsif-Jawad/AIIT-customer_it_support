@@ -40,3 +40,17 @@ for(const [email,label,privileged] of [
  expect(await page.evaluate(()=>localStorage.getItem('itsupport_token'))).toBeNull();
  expect(errors).toEqual([]);
 });
+
+test('slow initial data cannot reset an early support-form navigation',async({page})=>{
+ let release!:()=>void;
+ const gate=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/analytics/summary',async route=>{await gate;await route.continue();});
+ await page.goto('/app');await page.fill('#login-email-input','tawsif.zawad@upstra.com');await page.click('#login-submit-btn');
+ await expect(page.getByTestId('active-user-badge')).toContainText('Tawsif Zawad');
+ // Identity is known, but initial data is deliberately held. Navigation must
+ // remain unavailable until initialization can no longer switch the user's tab.
+ await expect(page.locator('#workspace-section')).toBeHidden();
+ release();await expect(page.locator('#workspace-section')).toBeVisible();
+ await page.click('button[data-tab="create"]');await page.fill('#ticket-title','Form survives initialization');
+ await expect(page.locator('#tab-create')).toBeVisible();await expect(page.locator('#ticket-title')).toHaveValue('Form survives initialization');
+});

@@ -482,8 +482,9 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
     async function renderAuthenticatedWorkspace() {
       document.getElementById('login-section').style.display = 'none';
-      document.getElementById('workspace-section').style.display = 'block';
-      document.body.classList.add('authenticated');
+      // Keep navigation hidden until initial data and the default tab are ready.
+      // Otherwise the final dashboard switch can discard a user's early form navigation.
+      document.getElementById('workspace-section').style.display = 'none';
       document.getElementById('workspace-greeting').textContent = currentUser.roleName === 'CTO' ? 'Clarity for the decisions that matter.' : currentUser.roleName === 'IT_ADMIN' ? 'Let’s keep work moving.' : 'How can AIIT help you today?';
       document.getElementById('workspace-context').textContent = currentUser.displayName + ' · ' + currentUser.roleName.replace('_', ' ') + ' · ' + currentUser.sbuCode; 
 
@@ -514,6 +515,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       await refreshAllData();
       if (typeof setupWorkspace === 'function') setupWorkspace();
       switchTab('dashboard');
+      document.getElementById('workspace-section').style.display = 'block';
+      document.body.classList.add('authenticated');
     }
 
     async function refreshAllData() {
