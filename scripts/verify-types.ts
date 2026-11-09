@@ -25,7 +25,7 @@ console.log(
     status: 'PASSED',
     step: 'MONOREPO_BUILD_AND_MODULE_VERIFICATION',
     verifiedPackages: ['@it-support/shared', '@it-support/connectors', '@it-support/api', '@it-support/web'],
-    limitations: 'Import and browser syntax smoke checks only; no tsc, ESLint, bundle or worker import. Standalone JSON worker disabled.',
+    limitations: 'This is the import/browser-syntax substep; package build runs tsc first. No framework bundle or production integration is claimed. Standalone JSON worker disabled.',
     timestamp: new Date().toISOString(),
   })
 );

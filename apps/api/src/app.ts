@@ -572,6 +572,16 @@ export function createApiServer(customStorePath?: string): AppInstance {
         });
 
         // Record AIActionLog
+        // Final severity policy also controls the returned decision and execution
+        // record, not only the ticket state. A low-risk suggestion cannot claim
+        // autonomous resolution when requester/classifier priority requires IT.
+        if ([ticket.severity, aiDecision.recommendedSeverity].some(s => s === 'HIGH' || s === 'CRITICAL')) {
+          aiDecision.canAutoResolve = false;
+          aiDecision.escalateToIT = true;
+          aiDecision.escalationReason ||= 'HIGH/CRITICAL severity requires human IT review.';
+          if (aiDecision.policyDecision === 'ALLOWED_LOW_RISK') aiDecision.policyDecision = 'ESCALATE_TO_IT';
+        }
+
         const aiLog = {
           id: `ailog-${crypto.randomUUID()}`,
           ticketId: ticket.id,
@@ -676,6 +686,8 @@ export function createApiServer(customStorePath?: string): AppInstance {
           details: {
             ticketNumber: ticket.ticketNumber,
             resultingStatus: ticket.status,
+            severity: ticket.severity,
+            classifierSeverity: aiDecision.recommendedSeverity,
             aiClassification: aiDecision.classification,
           },
         });

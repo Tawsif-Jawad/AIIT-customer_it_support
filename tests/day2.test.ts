@@ -191,6 +191,9 @@ test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () 
   }});
   assert.equal(result.status, 201);
   assert.equal(result.data.aiDecision.recommendedSeverity, 'LOW');
+  assert.equal(result.data.aiDecision.canAutoResolve, false);
+  assert.equal(app.store.getState().aiActionLogs.find(a=>a.ticketId===result.data.ticket.id)!.escalatedToIT,true);
+  assert.equal(app.store.getState().auditLogs.find(a=>a.resourceId===result.data.ticket.id&&a.action==='TICKET_CREATED')!.details.severity,'HIGH');
   assert.equal(result.data.ticket.severity, 'HIGH');
   assert.equal(result.data.ticket.status, 'ASSIGNED_TO_IT');
 }));
