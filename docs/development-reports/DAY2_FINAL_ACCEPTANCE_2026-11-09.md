@@ -151,3 +151,8 @@ PASS applies only to the explicit Day 2 development scope and current approved p
 **GO for continued isolated development**, using the validated toolchain/database foundation and preserved source. **NO-GO for merging as fully accepted Day 2, deployment or enabling corporate integrations** until hosted checks run successfully and the respective integration/cutover gates pass.
 
 Next: owner resolves GitHub billing and reruns PR #2; then implement transactional runtime repositories/outbox, lossless cutover controls and production identity sessions. No requirement is marked complete merely to meet the 10 December target.
+
+
+## Public repository CI revalidation — 9 November 2026
+
+The repository visibility has been confirmed **public** via the GitHub repository API after the earlier report was written. Prior `startup_failure` runs were created before this visibility change. Public visibility by itself is **not** evidence that the account-level workflow scheduling restriction is resolved. A fresh CI run must actually schedule and complete quality, tests, database, and browser jobs before marking hosted acceptance PASS.
