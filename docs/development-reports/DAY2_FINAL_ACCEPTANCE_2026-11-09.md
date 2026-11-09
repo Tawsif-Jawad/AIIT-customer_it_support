@@ -2,6 +2,8 @@
 
 9 November 2026 · Asia/Dhaka · **Verdict: BLOCKED — hosted CI account restriction.**
 
+> Latest recheck: public-repository run 42598208806 and fresh manual run 42599568751 both explicitly report an account billing lock. Four jobs registered, zero steps executed. All ten requested local commands passed again; see the final section and evidence/day2-ci-recheck/.
+
 ## Executive Summary
 
 All executable local Day 2 gates now pass: **54 native tests, 4 Chromium browser tests, real TypeScript compilation, ESLint, native build verification, a clean offline frozen dependency installation, advisory audit, and disposable PostgreSQL migration/import/recovery tests**. There are no skipped native or browser tests in the final local runs. The operational dataset and `.env` remain byte-for-byte unchanged.
@@ -165,3 +167,54 @@ After repository visibility changed to public, a non-destructive documentation c
 GitHub API reports the `quality`, `tests`, `database`, and `browser` jobs all **completed with conclusion failure**, but every job has `steps: []`; attempts to read each job log returned HTTP 404 `BlobNotFound`. No project commands, tests, or database migrations ran in those jobs. This is runner provisioning / pre-execution failure, not a test assertion failure and not an indication that public visibility fixed the earlier account restriction.
 
 The previous authenticated GitHub annotation explicitly cited account payments/spending limits. The current four-job run has the same no-step signature; confirm the actual annotation from the Actions run page before asserting the precise reason for this newer run. Account owner should check Billing & plans / Budgets and contact GitHub Support with the new run ID if necessary. Hosted CI remains BLOCKED and PR #2 must stay unmerged until actual required checks pass.
+
+
+## Latest independent runner investigation and complete local revalidation
+
+The remote remediation branch advanced to f1d193f after the prior session. Fetched and fast-forwarded the clean local checkout, preserving the two existing remote commits. No source, workflow, lockfile, test assertions, runner policy or branch protection was altered during this recheck. `gh` is unavailable locally; authenticated GitHub connectors and REST were used instead.
+
+### Confirmed root cause — not inferred from an earlier private run
+
+On the authenticated page for public-repository run [42598208806](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42598208806), every job annotation explicitly states: **The job was not started because your account is locked due to a billing issue.** This was independently read from the page; no billing information/settings were changed.
+
+A single fresh `workflow_dispatch` was accepted for `verify.yml` on `fix/day2-closure-severity-ci`, producing run [42599568751](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42599568751) at f1d193f581e726bea3a5bb894998f8129df99b73. Its check-run annotations independently confirm the same account lock through the REST API:
+
+| Job | Job ID | Conclusion | Executed steps | Exact annotation |
+|---|---:|---|---:|---|
+| database | 129100397969 | failure | 0 | The job was not started because your account is locked due to a billing issue. |
+| tests | 129100398210 | failure | 0 | The job was not started because your account is locked due to a billing issue. |
+| quality | 129100398358 | failure | 0 | The job was not started because your account is locked due to a billing issue. |
+| browser | 129100398382 | failure | 0 | The job was not started because your account is locked due to a billing issue. |
+
+These are registered jobs with pre-execution failure, not zero registered jobs and not failing project commands. The earlier missing job logs/BlobNotFound do not provide application failure evidence. Repository Actions remain enabled with all actions allowed. Both YAML files parse successfully with the installed js-yaml parser; expected triggers, four jobs, ubuntu-24.04 runner declarations and composite setup structure were checked. Actual GitHub registration independently validates that the workflow plan exists. No unsupported-runtime or code-level assertion failure was observed because runtime setup never started.
+
+No workflow fix is justified by these diagnostics. No alternate account/runner, no-op check, disabled test, payment change or protection bypass was used.
+
+### Re-executed local gates
+
+All commands below used the exact pinned launcher `npm exec --yes --package=pnpm@9.15.0 -- pnpm`, Node 26.8.1 and isolated resources. An explicit dummy loopback DATABASE_URL was supplied for generation; tests create their own PostgreSQL cluster and never use that URL as a live target. DB_REQUIRED=true prohibited skipping the database gate.
+
+| pnpm command | Exit | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| install --frozen-lockfile --ignore-scripts | 0 | — | — | — |
+| db:generate | 0 | — | — | — |
+| typecheck | 0 | — | — | — |
+| lint | 0 | — | — | — |
+| build | 0 | — | — | — |
+| test | 0 | 54 | 0 | 0 |
+| test:security | 0 | 25 | 0 | 0 |
+| test:db | 0 | 1 | 0 | 0 |
+| test:e2e | 0 | 4 | 0 | 0 |
+| audit --audit-level=moderate | 0 | — | — | — |
+
+Security/database component counts overlap the 54-test aggregate; browser tests are separate. The database gate again executed migrations, compatibility upgrade, import/reimport/conflict handling, transaction rollback, Prisma parity and dump/restore in disposable PostgreSQL 18.6. Chromium tests again exercised employee/customer/IT/CTO workflows. No production IdP/directory/mail or database was contacted. No coverage percentage is inferred.
+
+Exact commands/exits and logs are under [day2-ci-recheck](evidence/day2-ci-recheck/commands.json). [Hosted annotations](evidence/day2-ci-recheck/hosted-run.json) record all four explicit errors. [Preservation](evidence/day2-ci-recheck/preservation.json) confirms operational JSON and `.env` are unchanged during this recheck.
+
+### Current acceptance and owner action
+
+Gates A–D and all executed local portions of E remain PASS within the approved development scope. Gate E's successful hosted jobs and Gate F's passing PR checks remain **BLOCKED**. No in-scope source regression was found, but local success does not satisfy hosted acceptance. PR #2 remains draft and unmerged; no required reviews/checks are bypassed.
+
+The account owner must resolve the **account billing lock** in [GitHub billing settings](https://github.com/settings/billing), or contact GitHub Support with runs 42598208806 and 42599568751 if billing is already corrected. Making the repository public alone did not unlock the account. After GitHub unlocks it, rerun the existing workflow on the current PR head and require all four jobs to execute real steps and pass. Then verify review/conversation/protection requirements before readiness/merge and post-merge validation.
+
+Final verdict remains **BLOCKED**. Day 3 is **GO only for isolated development**, and **NO-GO for accepted merge/deployment or corporate integration enablement** until the required gates pass. Only this report and verification evidence changed; no application/workflow modifications were made merely to trigger jobs.

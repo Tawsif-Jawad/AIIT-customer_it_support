@@ -1,0 +1,81 @@
+[
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm install --frozen-lockfile --ignore-scripts",
+    "exit": 0,
+    "counts": {},
+    "log": "install.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm db:generate",
+    "exit": 0,
+    "counts": {},
+    "log": "db-generate.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm typecheck",
+    "exit": 0,
+    "counts": {},
+    "log": "typecheck.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm lint",
+    "exit": 0,
+    "counts": {},
+    "log": "lint.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm build",
+    "exit": 0,
+    "counts": {},
+    "log": "build.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test",
+    "exit": 0,
+    "counts": {
+      "tests": 54,
+      "pass": 54,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "test.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:security",
+    "exit": 0,
+    "counts": {
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "test-security.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:db",
+    "exit": 0,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "test-db.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e",
+    "exit": 0,
+    "counts": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "test-e2e.log"
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm audit --audit-level=moderate",
+    "exit": 0,
+    "counts": {},
+    "log": "audit.log"
+  }
+]
