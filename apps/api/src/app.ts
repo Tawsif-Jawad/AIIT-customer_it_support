@@ -170,7 +170,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
   const bodies = new WeakMap<http.IncomingMessage, Promise<Record<string, unknown>>>();
   function readBody(req: http.IncomingMessage) { return bodies.get(req) || consumeBody(req); }
 
-  function extractAuthenticatedUser(req: http.IncomingMessage): User | null {
+  function extractSessionToken(req: http.IncomingMessage): string | null {
     let token: string | null = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -179,6 +179,11 @@ export function createApiServer(customStorePath?: string): AppInstance {
       const match = req.headers.cookie.match(/(?:^|;\s*)itsupport_session=([^;]+)/);
       if (match) { try { token = decodeURIComponent(match[1]); } catch { return null; } }
     }
+    return token;
+  }
+
+  function extractAuthenticatedUser(req: http.IncomingMessage): User | null {
+    const token = extractSessionToken(req);
     if (!token) return null;
 
     const claims = verifyOIDCToken(token);
@@ -369,7 +374,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       }
 
       if (method === 'POST' && pathname === '/api/auth/logout') {
-        const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7).trim() : decodeURIComponent(req.headers.cookie?.match(/(?:^|;\s*)itsupport_session=([^;]+)/)?.[1] || '');
+        const token = extractSessionToken(req) || '';
         const state = store.getState();
         const id = crypto.createHash('sha256').update(token).digest('hex');
         state.authSessions = (state.authSessions || []).filter(s => s.id !== id);
@@ -437,6 +442,10 @@ export function createApiServer(customStorePath?: string): AppInstance {
         const search = (parsedUrl.searchParams.get('search') || '').trim().toLowerCase();
         const page = Math.max(1, Number(parsedUrl.searchParams.get('page') || 1));
         const pageSize = Math.min(100, Math.max(1, Number(parsedUrl.searchParams.get('pageSize') || 25)));
+
+        if (!Number.isSafeInteger(Number(parsedUrl.searchParams.get('page') || 1)) || !Number.isSafeInteger(Number(parsedUrl.searchParams.get('pageSize') || 25))) {
+          sendError(res, 400, 'VALIDATION_ERROR', 'Pagination must use finite integers.'); return;
+        }
 
         const accessible = state.tickets.filter((t) => canAccessTicket(currentUser, t));
         const filtered = accessible.filter((t) => {
@@ -1102,6 +1111,13 @@ export function createApiServer(customStorePath?: string): AppInstance {
           return;
         }
 
+        if (asset.assignedUserId && asset.status === 'ASSIGNED' && asset.handoverAckStatus === 'ACKNOWLEDGED') {
+          sendJson(res, 200, {asset}); return; // idempotent retry; preserve history
+        }
+        if (!asset.assignedUserId || asset.status !== 'HANDOVER_PENDING_ACK' || asset.handoverAckStatus !== 'PENDING_EMPLOYEE_ACK') {
+          sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Only an assigned pending handover may be acknowledged.'); return;
+        }
+
         asset.handoverAckStatus = 'ACKNOWLEDGED';
         asset.status = 'ASSIGNED';
         asset.updatedAt = new Date().toISOString();
@@ -1137,7 +1153,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
             : state.notifications.filter((n) => n.recipientId === currentUser.id);
         sendJson(res, 200, {
           items,
-          deliveredTransportCount: emailTransport.getDeliveredMessages().length,
+          deliveredTransportCount: emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
         });
         return;
       }

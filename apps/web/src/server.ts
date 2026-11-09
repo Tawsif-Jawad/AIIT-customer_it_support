@@ -355,7 +355,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         <div class="card">
           <h2>System Integration Health & Security Audit Trail</h2>
           <div id="connector-health-box" style="margin-bottom: 1.25rem;"></div>
-          <h3>Immutable Administrative & Security Audit Events</h3>
+          <h3>Administrative & Security Audit Events (local JSON; not tamper-proof)</h3>
           <div id="audit-logs-container" style="margin-top: 0.75rem;"></div>
         </div>
       </section>
@@ -494,7 +494,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         '<button id="logout-btn" class="btn-secondary" type="button">Sign Out</button>';
 
       document.getElementById('logout-btn').onclick = async () => {
-        await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }); }
+        catch (error) { showFeedback('Sign out failed: ' + error.message + ' Your session is still active; retry sign out.', 'error'); return; }
         localStorage.removeItem('itsupport_token');
         authToken = '';
         currentUser = null;
@@ -582,6 +583,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       selectedTicketId = ticketId;
       renderTicketList();
       const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId));
+      if (selectedTicketId !== ticketId) return; // discard superseded detail requests
       const t = detail.ticket;
       const box = document.getElementById('ticket-detail-container');
 
@@ -727,7 +729,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             '<td>' + escapeHtml(a.handoverAckStatus) + '</td>' +
             '<td>' + (a.handoverAckStatus === 'PENDING_EMPLOYEE_ACK'
               ? '<button class="btn-success btn-ack-asset" data-id="' + escapeHtml(a.id) + '" type="button">Acknowledge Custody</button>'
-              : 'Verified') + '</td>' +
+              : (a.handoverAckStatus === 'ACKNOWLEDGED' ? 'Acknowledged' : 'No acknowledgement pending')) + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
 

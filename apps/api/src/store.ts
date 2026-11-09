@@ -47,6 +47,7 @@ export class EnterpriseDataStore {
   private state: DatabaseState;
   private readonly filePath: string;
   private baseline = '';
+  private baselineCanonical = '';
   private transactionActive = false;
   private simulateDatabaseOutage = false;
 
@@ -80,11 +81,13 @@ export class EnterpriseDataStore {
     catch { throw new Error('PERSISTENCE_CORRUPT: Restore a verified backup; existing file is untouched.'); }
     validateDatabaseState(state);
     this.baseline = raw;
+    this.baselineCanonical = JSON.stringify(state, null, 2);
     return state;
   }
   private replace(state: DatabaseState) {
     validateDatabaseState(state);
     const raw = JSON.stringify(state, null, 2);
+    if (raw === this.baselineCanonical) return; // no mutation: no fsync/rename
     const temp = this.filePath + '.' + crypto.randomUUID() + '.tmp';
     let fd: number | undefined;
     try {
@@ -92,6 +95,7 @@ export class EnterpriseDataStore {
       fs.writeFileSync(fd, raw); fs.fsyncSync(fd); fs.closeSync(fd); fd = undefined;
       fs.renameSync(temp, this.filePath);
       this.baseline = raw;
+      this.baselineCanonical = raw;
     } finally {
       if (fd !== undefined) fs.closeSync(fd);
       if (fs.existsSync(temp)) fs.unlinkSync(temp);

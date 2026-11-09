@@ -29,7 +29,7 @@ export class NotificationQueueProcessor {
     if (this.simulateRedisOutage) {
       return {
         status: 'DEGRADED_FALLBACK' as const,
-        details: 'Redis/BullMQ broker unreachable; notifications persisted safely in database as QUEUED without losing tickets.',
+        details: 'Simulated broker outage: local JSON notifications remain QUEUED. No real Redis/BullMQ connection or durable retry is configured.',
       };
     }
     return {
@@ -82,18 +82,21 @@ export class NotificationQueueProcessor {
 
     try {
       const state = this.store.getState();
-      const pending = state.notifications.filter((n) => n.status === 'QUEUED');
+      const pending = state.notifications.filter((n) => n.status === 'QUEUED' || n.status === 'FAILED');
 
       for (const notif of pending) {
         processedCount++;
         notif.status = 'PROCESSING';
 
-        const delivery = await this.emailTransport.sendEmail({
+        let delivery;
+        try { delivery = await this.emailTransport.sendEmail({
           to: notif.recipientEmail,
           subject: notif.subject,
           textBody: notif.body,
           ticketNumber: notif.ticketId || undefined,
-        });
+        }); } catch {
+          notif.status = 'FAILED'; notif.errorDetails = 'Transport raised an error; local notification retained for explicit processing retry.'; failedCount++; continue;
+        }
 
         if (delivery.delivered) {
           notif.status = 'SENT';

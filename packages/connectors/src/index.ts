@@ -6,7 +6,6 @@
  * 3. Provider-Agnostic AI Orchestration, Deterministic Policy Engine, and Tool Registry
  */
 
-import net from 'node:net';
 import {
   type KnowledgeArticle,
   type RoleName,
@@ -199,13 +198,15 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
         details: 'Simulated SMTP transport outage active (safe fallback testing).',
       };
     }
+    if (this.config.mode === 'mailpit') return {status: 'UNAVAILABLE' as const, details: 'Mailpit SMTP delivery is not implemented; no readiness claim or network send is permitted.'};
     return {
-      status: this.config.mode === 'mailpit' ? ('MAILPIT_READY' as const) : ('MOCK_READY' as const),
+      status: 'MOCK_READY' as const,
       details: `Development email transport (${this.providerName}) ready. Real external/corporate SMTP delivery is disabled until server parameters are verified.`,
     };
   }
 
   async sendEmail(message: EmailMessagePayload) {
+    if (this.config.mode === 'mailpit') return {delivered: false, messageId: '', transport: this.providerName, error: 'Mailpit SMTP delivery is not implemented. No message was sent.'};
     if (this.simulateFailure) {
       return {
         delivered: false,
@@ -224,12 +225,6 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
     };
     this.deliveredLog.push(record);
 
-    if (this.config.mode === 'mailpit') {
-      // Optional local Mailpit delivery attempt on 127.0.0.1:1025 if running
-      await this.trySendToLocalMailpit(message).catch(() => {
-        // Ignore if Mailpit container is not running; recorded in memory
-      });
-    }
 
     return {
       delivered: true,
@@ -242,20 +237,7 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
     return [...this.deliveredLog];
   }
 
-  private trySendToLocalMailpit(msg: EmailMessagePayload): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const socket = net.createConnection({ host: '127.0.0.1', port: this.config.smtpPort, timeout: 500 });
-      socket.on('connect', () => {
-        socket.end();
-        resolve();
-      });
-      socket.on('error', (err) => reject(err));
-      socket.on('timeout', () => {
-        socket.destroy();
-        reject(new Error('Mailpit connection timeout'));
-      });
-    });
-  }
+
 }
 
 export interface MailboxProvisioningAdapter {
@@ -564,7 +546,7 @@ export class DeterministicMockAIOrchestrator {
         confidence: 0.93,
         proposedTool: tool.name,
         policyDecision: 'ALLOWED_LOW_RISK',
-        dryRun: false,
+        dryRun: true,
         toolOutput: diagOutput,
         suggestedResponse: `[Deterministic Mock AI - Knowledge Assisted Resolution]\nWe classified your request as an Outlook Configuration question (Confidence: 93%).\n\nRecommended Steps:\n${kbSnippet}\n\nPlease confirm if this resolves your issue, or click "Request IT Help" to reopen and assign to an IT Administrator.`,
         matchedArticles: matchedArticles.map(({ slug, title }) => ({ slug, title })),
@@ -592,7 +574,7 @@ export class DeterministicMockAIOrchestrator {
         confidence: 0.88,
         proposedTool: tool.name,
         policyDecision: 'ALLOWED_LOW_RISK',
-        dryRun: false,
+        dryRun: true,
         toolOutput: diagOutput,
         suggestedResponse: `[Deterministic Mock AI - Diagnostic & Knowledge Resolution]\nSimulated diagnostic (${tool.name}) for VLAN-${params.sbuCode}; no live gateway health was measured.\n\nRecommended Steps:\n1. ${String(diagOutput.recommendedAction)}\n2. Ensure proxy auto-configuration (PAC) is enabled.\n\nIf connectivity is still degraded, reject this resolution to route immediately to IT Network Operations.`,
         matchedArticles: matchedArticles.map(({ slug, title }) => ({ slug, title })),
