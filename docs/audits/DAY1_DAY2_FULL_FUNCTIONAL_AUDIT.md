@@ -72,7 +72,7 @@ Logout revokes sessions, production rejects dev authentication, role/SBU control
 AU01–AU11 are detailed with reproductions and evidence in [tuning report](DAY1_DAY2_TUNING_REPORT.md): seven P1/four P2 fixed, no new P0 confirmed. Major remaining foundations: enterprise OIDC, runtime PostgreSQL, durable workers/readiness/audit protection, full asset lifecycle, attachments, manual reassignment, SLA daemon, richer customer membership model and category forms. Integration absence is recorded as absent/disabled/mock rather than passing.
 
 A. Existing development correctness: verified exercised behavior passes, overall breadth PARTIAL.
-B. Day 2 milestone acceptance: BLOCKED until required hosted checks actually execute and pass. Latest checked existing run42604296311 failed before job steps because account billing is locked; user Support submission does not establish resolution. CircleCI unconnected. No protection bypass/payment action.
+B. Day 2 milestone acceptance: BLOCKED until required hosted checks actually execute and pass. Audit-branch run42610675825 at e123c94 failed all four jobs with zero steps and explicit account billing-lock annotations (evidence/day1-day2/hosted-audit-run.json); user Support submission does not establish resolution. CircleCI unconnected. No protection bypass/payment action.
 C. Production readiness: NO. Day 3 may proceed as isolated development against documented policy, with acceptance/production gates still open. Do not deploy enterprise traffic or claim release acceptance.
 
 [Final executed commands and evidence](../testing/DAY1_DAY2_FINAL_TEST_REPORT.md). Operational JSON and .env hashes remained unchanged.

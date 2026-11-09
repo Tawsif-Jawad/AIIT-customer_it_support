@@ -34,3 +34,5 @@ Before/after failures: defects-before.log (6 failures), cookie-before.log (1), n
 Performance: 100 synthetic injected sequential reads; replacements100→0, median5.048625→0.439209ms, p956.595875→0.865750ms. One local paired sample; no load/soak guarantee.
 
 Operational/configuration hashes match before/after in summary.json. Hosted GitHub checks are BLOCKED by account billing; local passes do not satisfy protected hosted checks. CircleCI is not connected. No real infrastructure writes, bypass, merge or history rewrite.
+
+Audit-branch hosted run42610675825: quality/tests/database/browser each failed with zero steps and explicit account billing-lock annotation; see hosted-audit-run.json. These are infrastructure-blocked jobs, not executed application test failures.
