@@ -1,21 +1,35 @@
 name: Native runtime verification
-on: [push, pull_request]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   native-tests:
+    name: Node tests and import/syntax smoke checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NODE_ENV: test
       AUTH_MODE: dev_oidc
       MAIL_PROVIDER: mock
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install declared Node runtime
+        uses: actions/setup-node@v4
         with:
-          node-version: '26.8.1'
-      - run: npm test
-      - run: npm run lint
-      - run: npm run build
-# Runtime tests need no installed dependencies. Compiler, dependency audit and
-# Playwright jobs require a reviewed lockfile/toolchain before adding them here.
+          node-version-file: .node-version
+      - name: Run regression and integration tests
+        run: npm test
+      - name: Check module imports and browser syntax
+        run: npm run lint
+      - name: Verify native runtime modules
+        run: npm run build
+
+# Limitation: lint/build above do not run tsc, ESLint or Playwright.
+# Those gates require a reviewed lockfile, installed toolchain and additional CI jobs.
