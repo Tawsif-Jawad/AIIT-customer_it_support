@@ -7,4 +7,5 @@ if (!file || process.argv.length !== 3) throw new Error('Usage: node scripts/val
 const raw = fs.readFileSync(file);
 const state = JSON.parse(raw.toString('utf8')) as DatabaseState;
 validateDatabaseState(state);
-console.log(JSON.stringify({mode:'READ_ONLY_DRY_RUN', sha256:crypto.createHash('sha256').update(raw).digest('hex'), counts:Object.fromEntries(Object.entries(state).map(([key,rows]) => [key,Array.isArray(rows) ? rows.length : null])), databaseConnected:false}));
+const checksum = (value: unknown) => crypto.createHash('sha256').update(JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item)).digest('hex');
+console.log(JSON.stringify({mode:'READ_ONLY_DRY_RUN', validationVersion:2, sha256:crypto.createHash('sha256').update(raw).digest('hex'), counts:Object.fromEntries(Object.entries(state).map(([key,rows]) => [key,Array.isArray(rows) ? rows.length : null])), recordChecksums:Object.fromEntries(Object.entries(state).filter(([,rows])=>Array.isArray(rows)).map(([key,rows])=>[key,rows.map(checksum).sort()])), databaseConnected:false}));

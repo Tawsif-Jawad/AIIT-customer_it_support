@@ -1,21 +1,43 @@
-name: Native runtime verification
-on: [push, pull_request]
+name: Day 2 verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  native-tests:
-    runs-on: ubuntu-latest
-    env:
-      NODE_ENV: test
-      AUTH_MODE: dev_oidc
-      MAIL_PROVIDER: mock
+  quality:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26.8.1'
-      - run: npm test
-      - run: npm run lint
-      - run: npm run build
-# Runtime tests need no installed dependencies. Compiler, dependency audit and
-# Playwright jobs require a reviewed lockfile/toolchain before adding them here.
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm audit --audit-level=moderate
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm test:unit
+      - run: pnpm test:integration
+      - run: pnpm test:security
+      - run: NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/integrity.test.ts tests/recovery.test.ts tests/ui.test.ts
+  database:
+    runs-on: ubuntu-24.04
+    env:
+      DB_REQUIRED: 'true'
+      PG_BINDIR: /usr/lib/postgresql/16/bin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-16 postgresql-contrib-16
+      - run: pnpm test:db
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

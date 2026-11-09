@@ -58,3 +58,7 @@ The earlier milestone label describes historical scope, not production acceptanc
 | NFR-D2-04 | Recovery must preserve originals, validate backup and require quiesced writers | Runbook designed; synthetic restart tested; operational restore not executed |
 | NFR-D2-05 | Enterprise persistence supports atomic business/audit/outbox transactions and durable worker retry | PostgreSQL target; schema/migration proposal; no DB execution |
 | NFR-D2-06 | AD authentication uses verified LDAPS federation, least privilege and bounded revocation | Designed only; no live directory/IdP integration |
+
+## Final Day 2 clarification
+
+The accepted current policy remains organization-wide IT/CTO access, employee/customer ownership plus current SBU, and no interactive service access. Expanded support assignments are future owner-approved requirements. F05 requester-to-IN_PROGRESS bypass and F10 priority downgrade are now fixed and API-tested. Severity is max(requested/default, deterministic classifier); HIGH/CRITICAL always routes to IT, never low-risk autonomous resolution. Actual tsc/ESLint/locked dependency, PostgreSQL migration rehearsal and Chromium E2E evidence now exist. Production OIDC/AD, real privileged execution, runtime DB cutover and staging remain unavailable; see final acceptance report rather than historical status labels.

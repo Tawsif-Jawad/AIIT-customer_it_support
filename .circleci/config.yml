@@ -1,0 +1,36 @@
+# Prepared alternative only. No CircleCI account/project is connected by this file.
+# Keep GitHub's existing required checks unchanged until equivalence is approved.
+version: 2.1
+jobs:
+  verify-no-cost:
+    docker:
+      # Verified Docker Hub tag/digest: Node 26.8.1, Linux amd64/arm64.
+      - image: cimg/node:26.8.1@sha256:7f64b9e7b44ce3542c525f111b13b38d5252d879cd860f1aa14e48cd310c5b44
+    resource_class: medium
+    environment:
+      DB_REQUIRED: "true"
+      PLAYWRIGHT_SKIP_BROWSER_GC: "1"
+    steps:
+      - checkout
+      - run:
+          name: Install disposable PostgreSQL test prerequisites
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y postgresql postgresql-contrib libpq-dev
+            echo "export PG_BINDIR=$(pg_config --bindir)" >> "$BASH_ENV"
+      - run:
+          name: Install locked dependencies and Chromium prerequisites
+          command: |
+            npm exec --yes --package=pnpm@9.15.0 -- pnpm install --frozen-lockfile --ignore-scripts
+            npm exec --yes --package=pnpm@9.15.0 -- pnpm exec playwright install --with-deps chromium
+      - run:
+          name: Run every mandatory local-equivalent verification command
+          command: node scripts/verify-local.ts --output /tmp/aiit-ci-evidence
+          no_output_timeout: 15m
+      - store_artifacts:
+          path: /tmp/aiit-ci-evidence
+          destination: verification
+workflows:
+  optional-no-cost-verification:
+    jobs:
+      - verify-no-cost

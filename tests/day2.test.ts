@@ -7,7 +7,7 @@ import { EnterpriseDataStore } from '../apps/api/src/store.ts';
 import { createApiServer } from '../apps/api/src/app.ts';
 import { canAccessTicket, validateStatusTransition } from '../packages/shared/src/index.ts';
 
-function fixture(fn: (file: string) => unknown) {
+function fixture(fn: (file: string) => void | Promise<void>) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiit-day2-'));
   return Promise.resolve().then(() => fn(path.join(dir, 'db.json'))).finally(() => fs.rmSync(dir, {recursive:true,force:true}));
 }
@@ -152,4 +152,78 @@ test('read-only migration dry run preserves source bytes and reports counts', ()
   const output = execFileSync(process.execPath,['scripts/validate-json-migration.ts',file],{encoding:'utf8'});
   assert.equal(JSON.parse(output).counts.users,5);
   assert.equal(fs.readFileSync(file,'utf8'),raw);
+}));
+
+
+test('F05 employee/customer cannot advance reopened ticket into IT-controlled work', () => {
+  for (const role of ['EMPLOYEE', 'CUSTOMER'] as const) {
+    assert.equal(validateStatusTransition('REOPENED', 'IN_PROGRESS', role, true).valid, false);
+    assert.equal(validateStatusTransition('RESOLVED_PENDING_CONFIRMATION', 'CLOSED', role, true).valid, true);
+    assert.equal(validateStatusTransition('CLOSED', 'REOPENED', role, true).valid, true);
+    assert.equal(validateStatusTransition('CLOSED', 'REOPENED', role, false).valid, false);
+  }
+  assert.equal(validateStatusTransition('REOPENED', 'IN_PROGRESS', 'IT_ADMIN', false).valid, true);
+});
+
+test('F10 requested LOW cannot downgrade critical infrastructure classification', () => fixture(async file => {
+  const app = createApiServer(file);
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
+    serviceCategoryId:'cat-outlook-config',
+    title:'Entire SBU production outage',
+    description:'Entire SBU production down due to a severe outage; urgent human IT review is required',
+    severity:'LOW',
+  }});
+  assert.equal(result.status, 201);
+  assert.equal(result.data.aiDecision.recommendedSeverity, 'CRITICAL');
+  assert.equal(result.data.ticket.severity, 'CRITICAL');
+  assert.equal(result.data.ticket.status, 'ASSIGNED_TO_IT');
+}));
+
+test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () => fixture(async file => {
+  const app = createApiServer(file);
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
+    serviceCategoryId:'cat-outlook-config',
+    title:'High-priority Outlook connectivity issue',
+    description:'Outlook certificate prompts block my business-critical work despite normal troubleshooting',
+    severity:'HIGH',
+  }});
+  assert.equal(result.status, 201);
+  assert.equal(result.data.aiDecision.recommendedSeverity, 'LOW');
+  assert.equal(result.data.aiDecision.canAutoResolve, false);
+  assert.equal(app.store.getState().aiActionLogs.find(a=>a.ticketId===result.data.ticket.id)!.escalatedToIT,true);
+  assert.equal(app.store.getState().auditLogs.find(a=>a.resourceId===result.data.ticket.id&&a.action==='TICKET_CREATED')!.details.severity,'HIGH');
+  assert.equal(result.data.ticket.severity, 'HIGH');
+  assert.equal(result.data.ticket.status, 'ASSIGNED_TO_IT');
+}));
+
+test('F05 API denies employee IT-controlled work while allowing IT to resume it', () => fixture(async file => {
+  const app = createApiServer(file);
+  const employee = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const it = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'kamal.hossain@upstra.local'}})).data.token;
+  const ticket = app.store.getState().tickets.find(t => t.requesterId === 'user-emp-tawsif')!;
+  ticket.status = 'REOPENED';
+  app.store.persist();
+  const url = `/api/tickets/${ticket.id}/transition`;
+  const denied = await app.inject({method:'POST',url,token:employee,body:{status:'IN_PROGRESS'}});
+  assert.equal(denied.status,403);
+  assert.equal(app.store.getState().tickets.find(t => t.id === ticket.id)!.status,'REOPENED');
+  const allowed = await app.inject({method:'POST',url,token:it,body:{status:'IN_PROGRESS'}});
+  assert.equal(allowed.status,200);
+  assert.equal(allowed.data.ticket.status,'IN_PROGRESS');
+}));
+
+test('independent API instances preserve concurrent updates through explicit contention retry',()=>fixture(async file=>{
+ const a=createApiServer(file),b=createApiServer(file);
+ const token=(await a.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+ const ticket=a.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
+ const write=(app:ReturnType<typeof createApiServer>,text:string)=>app.inject({method:'POST',url:`/api/tickets/${ticket.id}/comments`,token,body:{body:text,isInternal:false}});
+ const results=await Promise.all([write(a,'First concurrent synthetic comment'),write(b,'Second concurrent synthetic comment')]);
+ assert.equal(results.filter(r=>r.status===201).length,1);assert.equal(results.filter(r=>r.status===409).length,1);
+ if(results[0].status===409) assert.equal((await write(a,'First concurrent synthetic comment')).status,201);
+ if(results[1].status===409) assert.equal((await write(b,'Second concurrent synthetic comment')).status,201);
+ const source=new EnterpriseDataStore(file).getState();
+ assert.ok(source.ticketComments.some(c=>c.body==='First concurrent synthetic comment'));
+ assert.ok(source.ticketComments.some(c=>c.body==='Second concurrent synthetic comment'));
 }));

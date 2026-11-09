@@ -1,0 +1,17 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test
+
+[WebServer] (node:96086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:96087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (711ms)
+  ✓  2 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (421ms)
+  ✓  3 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (437ms)
+  ✓  4 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (523ms)
+
+  4 passed (3.6s)

@@ -1,0 +1,41 @@
+/** Explicit non-destructive source -> isolated database import. No default target. */
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import {PrismaClient} from '@prisma/client';
+import {validateDatabaseState,type DatabaseState} from '../apps/api/src/store.ts';
+const mapping=[['sbus','sBU'],['roles','role'],['users','user'],['serviceCategories','serviceCategory'],['tickets','ticket'],['ticketEvents','ticketEvent'],['ticketComments','ticketComment'],['assets','asset'],['approvals','approval'],['notifications','notification'],['aiActionLogs','aIActionLog'],['auditLogs','auditLog'],['knowledgeArticles','knowledgeArticle'],['authSessions','authSession']] as const;
+// Runtime display context is retained in historical rows; user role/SBU labels
+// are derived from foreign keys in PostgreSQL, not discarded historical events.
+export async function importJsonSnapshot(client:PrismaClient,source:DatabaseState) {
+ validateDatabaseState(source);
+ return client.$transaction(async tx=>{
+  const counts:Record<string,number>={};
+  for(const [collection,model] of mapping) {
+   const delegate=(tx as unknown as Record<string,{findUnique(args:unknown):Promise<unknown>;create(args:unknown):Promise<unknown>}>)[model];
+   const rows=source[collection] || [];counts[collection]=rows.length;
+   for(const row of rows) {
+    const data={...row} as Record<string,unknown>;
+    if(collection==='users') {delete data.roleName;delete data.sbuCode;}
+    for(const key of Object.keys(data)) {
+     if(key.endsWith('At')&&data[key]!==null) data[key]=new Date(data[key] as string|number);
+    }
+    if(collection==='authSessions') data.expiresAt=new Date((row as {expiresAt:number}).expiresAt);
+    const existing=await delegate.findUnique({where:{id:data.id}});
+    if(existing) {
+     const normalize=(value:unknown):string=>JSON.stringify(value,(_key,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
+     const projected=Object.fromEntries(Object.keys(data).map(key=>[key,(existing as Record<string,unknown>)[key]]));
+     if(normalize(projected)!==normalize(data)) throw new Error('IMPORT_CONFLICT: Existing record differs; no overwrite allowed');
+    } else await delegate.create({data});
+   }
+  }
+  return counts;
+ },{timeout:60000});
+}
+if(import.meta.url===new URL(process.argv[1]||'', 'file:').href) {
+ const [source,target]=process.argv.slice(2);
+ if(!source||!target||process.env.AIIT_IMPORT_DISPOSABLE!=='true') throw new Error('Explicit SOURCE TARGET_URL and AIIT_IMPORT_DISPOSABLE=true required; never use operational targets');
+ const url=new URL(target);
+ if(!['127.0.0.1','localhost'].includes(url.hostname)||!url.pathname.startsWith('/aiit_test')) throw new Error('Importer CLI only accepts loopback aiit_test databases');
+ const raw=fs.readFileSync(source);const client=new PrismaClient({datasources:{db:{url:target}}});
+ try {console.log(JSON.stringify({counts:await importJsonSnapshot(client,JSON.parse(raw.toString())),sourceSha256:crypto.createHash('sha256').update(raw).digest('hex')}));} finally {await client.$disconnect();}
+}

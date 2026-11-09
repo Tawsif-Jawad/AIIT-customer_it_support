@@ -1,3 +1,5 @@
+> Final Day 2 status (2026-11-09): local compiler/ESLint/locked install, 54 native tests, 4 Chromium E2E cases and disposable PostgreSQL migration/import/restore verification pass. Hosted Actions is blocked by its explicit account payment/spending-limit diagnostic. See [final acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md). Historical statuses below must be read with this update; production integrations and runtime database cutover remain incomplete.
+
 > Day 2 status: only explicitly opted-in development HMAC sessions are implemented. Session digests persist server-side; logout revokes them. Production OIDC/LDAPS, CSRF/TLS, immutable audit, scoped support memberships and exact-action approvals remain unimplemented. See architecture/AUTHENTICATION_AUTHORIZATION.md and security/ROLE_PERMISSION_MATRIX.md. Historical production claims below are requirements, not verification.
 
 # Security, Governance & Privacy Controls

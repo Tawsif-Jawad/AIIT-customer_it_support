@@ -1,0 +1,86 @@
+{
+  "runId": 42599568751,
+  "url": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42599568751",
+  "event": "workflow_dispatch",
+  "headRevision": "f1d193f581e726bea3a5bb894998f8129df99b73",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "id": 129100397969,
+      "name": "database",
+      "conclusion": "failure",
+      "steps": [],
+      "annotations": [
+        {
+          "title": "",
+          "message": "The job was not started because your account is locked due to a billing issue.",
+          "annotation_level": "failure"
+        }
+      ]
+    },
+    {
+      "id": 129100398210,
+      "name": "tests",
+      "conclusion": "failure",
+      "steps": [],
+      "annotations": [
+        {
+          "title": "",
+          "message": "The job was not started because your account is locked due to a billing issue.",
+          "annotation_level": "failure"
+        }
+      ]
+    },
+    {
+      "id": 129100398358,
+      "name": "quality",
+      "conclusion": "failure",
+      "steps": [],
+      "annotations": [
+        {
+          "title": "",
+          "message": "The job was not started because your account is locked due to a billing issue.",
+          "annotation_level": "failure"
+        }
+      ]
+    },
+    {
+      "id": 129100398382,
+      "name": "browser",
+      "conclusion": "failure",
+      "steps": [],
+      "annotations": [
+        {
+          "title": "",
+          "message": "The job was not started because your account is locked due to a billing issue.",
+          "annotation_level": "failure"
+        }
+      ]
+    }
+  ],
+  "rootCause": "GitHub account locked due to billing issue; every job annotation independently confirms it.",
+  "priorPublicRun": 42598208806,
+  "yamlValidation": {
+    "parser": "installed js-yaml",
+    "workflow": "PASS",
+    "compositeSetup": "PASS",
+    "triggers": [
+      "push",
+      "pull_request",
+      "workflow_dispatch"
+    ],
+    "expectedJobs": [
+      "quality",
+      "tests",
+      "database",
+      "browser"
+    ]
+  },
+  "permissions": {
+    "enabled": true,
+    "allowed_actions": "all",
+    "sha_pinning_required": false
+  },
+  "billingChanged": false,
+  "runnerOrChecksWeakened": false
+}
