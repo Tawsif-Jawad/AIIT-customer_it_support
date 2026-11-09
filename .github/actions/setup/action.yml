@@ -14,3 +14,5 @@ runs:
       shell: bash
     - run: pnpm db:generate
       shell: bash
+      env:
+        DATABASE_URL: postgresql://aiit_test@127.0.0.1:1/aiit_test

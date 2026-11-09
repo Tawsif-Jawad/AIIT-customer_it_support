@@ -33,6 +33,9 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    const source=createInitialSeedState();source.authSessions=[{id:'b'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000}];
    const counts=await importJsonSnapshot(client,source);
    assert.equal(counts.tickets,source.tickets.length);
+   const delegates=['sBU','role','user','serviceCategory','ticket','ticketEvent','ticketComment','asset','approval','notification','aIActionLog','auditLog','knowledgeArticle','authSession'] as const;
+   const expected=[source.sbus,source.roles,source.users,source.serviceCategories,source.tickets,source.ticketEvents,source.ticketComments,source.assets,source.approvals,source.notifications,source.aiActionLogs,source.auditLogs,source.knowledgeArticles,source.authSessions];
+   for(let i=0;i<delegates.length;i++) assert.equal(await (client[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,delegates[i]);
    assert.equal((await client.ticket.findFirstOrThrow()).id.startsWith('ticket-'),true);
    assert.deepEqual(await importJsonSnapshot(client,source),counts);
    assert.equal(await client.ticket.count(),source.tickets.length);
@@ -49,7 +52,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    pg('createdb',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','aiit_test_restore']);
    pg('psql',['-X','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p',String(port),'-U','aiit_test','-d','aiit_test_restore','-f',dump]);
    const restored=new PrismaClient({datasources:{db:{url:url+'_restore'}}});
-   try {assert.equal(await restored.ticket.count(),source.tickets.length);assert.equal(await restored.auditLog.count(),source.auditLogs.length);} finally {await restored.$disconnect();}
+   try {for(let i=0;i<delegates.length;i++) assert.equal(await (restored[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,'restored '+delegates[i]);} finally {await restored.$disconnect();}
    // Upgrade a populated legacy UUID schema, preserving keys and references.
    pg('createdb',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','aiit_test_upgrade']);
    const upgradeUrl=url+'_upgrade';
