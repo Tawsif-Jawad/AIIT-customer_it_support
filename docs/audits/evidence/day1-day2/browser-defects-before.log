@@ -1,0 +1,98 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test --grep AU08|AU09
+
+[WebServer] (node:8367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:8396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/audit.spec.ts:57:1 › AU08 logout failure remains signed in and shows retry feedback (6.2s)
+(node:8478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/audit.spec.ts:74:1 › AU09 a delayed older detail response cannot replace the selected ticket (6.5s)
+
+
+  1) tests/e2e/audit.spec.ts:57:1 › AU08 logout failure remains signed in and shows retry feedback ─
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('#global-feedback')
+    Expected substring: "Your session is still active"
+    Received string:    "Authenticated as Tawsif Zawad (SBU-TECH Employee) (EMPLOYEE)"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('#global-feedback') with timeout 5000ms
+      - waiting for locator('#global-feedback')
+        13 × locator resolved to <div aria-live="polite" id="global-feedback">…</div>
+           - unexpected value "Authenticated as Tawsif Zawad (SBU-TECH Employee) (EMPLOYEE)"
+
+
+      57 | test('AU08 logout failure remains signed in and shows retry feedback',async({page})=>{
+      58 |  await signIn(page);await page.route('**/api/auth/logout',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Synthetic storage outage'}})}));
+    > 59 |  await page.click('#logout-btn');await expect(page.locator('#global-feedback')).toContainText('Your session is still active');await expect(page.getByTestId('active-user-badge')).toContainText('Tawsif');await shot(page,'logout-failure');await page.unroute('**/api/auth/logout');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
+         |                                                                                 ^
+      60 | });
+      61 | test('assistant creates a mock request; catalog start and recoverable panel errors work',async({page})=>{
+      62 |  await signIn(page);await tab(page,'catalog');await page.locator('[data-service="cat-outlook-config"]').click();await expect(page.locator('#tab-create')).toBeVisible();
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:59:81
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/audit.spec.ts:74:1 › AU09 a delayed older detail response cannot replace the selected ticket
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('#ticket-detail-container h2')
+    Expected: "Outlook desktop client keeps prompting for IMAP TLS certificate confirmation"
+    Received: "Race detail synthetic Outlook"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" locator('#ticket-detail-container h2') with timeout 5000ms
+      - waiting for locator('#ticket-detail-container h2')
+        14 × locator resolved to <h2>Race detail synthetic Outlook</h2>
+           - unexpected value "Race detail synthetic Outlook"
+
+
+      79 |  await rows.nth(0).click();const secondResponse=page.waitForResponse(r=>r.url().endsWith('/api/tickets/'+second));await rows.nth(1).click();const title=(await (await secondResponse).json()).ticket.title;await expect(page.locator('#ticket-detail-container h2')).toHaveText(title);
+      80 |  const oldResponse=page.waitForResponse(r=>r.url().endsWith('/api/tickets/'+first));release();await oldResponse;
+    > 81 |  await expect(page.locator('#ticket-detail-container h2')).toHaveText(title!);
+         |                                                            ^
+      82 |  await expect(page.locator(`[data-ticket-id="${second}"]`)).toHaveClass(/selected/);
+      83 | });
+      84 |
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:81:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    tests/e2e/audit.spec.ts:57:1 › AU08 logout failure remains signed in and shows retry feedback ──
+    tests/e2e/audit.spec.ts:74:1 › AU09 a delayed older detail response cannot replace the selected ticket

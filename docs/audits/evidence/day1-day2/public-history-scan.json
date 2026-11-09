@@ -1,0 +1,10 @@
+{
+  "scope": "all reachable Git objects, high-confidence patterns only; no credential values printed",
+  "reachableObjects": 425,
+  "blobObjects": 249,
+  "credentialPatternHitPaths": [],
+  "trackedOperationalOrCredentialFiles": [],
+  "filesContainingSeedBusinessIdentifiers": 14,
+  "filesContainingDirectoryOrSbuExamples": 9,
+  "privacyAssessment": "Known supplied mailbox identifier and unconfirmed demo staff/domain fixtures appear in public source/evidence. Owner review/minimization recommended; this scan does not prove all names are synthetic or that no secret exists. No history rewrite performed."
+}

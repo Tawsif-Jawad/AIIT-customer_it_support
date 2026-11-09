@@ -1,0 +1,11 @@
+{
+  "test": "browser customer creates and rejects mock resolution without IT privileges",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

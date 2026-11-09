@@ -1,0 +1,106 @@
+
+> it-support-system@1.0.0 test /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/*.test.ts
+
+✔ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (82.525917ms)
+✔ AU02 repeated custody acknowledgement does not duplicate custody or audit history (71.274ms)
+✔ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (78.508459ms)
+✔ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (0.173167ms)
+✔ AU05 local mock processing retries a failed notification after recovery (131.757625ms)
+✔ AU06 invalid pagination is rejected instead of returning null metadata (40.094333ms)
+✔ API inventory: public routes, authentication errors, protected resources and missing routes (65.493375ms)
+✔ API inventory: category/KB filtering and authorized mock AD lookup (23.163917ms)
+✔ API inventory: ticket creation rejects malformed fields and uses trusted actor scope (23.580667ms)
+✔ API inventory: search/filter/page boundaries return only authorized records (20.9015ms)
+✔ API inventory: requester/IT/CTO lifecycle, comments, immutable approvals and restart (119.854084ms)
+✔ API inventory: supported exceptional states enforce state graph and persist events (85.363375ms)
+✔ AU10 malformed cookie logout clears safely instead of generating server error (10.535041ms)
+✔ API rate limiter rejects excess requests and recovers after its window (165.975709ms)
+✔ AU11 requester notification metrics never expose another user mock-delivery count (36.036792ms)
+✔ API mutation negatives reject missing fields, bad notes and unauthorized ownership (33.23975ms)
+✔ approval cannot enable real AD/mail writes and unsafe transport mode stays rejected (6.973292ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+Environment variables loaded from .env
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (4992.040208ms)
+✔ F01 stale independent writer cannot overwrite a committed record (85.406ms)
+✔ F14 invalid collections and duplicate IDs fail closed (31.220208ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.146916ms)
+✔ F04 approvals require rationale and cannot be replayed (67.896375ms)
+✔ F03 logout invalidates bearer session (89.882542ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (219.63975ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (20.35675ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (109.731875ms)
+✔ opposing approval decisions serialize to one immutable decision (23.313ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (10.802417ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (8.852292ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (85.003084ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (23.426084ms)
+✔ read-only migration dry run preserves source bytes and reports counts (122.584542ms)
+✔ F05 employee/customer cannot advance reopened ticket into IT-controlled work (0.098166ms)
+✔ F10 requested LOW cannot downgrade critical infrastructure classification (21.3885ms)
+✔ F10 user-reported HIGH priority is preserved and cannot auto-resolve (17.080833ms)
+✔ F05 API denies employee IT-controlled work while allowing IT to resume it (43.237583ms)
+✔ independent API instances preserve concurrent updates through explicit contention retry (35.060291ms)
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (9.214958ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (59.747416ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (37.063416ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (17.492959ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (27.20825ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (76.905416ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (81.266958ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (13.222792ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (10.241125ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (363.635ms)
+✔ partial temporary write preserves original bytes and recovers memory (74.939584ms)
+✔ killed transaction leaves source intact and fails closed until controlled recovery (170.401125ms)
+✔ complete record types, duplicate natural keys and historical references are validated (2.785ms)
+✔ backup restoration preserves all collection counts, references and exact source checksum (164.528667ms)
+install --frozen-lockfile --ignore-scripts: exit -2
+db:generate: exit -2
+typecheck: exit -2
+lint: exit -2
+build: exit -2
+test: exit -2
+test:security: exit -2
+test:db: exit -2
+test:e2e: exit -2
+audit --audit-level=moderate: exit -2
+Evidence: /var/folders/bd/p77sctyn4jz59hnrw42l3qmw0000gn/T/aiit-verifier-fault-urdFlz/results
+✔ local verifier reports child startup failures and never overwrites existing evidence (33.236ms)
+✔ generated browser JavaScript parses, AIIT renders without JS, requests have a deadline (1.6405ms)
+✔ production rejects development identity enumeration and email-only sign-in (66.847667ms)
+✔ corrupted persistence fails without replacing existing records with demo data (0.91075ms)
+✔ development tokens validate issuer/audience/expiry and are rejected in production (1.513833ms)
+✔ cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer (111.57775ms)
+✔ expired signed tokens and expired stored sessions fail closed across restart (59.630583ms)
+✔ role revocation and service conversion apply to existing sessions immediately (124.815083ms)
+✔ customer ownership and employee asset SBU boundaries do not change global IT grant (121.148458ms)
+✔ all role/state pairs obey requester, CTO-review, closure and service boundaries (0.966875ms)
+✔ JSON arrays/null and oversized bodies fail without changing ticket state (33.082208ms)
+✔ public presentation, application and allowlisted assets are served separately (55.321667ms)
+✔ browser scripts and landing markup maintain original signature and safe demo labels (0.63375ms)
+✔ a response from an earlier session cannot populate the next user workspace (6.246ms)
+✔ footer renderer honors reduced motion, suspends offscreen, and cleans up lifecycle observers (8.116875ms)
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (0.310958ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.094042ms)
+✔ Ticket Workflow State Machine & Role Guards (1.151167ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.068333ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.129334ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.374708ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.167833ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.107166ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.175917ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (0.951792ms)
+ℹ tests 72
+ℹ suites 4
+ℹ pass 72
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5230.554625

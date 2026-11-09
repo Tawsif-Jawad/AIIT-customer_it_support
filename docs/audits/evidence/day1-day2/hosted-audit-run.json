@@ -1,0 +1,38 @@
+{
+  "runId": 42610675825,
+  "head": "e123c94ae29ca62e1e80b962c356e926e61b5d8a",
+  "jobs": [
+    {
+      "job": "tests",
+      "conclusion": "failure",
+      "steps": 0,
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    },
+    {
+      "job": "database",
+      "conclusion": "failure",
+      "steps": 0,
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    },
+    {
+      "job": "browser",
+      "conclusion": "failure",
+      "steps": 0,
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    },
+    {
+      "job": "quality",
+      "conclusion": "failure",
+      "steps": 0,
+      "annotations": [
+        "The job was not started because your account is locked due to a billing issue."
+      ]
+    }
+  ]
+}

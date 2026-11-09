@@ -1,0 +1,23 @@
+✔ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (43.099417ms)
+✔ AU02 repeated custody acknowledgement does not duplicate custody or audit history (22.136ms)
+✔ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (17.373916ms)
+✔ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (0.11975ms)
+✔ AU05 local mock processing retries a failed notification after recovery (28.233792ms)
+✔ AU06 invalid pagination is rejected instead of returning null metadata (19.098708ms)
+✔ API inventory: public routes, authentication errors, protected resources and missing routes (40.039291ms)
+✔ API inventory: category/KB filtering and authorized mock AD lookup (24.893958ms)
+✔ API inventory: ticket creation rejects malformed fields and uses trusted actor scope (25.947125ms)
+✔ API inventory: search/filter/page boundaries return only authorized records (19.6685ms)
+✔ API inventory: requester/IT/CTO lifecycle, comments, immutable approvals and restart (88.235959ms)
+✔ API inventory: supported exceptional states enforce state graph and persist events (61.7975ms)
+✔ AU10 malformed cookie logout clears safely instead of generating server error (12.827125ms)
+✔ API rate limiter rejects excess requests and recovers after its window (193.425125ms)
+✔ AU11 requester notification metrics never expose another user mock-delivery count (21.278458ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 753.0115

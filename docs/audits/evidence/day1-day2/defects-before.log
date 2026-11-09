@@ -1,0 +1,126 @@
+✖ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (56.121875ms)
+✖ AU02 repeated custody acknowledgement does not duplicate custody or audit history (19.563291ms)
+✖ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (30.4595ms)
+✖ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (2.92925ms)
+✖ AU05 local mock processing retries a failed notification after recovery (15.204541ms)
+✖ AU06 invalid pagination is rejected instead of returning null metadata (15.404084ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 373.334709
+
+✖ failing tests:
+
+test at tests/audit.test.ts:15:1
+✖ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (56.121875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 409
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:19:9
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/audit.test.ts:21:1
+✖ AU02 repeated custody acknowledgement does not duplicate custody or audit history (19.563291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  3 !== 2
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:25:52
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/audit.test.ts:27:1
+✖ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (30.4595ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  4 !== 0
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:30:171
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/audit.test.ts:32:1
+✖ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (2.92925ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:35:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/audit.test.ts:37:1
+✖ AU05 local mock processing retries a failed notification after recovery (15.204541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  0 !== 1
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:41:9
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/audit.test.ts:43:1
+✖ AU06 invalid pagination is rejected instead of returning null metadata (15.404084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 400
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:44:102
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

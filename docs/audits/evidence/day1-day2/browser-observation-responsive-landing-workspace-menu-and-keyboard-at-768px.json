@@ -1,0 +1,11 @@
+{
+  "test": "responsive landing/workspace, menu and keyboard at 768px",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

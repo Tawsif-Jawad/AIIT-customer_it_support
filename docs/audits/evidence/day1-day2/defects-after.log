@@ -1,0 +1,14 @@
+✔ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (29.695791ms)
+✔ AU02 repeated custody acknowledgement does not duplicate custody or audit history (14.674791ms)
+✔ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (11.111125ms)
+✔ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (0.099542ms)
+✔ AU05 local mock processing retries a failed notification after recovery (29.276ms)
+✔ AU06 invalid pagination is rejected instead of returning null metadata (12.796375ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.244125

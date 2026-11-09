@@ -1,4 +1,35 @@
-> Final Day 2 status (2026-11-09): local compiler/ESLint/locked install, 54 native tests, 4 Chromium E2E cases and disposable PostgreSQL migration/import/restore verification pass. Hosted Actions is blocked by its explicit account payment/spending-limit diagnostic. See [final acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md). Historical statuses below must be read with this update; production integrations and runtime database cutover remain incomplete.
+> Closure revalidation2026-11-09: all ten commands pass again (72 native/17 browser). AU01–AU11 reviewed, no additional confirmed defect. PR3 created against remediation; both PRs unmerged. Hosted account lock, independent approval and business-identifier privacy classification remain open. See [current acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md) and [privacy review](security/DAY1_DAY2_PUBLIC_PRIVACY_REVIEW_2026-11-09.md). No future foundation was closed.
+
+# Current verification status — 2026-11-09
+
+Supersedes historical statuses below. Final local verification:72 native,17 browser,25 security subset,1 PostgreSQL fixture subset; all pass. Hosted CI remains BLOCKED. See [full audit](audits/DAY1_DAY2_FULL_FUNCTIONAL_AUDIT.md). Closed means the specific observed defect was verified resolved, not production completeness.
+
+| ID | Current disposition | Evidence / residual work |
+|---|---|---|
+| F01 | CONTAINED | JSON lease/CAS/atomic/rollback verified; runtime PostgreSQL still open |
+| F02 | PARTIAL | Opt-in dev auth and production fail-closed verified; enterprise IdP absent |
+| F03 | CLOSED | Persisted revocation, replay rejection and logout failure feedback verified |
+| F04 | PARTIAL | Replay/rationale fixed; exact live action binding remains future before execution |
+| F05 | CLOSED | Requester cannot close CTO-controlled escalation; backend regression tests |
+| F06 | CLOSED | Scoped analytics and requester notification aggregates verified |
+| F07 | PARTIAL | Known sensitive-note redaction verified; heuristic coverage is not universal DLP |
+| F08 | CONTAINED | False delivery fixed; Mailpit unsupported/unavailable, real SMTP not implemented |
+| F09 | PARTIAL | Failed notification explicit-cycle retry verified; durable schedule/backoff absent |
+| F10 | CLOSED | Severity floor verified against caller downgrade |
+| F11 | OPEN REQUIREMENT | Current ownership/SBU and approved privileged global scope verified; richer memberships absent |
+| F12 | CLOSED | Mock labels/dryRun corrected; no real diagnostics claimed |
+| F13 | PARTIAL | Truthful mock health; real dependency readiness absent |
+| F14 | PARTIAL | Validation/concurrency/fixture restore verified; immutable audit/retention absent |
+| F15 | CONTAINED | Destructive seed disabled before storage access |
+| F16 | CLOSED LOCALLY | Pinned lock/compiler/linter/build/audit pass; hosted execution separately blocked |
+| F17 | PARTIAL | TEXT-ID migration/import/restore verified on disposable PostgreSQL; runtime cutover absent |
+| F18 | PARTIAL | Origin/session/proxy safeguards tested; real TLS fixture/CSP/trusted deployment remain |
+| F19 | PARTIAL | Current inventory reconciles reality; historical claims retained as historical |
+| F20 | PARTIAL/BLOCKED | Protected Git/CI config exists; hosted billing lock, no enterprise staging release |
+
+New audit findings AU01–AU11 are resolved as documented in the [tuning report](audits/DAY1_DAY2_TUNING_REPORT.md). Future capability gaps are listed separately in the inventory; no real enterprise integration is implied.
+
+## Historical Day 1 evidence (preserved)
 
 # AIIT technical debt — Day 1 baseline
 
