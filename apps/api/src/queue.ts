@@ -4,8 +4,8 @@
  * with DevelopmentEmailTransport (Mock / Mailpit).
  */
 
-import { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
-import { EnterpriseDataStore } from './store.ts';
+import type { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
+import type { EnterpriseDataStore } from './store.ts';
 
 export class NotificationQueueProcessor {
   private isProcessing = false;

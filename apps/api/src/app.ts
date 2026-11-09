@@ -37,6 +37,7 @@ export interface AppInstance {
     url: string;
     token?: string;
     body?: Record<string, unknown>;
+    headers?: Record<string, string>;
   }) => Promise<{ status: number; headers: Record<string, string>; data: Record<string, any> }>;
   store: EnterpriseDataStore;
   aiOrchestrator: DeterministicMockAIOrchestrator;
@@ -118,7 +119,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       'Cache-Control': 'no-store',
-      'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
+      ...(process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' ? {'Access-Control-Allow-Origin': process.env.CORS_ORIGIN, 'Vary': 'Origin'} : {}),
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
     });
@@ -144,7 +145,6 @@ export function createApiServer(customStorePath?: string): AppInstance {
         totalBytes += chunk.length;
         if (totalBytes > 1024 * 1024) {
           reject(new ValidationError(['Request payload exceeds 1MB limit']));
-          req.destroy();
           return;
         }
         chunks.push(chunk);
@@ -156,12 +156,14 @@ export function createApiServer(customStorePath?: string): AppInstance {
         }
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { reject(new ValidationError(['JSON body must be an object'])); return; }
           resolve(parsed);
         } catch {
           reject(new ValidationError(['Malformed JSON body']));
         }
       });
       req.on('error', (err) => reject(err));
+      req.on('aborted', () => reject(new ValidationError(['Request aborted'])));
     });
   }
 
@@ -175,7 +177,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       token = authHeader.slice(7).trim();
     } else if (req.headers.cookie) {
       const match = req.headers.cookie.match(/(?:^|;\s*)itsupport_session=([^;]+)/);
-      if (match) token = decodeURIComponent(match[1]);
+      if (match) { try { token = decodeURIComponent(match[1]); } catch { return null; } }
     }
     if (!token) return null;
 
@@ -195,6 +197,15 @@ export function createApiServer(customStorePath?: string): AppInstance {
     const parsedUrl = new URL(rawUrl, `http://${req.headers?.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
     const clientIp = req.socket?.remoteAddress || '127.0.0.1';
+
+    // Browser cookie writes require a verified same-origin request. Bearer-only
+    // CLI clients need no Origin; external browser origins must be allowlisted.
+    const origin = req.headers.origin;
+    const sameOrigin = `${('encrypted' in (req.socket || {}) && (req.socket as { encrypted?: boolean }).encrypted) ? 'https' : 'http'}://${req.headers.host}`;
+    const allowedOrigin = origin === sameOrigin || (!!process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' && origin === process.env.CORS_ORIGIN);
+    if ((origin && !allowedOrigin) || (req.headers.cookie?.includes('itsupport_session=') && !['GET','HEAD','OPTIONS'].includes(method) && !allowedOrigin)) {
+      sendError(res, 403, 'ORIGIN_DENIED', 'A verified same-origin request is required.'); return;
+    }
 
     if (method === 'OPTIONS') {
       sendJson(res, 204, {});
@@ -348,7 +359,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
         res.setHeader(
           'Set-Cookie',
-          `itsupport_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=28800`
+          `itsupport_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
         );
         sendJson(res, 200, {
           token,
@@ -363,7 +374,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
         const id = crypto.createHash('sha256').update(token).digest('hex');
         state.authSessions = (state.authSessions || []).filter(s => s.id !== id);
         store.persist();
-        res.setHeader('Set-Cookie', 'itsupport_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+        res.setHeader('Set-Cookie', `itsupport_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
         sendJson(res, 200, { loggedOut: true });
         return;
       }
@@ -1060,7 +1071,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
         const items =
           currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO'
             ? state.assets
-            : state.assets.filter((a) => a.assignedUserId === currentUser.id);
+            : state.assets.filter((a) => a.assignedUserId === currentUser.id && a.sbuId === currentUser.sbuId);
         sendJson(res, 200, { items });
         return;
       }
@@ -1074,7 +1085,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           sendError(res, 404, 'ASSET_NOT_FOUND', 'Asset not found.');
           return;
         }
-        if (asset.assignedUserId !== currentUser.id && !['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
+        if ((asset.assignedUserId !== currentUser.id || asset.sbuId !== currentUser.sbuId) && !['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
           sendError(res, 403, 'FORBIDDEN', 'Only the assigned employee or IT Admin may acknowledge this asset.');
           return;
         }
@@ -1198,6 +1209,9 @@ export function createApiServer(customStorePath?: string): AppInstance {
     } as unknown as http.ServerResponse;
     try {
       await store.transaction(async () => {
+        try { await body; } catch (err) {
+          sendError(buffered, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.'); return false;
+        }
         await runRequest(req, buffered);
         // Denials may contain a security audit event; only server failures roll back.
         return code < 500;
@@ -1210,8 +1224,10 @@ export function createApiServer(customStorePath?: string): AppInstance {
   };
 
   const server = http.createServer(handleRequest);
+  server.requestTimeout = 15000;
+  server.headersTimeout = 10000;
 
-  const inject: AppInstance['inject'] = async ({ method, url, token, body }) => {
+  const inject: AppInstance['inject'] = async ({ method, url, token, body, headers = {} }) => {
     const { EventEmitter } = await import('node:events');
     const reqEmitter = new EventEmitter() as unknown as http.IncomingMessage;
     reqEmitter.method = method;
@@ -1220,6 +1236,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       host: 'localhost:4000',
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...headers,
     };
     (reqEmitter as any).socket = { remoteAddress: '127.0.0.1' };
 

@@ -7,7 +7,7 @@ import { EnterpriseDataStore } from '../apps/api/src/store.ts';
 import { createApiServer } from '../apps/api/src/app.ts';
 import { canAccessTicket, validateStatusTransition } from '../packages/shared/src/index.ts';
 
-function fixture(fn: (file: string) => unknown) {
+function fixture(fn: (file: string) => void | Promise<void>) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiit-day2-'));
   return Promise.resolve().then(() => fn(path.join(dir, 'db.json'))).finally(() => fs.rmSync(dir, {recursive:true,force:true}));
 }
@@ -209,4 +209,18 @@ test('F05 API denies employee IT-controlled work while allowing IT to resume it'
   const allowed = await app.inject({method:'POST',url,token:it,body:{status:'IN_PROGRESS'}});
   assert.equal(allowed.status,200);
   assert.equal(allowed.data.ticket.status,'IN_PROGRESS');
+}));
+
+test('independent API instances preserve concurrent updates through explicit contention retry',()=>fixture(async file=>{
+ const a=createApiServer(file),b=createApiServer(file);
+ const token=(await a.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+ const ticket=a.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
+ const write=(app:ReturnType<typeof createApiServer>,text:string)=>app.inject({method:'POST',url:`/api/tickets/${ticket.id}/comments`,token,body:{body:text,isInternal:false}});
+ const results=await Promise.all([write(a,'First concurrent synthetic comment'),write(b,'Second concurrent synthetic comment')]);
+ assert.equal(results.filter(r=>r.status===201).length,1);assert.equal(results.filter(r=>r.status===409).length,1);
+ if(results[0].status===409) assert.equal((await write(a,'First concurrent synthetic comment')).status,201);
+ if(results[1].status===409) assert.equal((await write(b,'Second concurrent synthetic comment')).status,201);
+ const source=new EnterpriseDataStore(file).getState();
+ assert.ok(source.ticketComments.some(c=>c.body==='First concurrent synthetic comment'));
+ assert.ok(source.ticketComments.some(c=>c.body==='Second concurrent synthetic comment'));
 }));

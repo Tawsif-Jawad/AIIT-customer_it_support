@@ -28,7 +28,7 @@ test('browser scripts and landing markup maintain original signature and safe de
 test('a response from an earlier session cannot populate the next user workspace',async()=>{
   let complete:(value:any)=>void=()=>{};
   const pending=new Promise(resolve=>complete=resolve);
-  const context=vm.createContext({document:{getElementById:()=>({}),querySelectorAll:()=>[]},localStorage:{getItem:()=> 'old-token'},fetch:()=>pending,AbortController,setTimeout,clearTimeout});
+  const context=vm.createContext({document:{getElementById:()=>({}),querySelectorAll:()=>[]},localStorage:{getItem:()=> 'old-token',removeItem:()=>{}},fetch:()=>pending,AbortController,setTimeout,clearTimeout});
   const script=getPortalHtml().match(/<script>([\s\S]*?)<\/script>/)![1].replace("initAuth().catch(error => showFeedback(error.message, 'error'));",'');
   vm.runInContext(script,context);
   const request=vm.runInContext("apiFetch('/api/tickets')",context);
