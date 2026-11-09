@@ -24,7 +24,8 @@ console.log(
   JSON.stringify({
     status: 'PASSED',
     step: 'MONOREPO_BUILD_AND_MODULE_VERIFICATION',
-    verifiedPackages: ['@it-support/shared', '@it-support/connectors', '@it-support/api', '@it-support/worker', '@it-support/web'],
+    verifiedPackages: ['@it-support/shared', '@it-support/connectors', '@it-support/api', '@it-support/web'],
+    limitations: 'Import and browser syntax smoke checks only; no tsc, ESLint, bundle or worker import. Standalone JSON worker disabled.',
     timestamp: new Date().toISOString(),
   })
 );

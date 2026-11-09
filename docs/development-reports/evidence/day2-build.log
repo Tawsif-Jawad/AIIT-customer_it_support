@@ -1,0 +1,5 @@
+
+> it-support-system@1.0.0 build
+> node scripts/verify-types.ts
+
+{"status":"PASSED","step":"MONOREPO_BUILD_AND_MODULE_VERIFICATION","verifiedPackages":["@it-support/shared","@it-support/connectors","@it-support/api","@it-support/web"],"limitations":"Import and browser syntax smoke checks only; no tsc, ESLint, bundle or worker import. Standalone JSON worker disabled.","timestamp":"2026-11-09T04:12:03.042Z"}

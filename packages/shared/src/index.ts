@@ -283,6 +283,10 @@ export function validateStatusTransition(
     };
   }
 
+  if (actorRole === 'SYSTEM_SERVICE' && !(['NEW', 'TRIAGED', 'AI_HANDLING', 'FAILED_RETRY'].includes(from) && ['TRIAGED', 'AI_HANDLING', 'RESOLVED_PENDING_CONFIRMATION', 'ASSIGNED_TO_IT', 'FAILED_RETRY'].includes(to))) return { valid: false, reason: 'Service transition is outside triage policy.' };
+  if (to === 'CLOSED' && from !== 'RESOLVED_PENDING_CONFIRMATION') return { valid: false, reason: 'Closure requires a proposed resolution and requester confirmation.' };
+  if (from === 'ESCALATED_TO_CTO' && actorRole !== 'CTO') return { valid: false, reason: 'CTO review is required for escalated cases.' };
+
   // Role-based transition guards
   if (actorRole === 'CUSTOMER' || actorRole === 'EMPLOYEE') {
     if (!isTicketOwner) {
@@ -313,7 +317,7 @@ export function validateStatusTransition(
 
 export function canAccessTicket(user: User, ticket: Ticket): boolean {
   if (user.roleName === 'CTO' || user.roleName === 'IT_ADMIN' || user.roleName === 'SYSTEM_SERVICE') {
-    return true;
+    return user.roleName !== 'SYSTEM_SERVICE';
   }
   // Customers and Employees can only view their own tickets within their SBU
   return ticket.requesterId === user.id && ticket.sbuId === user.sbuId;

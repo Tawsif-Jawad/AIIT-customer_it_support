@@ -1,0 +1,1 @@
+WORKER_DISABLED_JSON_MODE: Notifications are processed by the API. Standalone workers require the transactional database repository.

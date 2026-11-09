@@ -1,0 +1,84 @@
+[
+  {
+    "name": "tests",
+    "command": "npm test",
+    "exit": 0,
+    "log": "day2-tests.log"
+  },
+  {
+    "name": "lint",
+    "command": "npm run lint",
+    "exit": 0,
+    "log": "day2-lint.log"
+  },
+  {
+    "name": "build",
+    "command": "npm run build",
+    "exit": 0,
+    "log": "day2-build.log"
+  },
+  {
+    "name": "diff-check",
+    "command": "git diff --check",
+    "exit": 0,
+    "log": "day2-diff-check.log"
+  },
+  {
+    "name": "disabled-worker",
+    "command": "node apps/worker/src/main.ts --once",
+    "exit": 1,
+    "log": "day2-disabled-worker.log"
+  },
+  {
+    "name": "disabled-seed",
+    "command": "node apps/api/src/prisma/seed.ts",
+    "exit": 1,
+    "log": "day2-disabled-seed.log"
+  },
+  {
+    "name": "baseline",
+    "command": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock npm test",
+    "exit": 0,
+    "passed": 24,
+    "failed": 0,
+    "log": "day2-baseline.log"
+  },
+  {
+    "name": "before-fixes",
+    "command": "NODE_ENV=test AUTH_MODE=dev_oidc node --test tests/day2.test.ts",
+    "exit": 1,
+    "passed": 0,
+    "failed": 5,
+    "log": "day2-before.log"
+  },
+  {
+    "name": "typecheck",
+    "command": "npm exec --offline --no --package=typescript@5.7.2 -- tsc --noEmit",
+    "exit": 1,
+    "reason": "ENOTCACHED: TypeScript"
+  },
+  {
+    "name": "e2e",
+    "command": "npm_config_offline=true npm_config_yes=false npm run test:e2e",
+    "exit": 1,
+    "reason": "ENOTCACHED: Playwright"
+  },
+  {
+    "name": "install",
+    "command": "pnpm install --offline --frozen-lockfile --ignore-scripts",
+    "exit": 1,
+    "reason": "ERR_PNPM_NO_LOCKFILE; pnpm 11.25.0 reports bundled Node v24.22.1, shell node is v26.8.1"
+  },
+  {
+    "name": "dependencies",
+    "command": "npm ls --depth=0",
+    "exit": 1,
+    "reason": "ELSPROBLEMS: declared dependencies not installed"
+  },
+  {
+    "name": "http-smoke",
+    "command": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node docs/development-reports/evidence/day2-http-smoke.mjs",
+    "exit": 0,
+    "log": "day2-http-smoke.json"
+  }
+]

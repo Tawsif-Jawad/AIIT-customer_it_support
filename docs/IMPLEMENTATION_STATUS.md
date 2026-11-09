@@ -1,3 +1,5 @@
+> Day 2 delta: JSON request transactions, cross-process lease/stale-write rejection, one-time reasoned approvals, CTO escalation protection, persisted development sessions/logout, transition-note redaction and reset denial are implemented. Standalone JSON worker/non-mock mail are disabled. Expanded SBU assignment scope, real IdP/database/queue and production verification remain incomplete. See development-reports/DAY2_REPORT_2026-11-09.md.
+
 # AIIT implementation status — Day 1 verified baseline
 
 Date: Sunday, 8 November 2026. This matrix supersedes earlier completeness labels; historical recovery notes are retained below. **VERIFIED means the explicitly described local behavior was verified, not that the whole module is enterprise-ready.** MOCK denotes simulated integrations. BLOCKED identifies unavailable prerequisites, not a successful test.

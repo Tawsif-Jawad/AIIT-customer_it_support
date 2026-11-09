@@ -23,6 +23,10 @@ export interface OIDCClaims {
 const DEFAULT_ISSUER = process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/upstra-enterprise';
 const DEFAULT_AUDIENCE = process.env.KEYCLOAK_CLIENT_ID || 'it-support-web';
 
+export function isDevelopmentAuthEnabled(): boolean {
+  return ['development', 'test'].includes(process.env.NODE_ENV || '') && process.env.AUTH_MODE === 'dev_oidc';
+}
+
 function getSigningSecret(): string {
   return process.env.JWT_SIGNING_SECRET || 'dev-only-hmac-secret-replace-in-production-immediately';
 }
@@ -36,8 +40,9 @@ function base64UrlDecode(input: string): string {
 }
 
 export function issueOIDCToken(user: User, expiresInSeconds = 28800): string {
+  if (!isDevelopmentAuthEnabled()) throw new Error('DEVELOPMENT_AUTH_DISABLED');
   const nowSec = Math.floor(Date.now() / 1000);
-  const header = { alg: 'HS256', typ: 'JWT', kid: 'kc-dev-realm-key-1' };
+  const header = { nonce: crypto.randomUUID(), alg: 'HS256', typ: 'JWT', kid: 'kc-dev-realm-key-1' };
   const payload: OIDCClaims = {
     sub: user.id,
     iss: DEFAULT_ISSUER,
@@ -63,7 +68,7 @@ export function issueOIDCToken(user: User, expiresInSeconds = 28800): string {
 }
 
 export function verifyOIDCToken(token: string): OIDCClaims | null {
-  if (process.env.NODE_ENV === 'production' || (process.env.AUTH_MODE && process.env.AUTH_MODE !== 'dev_oidc')) return null;
+  if (!isDevelopmentAuthEnabled()) return null;
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;

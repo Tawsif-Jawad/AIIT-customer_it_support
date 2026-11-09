@@ -1,3 +1,5 @@
+> Day 2 status: directory adapter remains a mock; no verified AD authentication, LDAPS connection or write exists. See architecture/AUTHENTICATION_AUTHORIZATION.md for protocol, certificate, account/group mapping, revocation and outage requirements. Never infer server settings from a mailbox.
+
 # On-Premises Active Directory Integration Design
 **Status:** Milestone 1 Read-Only Mock & Keycloak Federation Blueprint Implemented; Production Writes Disabled
 

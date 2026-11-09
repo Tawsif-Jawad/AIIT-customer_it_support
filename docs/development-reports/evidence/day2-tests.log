@@ -1,0 +1,58 @@
+
+> it-support-system@1.0.0 test
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/*.test.ts
+
+✔ F01 stale independent writer cannot overwrite a committed record (25.301542ms)
+✔ F14 invalid collections and duplicate IDs fail closed (10.164667ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.1305ms)
+✔ F04 approvals require rationale and cannot be replayed (38.238417ms)
+✔ F03 logout invalidates bearer session (33.462291ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (112.650333ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (17.090708ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (82.190458ms)
+✔ opposing approval decisions serialize to one immutable decision (20.477875ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (6.150292ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (4.095042ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (77.9625ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (18.820125ms)
+✔ read-only migration dry run preserves source bytes and reports counts (75.977709ms)
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (12.240916ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (24.775458ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (13.785584ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (8.134958ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (8.494ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (25.566875ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (25.995709ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (15.667208ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (18.305125ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (168.083916ms)
+✔ generated browser JavaScript parses, AIIT renders without JS, requests have a deadline (1.453958ms)
+✔ production rejects development identity enumeration and email-only sign-in (20.46275ms)
+✔ corrupted persistence fails without replacing existing records with demo data (1.035792ms)
+✔ development tokens validate issuer/audience/expiry and are rejected in production (0.805333ms)
+✔ public presentation, application and allowlisted assets are served separately (52.899666ms)
+✔ browser scripts and landing markup maintain original signature and safe demo labels (0.612041ms)
+✔ a response from an earlier session cannot populate the next user workspace (2.369042ms)
+✔ footer renderer honors reduced motion, suspends offscreen, and cleans up lifecycle observers (5.974709ms)
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (2.068333ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.093916ms)
+✔ Ticket Workflow State Machine & Role Guards (3.1955ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.066625ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.123833ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.395208ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.171708ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.106666ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.168916ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (0.96925ms)
+ℹ tests 38
+ℹ suites 4
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 682.494125

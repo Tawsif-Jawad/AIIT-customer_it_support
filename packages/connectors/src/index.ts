@@ -594,7 +594,7 @@ export class DeterministicMockAIOrchestrator {
         policyDecision: 'ALLOWED_LOW_RISK',
         dryRun: false,
         toolOutput: diagOutput,
-        suggestedResponse: `[Deterministic Mock AI - Diagnostic & Knowledge Resolution]\nDiagnostic Tool (${tool.name}) verified VLAN-${params.sbuCode} gateway health.\n\nRecommended Steps:\n1. ${String(diagOutput.recommendedAction)}\n2. Ensure proxy auto-configuration (PAC) is enabled.\n\nIf connectivity is still degraded, reject this resolution to route immediately to IT Network Operations.`,
+        suggestedResponse: `[Deterministic Mock AI - Diagnostic & Knowledge Resolution]\nSimulated diagnostic (${tool.name}) for VLAN-${params.sbuCode}; no live gateway health was measured.\n\nRecommended Steps:\n1. ${String(diagOutput.recommendedAction)}\n2. Ensure proxy auto-configuration (PAC) is enabled.\n\nIf connectivity is still degraded, reject this resolution to route immediately to IT Network Operations.`,
         matchedArticles: matchedArticles.map(({ slug, title }) => ({ slug, title })),
         canAutoResolve: true,
         escalateToIT: false,

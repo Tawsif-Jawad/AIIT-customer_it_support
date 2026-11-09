@@ -1,3 +1,5 @@
+> Day 2 update: JSON now uses exclusive transaction leases, reload/commit and direct stale-snapshot rejection; destructive reset is disabled. Historical Day 1 findings below remain evidence of the prior implementation. Current schema proposal and dry-run validator limitations are in architecture/DATABASE_DESIGN.md; no database migration was executed.
+
 # AIIT non-destructive migration plan — Day 1
 
 Date: 8 November 2026. **Plan only. No migration, reset, production connection or data conversion was executed.** Day 3 is proposed implementation work, subject to Day 2 schema/identity decisions.
