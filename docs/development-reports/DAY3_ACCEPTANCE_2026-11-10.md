@@ -15,7 +15,7 @@
 | Applicable local checks | LOCAL PASS | All ten pinned commands exit 0; database required/no skips |
 | Notification foundation | LOCAL PASS, scoped | Transactional requester intents, stable per-operation job IDs, bounded retry/backoff, token leases, concurrent claims, retained failures; no dispatcher or SMTP |
 | Documentation/evidence | PASS | Development/test reports, architecture contract, current-status notices, safe command logs/manifests |
-| Source commits and PR | PREPARED / see PR handoff | Focused implementation/test/evidence commits; dependency base is PR #3 branch |
+| Source commits and PR | PASS, draft/unmerged | [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4), focused implementation/test/evidence commits; dependency base is PR #3 branch |
 | Full API/session/worker PostgreSQL integration | PARTIAL | Direct integration-test mode only; other entity APIs, triage/recipient policy and cutover remain |
 | Required hosted checks | BLOCKED | No successful hosted execution demonstrated; historical billing lock; new run details in PR handoff |
 | Independent review and prerequisite integrations | BLOCKED | Agent self-review is not independent approval; PR #2/#3 remain unmerged |
@@ -33,3 +33,9 @@ Before runtime adoption, have an independent reviewer inspect all database APIs,
 **GO:** isolated OIDC/session and repository adapter work using approved nonproduction infrastructure. **NO-GO:** merge as formally accepted, production deployment/cutover, corporate email or AD writes.
 
 Owner dependencies: resolve GitHub account lock through the existing Support process without bypassing required checks; obtain independent review and prerequisite PR integrations; approve nonproduction realm/session infrastructure; resolve expanded organization/membership policy and any source SBU inconsistencies; define exact-action approval/expiry/separation before any executor; approve runtime/migration roles, retention and recovery objectives before deployment. No new billing change, paid service or alternate check policy is authorized by this report.
+
+## Published PR and fresh hosted evidence
+
+Draft [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) targets `audit/day1-day2-full-functional-review` and is attached to the development chat. At documentation head `11478bb0f2b989335eed7986a9d2931b3c07b310`, [run 42755426743](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42755426743) failed all four jobs before any steps executed. Each independently read annotation states: **The job was not started because your account is locked due to a billing issue.** [Machine-readable diagnostics](evidence/day3/hosted-ci.json).
+
+This is a freshly confirmed hosted infrastructure blocker, not an application test failure. The report-only handoff commit follows this observed head; it does not change tested application source. No rerun, payment change, check bypass or merge was performed. Independent approval and PR #2/#3 integrations remain outstanding.

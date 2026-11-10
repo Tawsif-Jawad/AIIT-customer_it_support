@@ -63,3 +63,9 @@ Protected local JSON and `.env` remain unchanged, with verifier hash evidence. C
 6. **MEDIUM: environment coverage.** Only local PostgreSQL 18.6 and Chromium proven. Required hosted PostgreSQL 16, actual staging behavior, scale/performance and production recovery remain unverified. Counter exhaustion/extreme numeric legacy suffixes fail closed.
 
 Day 4: **GO for isolated session/OIDC adapter design and broader repository integration**, subject to an approved nonproduction realm/infrastructure. **NO-GO for accepted integration, production cutover, corporate provisioning or merge** until the required prerequisite checks/reviews/owner decisions pass. The December 10 target is planning context, not readiness evidence.
+
+## Source-control handoff
+
+Published draft [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) against the correct PR #3 dependency branch. Commits: `225c201` implementation, `0d41cd1` historical import verification, `d5d760d` reports/manifests, `11478bb` safe raw logs, followed by this report-only hosted handoff. Remote dependency head was rechecked and still equals source `4dfe635`.
+
+Fresh PR run [42755426743](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42755426743) at `11478bb` failed quality/tests/database/browser before steps. Every check annotation explicitly confirms the account billing lock; see `evidence/day3/hosted-ci.json`. Formal acceptance remains BLOCKED. PR is draft/unmerged; independent review outstanding. No billing/protection settings were changed.
