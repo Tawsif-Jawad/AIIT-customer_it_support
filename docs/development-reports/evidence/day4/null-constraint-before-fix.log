@@ -1,0 +1,67 @@
+
+> it-support-system@1.0.0 test:db /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> node --test tests/database.test.ts
+
+Environment variables loaded from .env
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✖ Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid (2.150875ms)
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (13.004292ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (7.864708ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (3.837ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (23.777125ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (7.966ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (12.991459ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (5.628792ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (7.418583ms)
+  ✔ Day3 independent client restart reloads committed records (5.552834ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (14.982583ms)
+  ✔ remediation valid IT escalation is CRITICAL, redacted and atomic (8.824625ms)
+  ✔ remediation valid CTO escalation is CRITICAL, redacted and atomic (6.015917ms)
+  ✔ remediation escalation accepts exactly five trimmed reason characters (4.282084ms)
+  ✔ remediation escalation rejects missing reason without writes (5.739334ms)
+  ✔ remediation escalation rejects blank reason without writes (6.386458ms)
+  ✔ remediation escalation rejects short reason without writes (4.336875ms)
+  ✔ remediation escalation rejects trimmed short reason without writes (5.396834ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (12.926666ms)
+  ✔ remediation concurrent escalations preserve one complete version and intent (12.22325ms)
+  ✔ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (9.7445ms)
+  ✔ remediation CTO APPROVED audit names the Approval and preserves rationale (8.709041ms)
+  ✔ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (11.57475ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (12.078958ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (4.696875ms)
+  ✔ remediation opposing approvals produce exactly one correctly attributed audit (6.070375ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (13.806334ms)
+  ✔ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (1118.582041ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+✖ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (5709.071417ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":4,"sourceManifest":{"sbus":{"count":3,"checksum":"221c1203abc90f7efc785d715864fbc4dd75d7fa6b5ef847bb7ca6d3252215d9"},"roles":{"count":5,"checksum":"9ad8220da164595bcccd9a21d12a5305481b314975bfa380659cd1d6cd47620e"},"users":{"count":5,"checksum":"b7e8012280a0af23985505b73fc14cefb8716007f51ac516c9a523baabe552a3"},"serviceCategories":{"count":6,"checksum":"ba39c92ee9f1ab5b9fc393ce7f19bef0ce52082db8f6f69d9895ccbb1819e94d"},"tickets":{"count":3,"checksum":"e15ec33e0d2db0605d6c3e6ac604732d6b2d786c90c14ac319a50b9336b130ca"},"ticketEvents":{"count":4,"checksum":"0b5128c7b8e631f5934015f0a1f0d4e85d92f2dbf177e49ead27076f3993824e"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"00d9698b0b6af4314d4509f240a91da4fbc3b336e086909ee0569dd9564c33a0"},"approvals":{"count":2,"checksum":"394c0f7500cc892ed05092c2e6f1431ba418d95a1f8ff4b1d6d3eb8aafe32f5d"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"d927926f7b0a09c18cb294e48f51519282f04b31e2516b8bdac69dcf20b49190"},"auditLogs":{"count":1,"checksum":"24dfe56e94d738dd49f11f827664b0f01b31d367b3a3e036ee7bf65b75811df9"},"knowledgeArticles":{"count":3,"checksum":"be2ceb51bd76ff655e6d0335e58296a1d00e0b7b58953e8e8e6140f19cdd17c9"},"authSessions":{"count":2,"checksum":"ce5905afb5cb30b95f08c48d46e7319099b7d4820964db3f41409e509f38388f"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+ℹ tests 29
+ℹ suites 0
+ℹ pass 27
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5860.715708
+
+✖ failing tests:
+
+test at tests/database.test.ts:43:12
+✖ Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid (2.150875ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:47:43
+      at async Proxy._transactionWithCallback (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:130:8120)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:47:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:43:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Command failed with exit code 1.

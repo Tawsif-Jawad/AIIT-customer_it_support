@@ -1,0 +1,23 @@
+
+> it-support-system@1.0.0 test:integration /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/integration.test.ts
+
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (2.801958ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (24.248959ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (8.582917ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (4.130417ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (6.612ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (15.308583ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (12.555666ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (2.891375ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (8.230875ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (102.91975ms)
+ℹ tests 9
+ℹ suites 1
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 291.228125

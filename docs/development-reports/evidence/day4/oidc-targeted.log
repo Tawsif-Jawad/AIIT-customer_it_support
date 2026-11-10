@@ -1,0 +1,29 @@
+✔ OIDC code PKCE nonce and trusted JWKS establish an opaque session without upstream tokens (210.235125ms)
+✔ OIDC rejects wrong-issuer without establishing a session or success audit (244.387167ms)
+✔ OIDC rejects wrong-audience without establishing a session or success audit (72.820917ms)
+✔ OIDC rejects wrong-nonce without establishing a session or success audit (70.7825ms)
+✔ OIDC rejects bad-signature without establishing a session or success audit (118.334958ms)
+✔ OIDC rejects wrong-alg without establishing a session or success audit (65.705709ms)
+✔ OIDC rejects expired without establishing a session or success audit (115.375458ms)
+✔ OIDC rejects future-nbf without establishing a session or success audit (49.3525ms)
+✔ OIDC rejects future-iat without establishing a session or success audit (36.643166ms)
+✔ OIDC rejects no-id-token without establishing a session or success audit (63.155125ms)
+✔ OIDC fails closed for bad-discovery with no development fallback (105.462ms)
+✔ OIDC fails closed for unsafe-endpoint with no development fallback (82.497959ms)
+✔ OIDC fails closed for unavailable with no development fallback (66.513917ms)
+✔ OIDC callback is bound to browser cookie, state, PKCE, one-time consumption and expiry (100.826375ms)
+✔ OIDC refuses unknown disabled service and conflicting identity associations without email provisioning (144.899875ms)
+✔ OIDC sessions persist across API reload, expire, revoke and immediately observe role/SBU changes (106.216125ms)
+✔ OIDC rotating login prevents fixation, allows independent sessions, and rejects modified cookies (164.069042ms)
+✔ OIDC production requires HTTPS, complete configuration and secure cookies (0.229833ms)
+✔ OIDC requester scope and trusted application role/SBU defeat body and issuer role escalation (219.939625ms)
+✔ OIDC preserves organization IT grant and CTO-only review; disabled or rebound identity loses access (111.054208ms)
+✔ OIDC callback persistence failure never releases a cookie or partial success audit (65.720584ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2367.565458

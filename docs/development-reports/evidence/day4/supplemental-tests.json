@@ -1,0 +1,27 @@
+{
+  "unit": {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:unit",
+    "exitCode": 0,
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0,
+    "log": "unit.log"
+  },
+  "integration": {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:integration",
+    "exitCode": 0,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0,
+    "log": "integration.log"
+  },
+  "countsOverlapNative": true,
+  "initialBrowserRun": {
+    "exitCode": 1,
+    "pass": 18,
+    "fail": 2,
+    "skipped": 0,
+    "cause": "New tests used nonexistent navigation IDs; corrected selectors, retained all assertions",
+    "log": "initial-browser-failure.log"
+  }
+}
