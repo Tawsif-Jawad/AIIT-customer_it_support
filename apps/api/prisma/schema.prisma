@@ -90,6 +90,7 @@ model User {
   email          String   @unique
   displayName    String
   oidcSubject    String?  @unique
+  oidcIssuer String?
   adDistinguishedName String?
   sbuId          String
   roleId         String
@@ -305,6 +306,9 @@ model KnowledgeArticle {
 }
 
 model AuthSession {
+  kind String?
+  issuer String?
+  subject String?
   id String @id
   userId String
   expiresAt DateTime @db.Timestamptz(6)

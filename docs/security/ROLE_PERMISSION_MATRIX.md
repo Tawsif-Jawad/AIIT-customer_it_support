@@ -1,3 +1,5 @@
+> Day 4: the same role/SBU policy now applies to verified enterprise sessions as well as explicit development sessions. Issuer/subject binds identity; effective grants always come from current AIIT records. See [authentication contract](ENTERPRISE_AUTHENTICATION.md). No expanded cross-SBU policy is introduced.
+
 # Day 2 permission matrix — 9 November 2026
 
 Implemented policy resides in `packages/shared/src/index.ts`; route-specific approval, asset and directory guards remain in `apps/api/src/app.ts`. This is an interim policy, not generalized enforcement of the informational Role.permissions array.

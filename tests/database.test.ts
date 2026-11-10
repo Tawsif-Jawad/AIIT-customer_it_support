@@ -31,6 +31,8 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
   const client=new PrismaClient({datasources:{db:{url}}});
   try {
    const source=createInitialSeedState();source.authSessions=[{id:'b'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000}];
+   source.users[0].oidcIssuer='https://synthetic-issuer.example.test/realm';
+   source.authSessions.push({id:'c'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000,kind:'oidc',issuer:source.users[0].oidcIssuer,subject:source.users[0].oidcSubject});
    // Nonempty historical fixtures prove comments/attachments/notifications are
    // preserved, rather than merely comparing empty collection counts.
    source.ticketComments.push({id:'imported-comment',ticketId:source.tickets[0].id,authorId:source.users[0].id,authorName:'Synthetic historical author',authorRole:'EMPLOYEE',body:'Synthetic historical comment',isInternal:false,attachments:[{fileName:'fixture.txt',mimeType:'text/plain',sizeBytes:42}],createdAt:'2026-11-09T18:00:00+06:00'});
@@ -97,7 +99,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    try {const user=await upgrade.user.findUniqueOrThrow({where:{id:'33333333-3333-4333-8333-333333333333'}});assert.equal(user.sbuId,'11111111-1111-4111-8111-111111111111');assert.equal(await upgrade.sBU.count(),1);} finally {await upgrade.$disconnect();}
    const diff=execFileSync('node_modules/.bin/prisma',['migrate','diff','--from-url',url,'--to-schema-datamodel','apps/api/prisma/schema.prisma','--exit-code'],{env,encoding:'utf8'});
    assert.match(diff,/No difference detected|empty/i);
-   t.diagnostic('DAY3_DATABASE_EVIDENCE '+JSON.stringify({postgres:pg('postgres',['--version']).trim(),migrationCount:3,sourceManifest:manifest,concurrentIdenticalImports:2,sourceRestoreChecksumMatch:true,repositoryRestoreMatch:true,prismaSchemaParity:true,populatedUuidUpgrade:true,operationalTargetUsed:false}));
+   t.diagnostic('DAY3_DATABASE_EVIDENCE '+JSON.stringify({postgres:pg('postgres',['--version']).trim(),migrationCount:fs.readdirSync('apps/api/prisma/migrations',{withFileTypes:true}).filter(item=>item.isDirectory()).length,sourceManifest:manifest,concurrentIdenticalImports:2,sourceRestoreChecksumMatch:true,repositoryRestoreMatch:true,prismaSchemaParity:true,populatedUuidUpgrade:true,operationalTargetUsed:false}));
   } finally {await client.$disconnect();}
  } finally {if(started) pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(dir,{recursive:true,force:true});}
 });

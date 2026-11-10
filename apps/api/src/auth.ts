@@ -1,7 +1,7 @@
 /**
- * Keycloak OIDC & JWT Token Service
- * Supports Keycloak OIDC realm federation claims and development OIDC token issuance
- * with HMAC-SHA256 signatures, expiration checks, and least-privilege role/SBU claims.
+ * Explicit development-only HMAC token service.
+ * Enterprise Code+PKCE/JWKS validation is implemented in enterprise-auth.ts.
+ * This module never authenticates enterprise or production sessions.
  */
 
 import crypto from 'node:crypto';

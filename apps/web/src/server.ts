@@ -226,8 +226,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
     <!-- LOGIN VIEW -->
     <section id="login-section" class="card" style="max-width: 640px; margin: 2rem auto;">
       <div class="login-art" aria-hidden="true">✧</div><div class="eyebrow" style="margin-bottom:14px">Welcome to your workspace</div><h2>Sign in to AIIT</h2>
-      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
-        Artificial Intelligence for Information Technology. Development mode: select a seeded test identity. This is not live corporate authentication.
+      <p id="auth-mode-notice" style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+        Checking authentication mode…
       </p>
       <div class="form-group">
         <label for="login-identity-select">Development test identity</label>
@@ -237,6 +237,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         <label for="login-email-input">Corporate Email Address</label>
         <input type="email" id="login-email-input" placeholder="e.g., tawsif.zawad@upstra.com" />
       </div>
+      <a id="enterprise-login-btn" class="btn-primary" href="/api/auth/oidc/login" style="display:none">Sign in with enterprise identity ↗</a>
       <button id="login-submit-btn" class="btn-primary" type="button">Sign in to development environment ↗</button>
     </section>
 
@@ -368,6 +369,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
     const API_BASE = '${apiBaseUrl}';
     localStorage.removeItem('itsupport_token'); // Remove historical persisted bearer tokens.
     let authToken = '';
+    let csrfToken = '';
+    let sessionEpoch = 0;
     let currentUser = null;
     let catalogCategories = [];
     let currentTickets = [];
@@ -391,8 +394,9 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
     async function apiFetch(path, options = {}) {
       const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
-      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+      if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
       const requestToken = authToken;
+      const requestEpoch = sessionEpoch;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
       let res, data;
@@ -404,7 +408,16 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       } finally {
         clearTimeout(timeout);
       }
-      if (requestToken !== authToken) throw new Error('Session changed. Refresh this view.');
+      if (requestEpoch !== sessionEpoch || requestToken !== authToken) throw new Error('Session changed. Refresh this view.');
+      if (res.status === 401 && !path.startsWith('/api/auth/')) {
+        sessionEpoch++; authToken = ''; csrfToken = ''; currentUser = null;
+        if (typeof resetPrivateViews === 'function') resetPrivateViews();
+        document.getElementById('workspace-section').style.display = 'none';
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('user-header-controls').innerHTML = '';
+        document.body.classList.remove('authenticated', 'nav-open');
+        throw new Error('Session expired or invalid. Sign in again.');
+      }
       if (!res.ok && !options.acceptError) {
         throw new Error((data.error && data.error.message) || 'Request failed with status ' + res.status);
       }
@@ -430,7 +443,15 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
     async function initAuth() {
       void loadHealth();
-      const idData = await apiFetch('/api/auth/identities').catch(error => { showFeedback(error.message, 'error'); return { identities: [] }; });
+      const config = await apiFetch('/api/auth/config').catch(() => ({mode:'unconfigured',ready:false}));
+      const development = config.mode === 'development';
+      const enterpriseButton = document.getElementById('enterprise-login-btn');
+      enterpriseButton.style.display = config.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
+      document.getElementById('login-submit-btn').style.display = development ? 'inline-block' : 'none';
+      document.getElementById('login-email-input').parentElement.style.display = development ? 'block' : 'none';
+      document.getElementById('login-identity-select').parentElement.style.display = development ? 'block' : 'none';
+      document.getElementById('auth-mode-notice').textContent = development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
+      const idData = development ? await apiFetch('/api/auth/identities').catch(error => { showFeedback(error.message, 'error'); return { identities: [] }; }) : {identities:[]};
       const select = document.getElementById('login-identity-select');
       select.innerHTML = idData.identities.map(u =>
         '<option value="' + escapeHtml(u.email) + '">' + escapeHtml(u.displayName) + ' [' + escapeHtml(u.roleName) + ' | ' + escapeHtml(u.sbuCode) + ']</option>'
@@ -445,6 +466,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       {
         try {
           const me = await apiFetch('/api/auth/me');
+          csrfToken = me.csrfToken || '';
           currentUser = me.user;
           await renderAuthenticatedWorkspace();
           return;
@@ -470,8 +492,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
           method: 'POST',
           body: JSON.stringify({ email })
         });
-        authToken = res.token;
-        // Session survives reload through its HttpOnly cookie; bearer stays in memory.
+        authToken = ''; csrfToken = res.csrfToken || ''; sessionEpoch++;
+        // Authentication stays in the HttpOnly cookie; upstream tokens never enter JavaScript.
         currentUser = res.user;
         showFeedback('Authenticated as ' + currentUser.displayName + ' (' + currentUser.roleName + ')');
         await renderAuthenticatedWorkspace();
@@ -497,7 +519,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         try { await apiFetch('/api/auth/logout', { method: 'POST' }); }
         catch (error) { showFeedback('Sign out failed: ' + error.message + ' Your session is still active; retry sign out.', 'error'); return; }
         localStorage.removeItem('itsupport_token');
-        authToken = '';
+        authToken = ''; csrfToken = ''; sessionEpoch++;
         currentUser = null;
         await initAuth();
       };

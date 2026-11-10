@@ -29,6 +29,7 @@ import {
 import { EnterpriseDataStore } from './store.ts';
 import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
+import {EnterpriseAuthAdapter,JsonAuthenticationRepository,readEnterpriseSettings,cookieValue,sessionDigest,csrfForSession,secureEqual} from './enterprise-auth.ts';
 
 export interface AppInstance {
   server: http.Server;
@@ -58,6 +59,13 @@ function redactValue(value: unknown): any {
 export function createApiServer(customStorePath?: string): AppInstance {
   if (process.env.MAIL_PROVIDER && process.env.MAIL_PROVIDER !== 'mock') throw new Error('JSON_MODE_REQUIRES_MOCK_MAIL: External delivery requires a transactional outbox.');
   const store = new EnterpriseDataStore(customStorePath);
+  const authRepository = new JsonAuthenticationRepository(store);
+  // Configuration is captured per server; a failure never enables dev fallback.
+  let enterpriseAuth: EnterpriseAuthAdapter | undefined;
+  if(process.env.AUTH_MODE==='oidc') {
+    try {enterpriseAuth=new EnterpriseAuthAdapter(readEnterpriseSettings());} catch { /* public config reports unconfigured */ }
+  }
+
   const aiOrchestrator = new DeterministicMockAIOrchestrator();
   const adAdapter = new MockActiveDirectoryAdapter();
   const emailTransport = new DevelopmentEmailTransport({
@@ -183,9 +191,11 @@ export function createApiServer(customStorePath?: string): AppInstance {
     return token;
   }
 
-  function extractAuthenticatedUser(req: http.IncomingMessage): User | null {
+  async function extractAuthenticatedUser(req: http.IncomingMessage): Promise<User | null> {
     const token = extractSessionToken(req);
     if (!token) return null;
+
+    if(process.env.AUTH_MODE==='oidc') return enterpriseAuth ? await enterpriseAuth.authenticate(cookieValue(req.headers.cookie,'itsupport_session'),authRepository) : null;
 
     const claims = verifyOIDCToken(token);
     if (!claims) return null;
@@ -275,9 +285,22 @@ export function createApiServer(customStorePath?: string): AppInstance {
     // CLI clients need no Origin; external browser origins must be allowlisted.
     const origin = req.headers.origin;
     const sameOrigin = `${('encrypted' in (req.socket || {}) && (req.socket as { encrypted?: boolean }).encrypted) ? 'https' : 'http'}://${req.headers.host}`;
-    const allowedOrigin = origin === sameOrigin || (!!process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' && origin === process.env.CORS_ORIGIN);
+    const allowedOrigin = process.env.AUTH_MODE==='oidc' ? origin===enterpriseAuth?.publicUrl : origin === sameOrigin || (!!process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' && origin === process.env.CORS_ORIGIN);
     if ((origin && !allowedOrigin) || (req.headers.cookie?.includes('itsupport_session=') && !['GET','HEAD','OPTIONS'].includes(method) && !allowedOrigin)) {
       sendError(res, 403, 'ORIGIN_DENIED', 'A verified same-origin request is required.'); return;
+    }
+
+    if(process.env.AUTH_MODE==='oidc' && !['GET','HEAD','OPTIONS'].includes(method)) {
+      if(!enterpriseAuth || origin!==enterpriseAuth.publicUrl) {
+        sendError(res,403,'ORIGIN_DENIED','A verified same-origin request is required.');return;
+      }
+      const sessionToken=cookieValue(req.headers.cookie,'itsupport_session');
+      if(sessionToken && await enterpriseAuth.authenticate(sessionToken,authRepository)) {
+        const supplied=req.headers['x-csrf-token'];
+        if(typeof supplied!=='string'||!secureEqual(supplied,csrfForSession(sessionToken))) {
+          sendError(res,403,'CSRF_DENIED','Session CSRF validation failed.');return;
+        }
+      }
     }
 
     if (method === 'OPTIONS') {
@@ -318,9 +341,9 @@ export function createApiServer(customStorePath?: string): AppInstance {
             redisQueue: queueHealth,
             keycloakOidc: {
               status: 'UNKNOWN',
-              note: 'Live Keycloak connectivity and federation are not verified; development tokens are locally issued.',
-              issuer: process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/upstra-enterprise',
-              mode: process.env.AUTH_MODE || 'dev_oidc',
+              note: enterpriseAuth ? 'OIDC adapter configured. Provider reachability is checked during sign-in; real Keycloak/AD integration is not certified.' : 'Live Keycloak connectivity and federation are not verified; development tokens require explicit local mode.',
+              issuer: enterpriseAuth?.issuer || process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/upstra-enterprise',
+              mode: process.env.AUTH_MODE || 'unconfigured',
             },
             activeDirectory: adHealth,
             emailSystem: mailHealth,
@@ -373,6 +396,32 @@ export function createApiServer(customStorePath?: string): AppInstance {
       // ======================================================================
       // 2. AUTHENTICATION & DEVELOPMENT OIDC IDENTITY ENDPOINTS
       // ======================================================================
+      if(method==='GET'&&pathname==='/api/auth/config') {
+        sendJson(res,200,{mode:isDevelopmentAuthEnabled()?'development':process.env.AUTH_MODE==='oidc'?'enterprise':'unconfigured',ready:isDevelopmentAuthEnabled()||!!enterpriseAuth,loginUrl:enterpriseAuth?'/api/auth/oidc/login':null});return;
+      }
+      if(method==='GET'&&pathname==='/api/auth/oidc/login') {
+        if(!enterpriseAuth||process.env.AUTH_MODE!=='oidc'){sendError(res,503,'OIDC_NOT_CONFIGURED','Enterprise authentication is not configured.');return;}
+        try {
+          const result=await enterpriseAuth.begin(cookieValue(req.headers.cookie,'itsupport_session'));
+          res.setHeader('Set-Cookie',enterpriseAuth.flowCookie(result.flow));
+          res.writeHead(302,{'Location':result.url,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'});res.end();
+        }catch {sendError(res,503,'OIDC_UNAVAILABLE','Enterprise identity provider is unavailable or invalid.');}
+        return;
+      }
+      if(method==='GET'&&pathname==='/api/auth/oidc/callback') {
+        if(!enterpriseAuth||process.env.AUTH_MODE!=='oidc'){sendError(res,503,'OIDC_NOT_CONFIGURED','Enterprise authentication is not configured.');return;}
+        let result;
+        try {
+          result=await enterpriseAuth.finish(new URL(rawUrl,enterpriseAuth.publicUrl).href,cookieValue(req.headers.cookie,'aiit_oidc_flow'),authRepository);
+        }catch {res.setHeader('Set-Cookie',enterpriseAuth.flowCookie('',0));sendError(res,400,'OIDC_AUTHENTICATION_FAILED','Enterprise sign-in failed. Restart sign-in.');return;}
+        // Audit and persistence failures must roll back the established session,
+        // not become a client error that could commit a partial success.
+        recordAudit({actor:result.user,action:'AUTH_ENTERPRISE_LOGIN_SUCCESS',resource:'Auth',resourceId:result.user.id,ipAddress:clientIp});
+        res.setHeader('Set-Cookie',[enterpriseAuth.sessionCookie(result.token),enterpriseAuth.flowCookie('',0)]);
+        res.writeHead(303,{'Location':'/app','Cache-Control':'no-store','Referrer-Policy':'no-referrer'});res.end();
+        return;
+      }
+
       if (method === 'GET' && pathname === '/api/auth/identities') {
         if (!isDevelopmentAuthEnabled()) {
           sendError(res, 503, 'IDENTITY_PROVIDER_NOT_CONFIGURED', 'Development sign-in is disabled. Live OIDC integration must be configured before deployment.');
@@ -442,6 +491,12 @@ export function createApiServer(customStorePath?: string): AppInstance {
       }
 
       if (method === 'POST' && pathname === '/api/auth/logout') {
+        if(process.env.AUTH_MODE==='oidc') {
+          const token=cookieValue(req.headers.cookie,'itsupport_session');
+          if(!enterpriseAuth||!token||!await enterpriseAuth.authenticate(token,authRepository)){sendError(res,401,'UNAUTHORIZED','Authentication required.');return;}
+          await authRepository.revoke(sessionDigest(token));res.setHeader('Set-Cookie',enterpriseAuth.sessionCookie('',0));sendJson(res,200,{loggedOut:true});return;
+        }
+
         const token = extractSessionToken(req) || '';
         const state = store.getState();
         const id = crypto.createHash('sha256').update(token).digest('hex');
@@ -453,7 +508,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       }
 
       // Require authenticated user for all subsequent routes
-      const currentUser = extractAuthenticatedUser(req);
+      const currentUser = await extractAuthenticatedUser(req);
       if (!currentUser) {
         sendError(res, 401, 'UNAUTHORIZED', 'Authentication required. Provide a valid Bearer OIDC token or session.');
         return;
@@ -464,6 +519,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
         const roleObj = state.roles.find((r) => r.id === currentUser.roleId);
         const sbuObj = state.sbus.find((s) => s.id === currentUser.sbuId);
         sendJson(res, 200, {
+          ...(process.env.AUTH_MODE==='oidc'?{csrfToken:csrfForSession(cookieValue(req.headers.cookie,'itsupport_session')!)}:{}),
           user: currentUser,
           sbu: sbuObj || null,
           permissions: roleObj?.permissions || [],
@@ -1234,10 +1290,10 @@ export function createApiServer(customStorePath?: string): AppInstance {
     tail = new Promise<void>(resolve => { done = resolve; });
     await previous;
     let code = 200;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string | string[]> = {};
     let output = '';
     const buffered = {
-      setHeader(k: string, v: string) { headers[k] = String(v); },
+      setHeader(k: string, v: string | string[]) { headers[k] = v; },
       writeHead(c: number, h: Record<string, string> = {}) { code = c; Object.assign(headers, h); },
       end(chunk = '') { output += chunk; },
     } as unknown as http.ServerResponse;

@@ -27,7 +27,7 @@
     "lint": "eslint apps packages scripts tests playwright.config.ts",
     "build": "npm run typecheck && node scripts/verify-types.ts",
     "typecheck": "tsc --noEmit",
-    "test:security": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/day2.test.ts tests/security.test.ts",
+    "test:security": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/day2.test.ts tests/security.test.ts tests/oidc-security.test.ts",
     "test:db": "node --test tests/database.test.ts",
     "db:validate": "prisma validate --schema apps/api/prisma/schema.prisma",
     "db:generate": "prisma generate --schema apps/api/prisma/schema.prisma"

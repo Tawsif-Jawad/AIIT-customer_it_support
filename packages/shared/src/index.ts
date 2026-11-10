@@ -56,6 +56,7 @@ export interface User {
   email: string;
   displayName: string;
   oidcSubject: string;
+  oidcIssuer?: string;
   adDistinguishedName?: string;
   sbuId: string;
   roleId: string;
