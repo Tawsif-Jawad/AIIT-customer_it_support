@@ -50,3 +50,11 @@ Read-only current-server checks `/` and `/app` return 200; authenticated mutatio
 ## Unavailable integration and acceptance boundaries
 
 No local Keycloak listener/explicit test realm was available. Real Keycloak/AD federation, production HTTPS/browser deployment, IdP global logout, shared flow storage/multi-host sessions, refresh-token behavior and live PostgreSQL API integration remain PENDING. A synthetic realm and documented setup are prepared, not executed. Hosted CI and independent approval are separate required gates; local PASS does not replace them. No production or Day 5 work occurred.
+
+## Published PR and hosted/review handoff
+
+Draft [PR #5](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/5) targets `codex/day3-transactional-postgres` at verified base `e8145e2`. The chain is PR #2 → #3 → #4 → #5; none was merged or retargeted to bypass gates. Code commits `71427ff` and `b17bf01` contain implementation/tests; `e8baf81` records local reports/evidence, followed by this documentation-only hosted handoff.
+
+At `e8baf8179802d99d515cb75fad59b0172c41e736`, [run 42766950230](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42766950230) failed quality/tests/database/browser with no executed steps. Every independently read check annotation states: **The job was not started because your account is locked due to a billing issue.** [Structured evidence](evidence/day4/hosted-ci.json). This is pre-execution infrastructure failure, not failing application assertions. No rerun, billing/workflow/protection alteration or fabricated hosted PASS was used.
+
+PR #5 has zero review submissions and remains draft/unmerged. Independent approval is outstanding. The only reviewer previously named by the owner is also the PR author and cannot supply independent approval; no self-approval or invented alternative reviewer is recorded. Local development remains authorized while required release gates are outstanding. No Day 5 work was started.
