@@ -1,0 +1,13 @@
+
+> it-support-system@1.0.0 test:db /private/tmp/aiit-day3-source-4dfe635
+> node --test tests/database.test.ts
+
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (3015.997916ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3115.725042

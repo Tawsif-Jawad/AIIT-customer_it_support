@@ -1,3 +1,5 @@
+> Day 3 update (2026-11-10): A tested isolated PostgreSQL repository/outbox slice now exists; the application still runs on JSON. See [repository contract](architecture/POSTGRES_REPOSITORY.md) and [Day 3 acceptance](development-reports/DAY3_ACCEPTANCE_2026-11-10.md). Earlier statuses below are historical. Hosted checks, independent review, prerequisite integrations and production cutover remain gates.
+
 > Day 2 update: JSON now uses exclusive transaction leases, reload/commit and direct stale-snapshot rejection; destructive reset is disabled. Historical Day 1 findings below remain evidence of the prior implementation. Current schema proposal and dry-run validator limitations are in architecture/DATABASE_DESIGN.md; no database migration was executed.
 
 # AIIT non-destructive migration plan — Day 1

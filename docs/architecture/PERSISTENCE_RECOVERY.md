@@ -1,3 +1,5 @@
+> Day 3: see [transactional repository and recovery contract](POSTGRES_REPOSITORY.md) for the new additive schema, isolated transaction/outbox implementation and tested restoration. JSON remains the active runtime; historical text below is retained.
+
 # JSON persistence containment and recovery
 
 Implemented and tested on Node 26.8.1, local filesystem. This is temporary containment pending the existing PostgreSQL target, not a database replacement.

@@ -1,3 +1,5 @@
+> Day 3: see [transactional repository and recovery contract](POSTGRES_REPOSITORY.md) for the new additive schema, isolated transaction/outbox implementation and tested restoration. JSON remains the active runtime; historical text below is retained.
+
 # Persistence target schema and migration design — Day 2
 
 Status: PostgreSQL/Prisma is the existing target in ADR-002, not a connected runtime. Existing Prisma and initial SQL were inspected; no SQL was executed. Their UUID/native-type mismatch still blocks applying the scaffold to current prefixed JSON IDs. The following refinements are a **proposal awaiting schema review**, not an applied migration. Keep the existing unexecuted migration unchanged until reviewed replacement sequencing is chosen.

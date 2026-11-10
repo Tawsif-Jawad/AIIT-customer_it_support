@@ -1,0 +1,235 @@
+
+> it-support-system@1.0.0 test:db /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> node --test tests/database.test.ts
+
+Environment variables loaded from .env
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (13.609167ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (7.761375ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (3.751542ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (24.554916ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (7.677083ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (12.469ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (5.500208ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (7.196833ms)
+  ✔ Day3 independent client restart reloads committed records (5.588667ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (14.432542ms)
+  ✖ remediation valid IT escalation is CRITICAL, redacted and atomic (7.888834ms)
+  ✖ remediation valid CTO escalation is CRITICAL, redacted and atomic (5.102209ms)
+  ✔ remediation escalation rejects missing reason without writes (5.893375ms)
+  ✔ remediation escalation rejects blank reason without writes (4.551375ms)
+  ✖ remediation escalation rejects short reason without writes (6.776292ms)
+  ✖ remediation escalation rejects trimmed short reason without writes (6.273834ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (13.775ms)
+  ✖ remediation concurrent escalations preserve one complete version and intent (9.074291ms)
+  ✖ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (7.271666ms)
+  ✖ remediation CTO APPROVED audit names the Approval and preserves rationale (5.651916ms)
+  ✖ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (5.925916ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (13.019375ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (5.696625ms)
+  ✖ remediation opposing approvals produce exactly one correctly attributed audit (7.221459ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (20.333042ms)
+  ✖ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (190.25825ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+✖ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (4621.720125ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":3,"sourceManifest":{"sbus":{"count":3,"checksum":"e97745230ccf6fdefad2d3a44446a8943190fde87f592c6b3610da972c636f74"},"roles":{"count":5,"checksum":"9fef3a0f1c3115ae059bebb8b421618eea5ce1dc0bec0dfb852ce702230440e6"},"users":{"count":5,"checksum":"530e11f6ad105680192385f03242f4c78c4357ad239276f5639504ef9e812ff2"},"serviceCategories":{"count":6,"checksum":"b6da53024e08e4503d29d244c6041fe65bf9052538cf3387cc5bcee8e96d852b"},"tickets":{"count":3,"checksum":"e07464038b329a5959ffd7a9234db2bbe77a568f3a7ad90facb61c3f998b6cc7"},"ticketEvents":{"count":4,"checksum":"23250c4ff8a624b19e5d2c99019d05288e0937d93404473dd9ed49a5a59c9df7"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"0d3a07595e841ad5f8b5e3799da0cfdf8b22e4dc7f96b66a2e065fc6cbab157d"},"approvals":{"count":2,"checksum":"ab26e7eca864b09920ce62cf32d3e2353b9e74fb6e234e1575ce4d572a6b45b5"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"05f909cb54ead9848e3608f50e320874a4ff08a804eb07e8a26690829e1dcef1"},"auditLogs":{"count":1,"checksum":"eb48bb7e5843e1eef187c74d78c445df337bec3aec18f553dac6d0a8fbf9ed8c"},"knowledgeArticles":{"count":3,"checksum":"29e8a87626387c6e69bccc6d8641fab007b99df11d53f1d00c29caa8a08128d4"},"authSessions":{"count":1,"checksum":"4aa2a1fd9ea30cabe5bf0fd146cad3ea14889b4bc6d18d93267fa2c58fd90a56"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+ℹ tests 27
+ℹ suites 0
+ℹ pass 16
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4793.087333
+
+✖ failing tests:
+
+test at tests/support/day3-remediation.ts:18:42
+✖ remediation valid IT escalation is CRITICAL, redacted and atomic (7.888834ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'LOW' !== 'CRITICAL'
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:21:58)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:18:34)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOW',
+    expected: 'CRITICAL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:18:42
+✖ remediation valid CTO escalation is CRITICAL, redacted and atomic (5.102209ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'LOW' !== 'CRITICAL'
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:21:58)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:18:34)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOW',
+    expected: 'CRITICAL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:31:133
+✖ remediation escalation rejects short reason without writes (6.776292ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:33:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:31:125)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /VALIDATION_ERROR/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:31:133
+✖ remediation escalation rejects trimmed short reason without writes (6.273834ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:33:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:31:125)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /VALIDATION_ERROR/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:45:10
+✖ remediation concurrent escalations preserve one complete version and intent (9.074291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'LOW' !== 'CRITICAL'
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:50:115)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:45:2)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOW',
+    expected: 'CRITICAL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:57:146
+✖ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (7.271666ms)
+  PrismaClientKnownRequestError: 
+  Invalid `prisma.auditLog.findFirstOrThrow()` invocation:
+  
+  
+  An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+      at ei.handleRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:7268)
+      at ei.handleAndLogRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+      at ei.request (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+      at async a (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:61:15)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:57:138)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests/support/day3-remediation.ts:57:146
+✖ remediation CTO APPROVED audit names the Approval and preserves rationale (5.651916ms)
+  PrismaClientKnownRequestError: 
+  Invalid `prisma.auditLog.findFirstOrThrow()` invocation:
+  
+  
+  An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+      at ei.handleRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:7268)
+      at ei.handleAndLogRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+      at ei.request (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+      at async a (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:61:15)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:57:138)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests/support/day3-remediation.ts:57:146
+✖ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (5.925916ms)
+  PrismaClientKnownRequestError: 
+  Invalid `prisma.auditLog.findFirstOrThrow()` invocation:
+  
+  
+  An operation failed because it depends on one or more records that were required but not found. No record was found for a query.
+      at ei.handleRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:7268)
+      at ei.handleAndLogRequestError (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+      at ei.request (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+      at async a (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:61:15)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:57:138)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests/support/day3-remediation.ts:82:10
+✖ remediation opposing approvals produce exactly one correctly attributed audit (7.221459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:85:176)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:82:2)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/support/day3-remediation.ts:100:10
+✖ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (190.25825ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:110:83)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3Remediation (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-remediation.ts:100:2)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:75:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Command failed with exit code 1.

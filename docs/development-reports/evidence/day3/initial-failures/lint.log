@@ -1,0 +1,15 @@
+
+> it-support-system@1.0.0 lint /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> eslint apps packages scripts tests playwright.config.ts
+
+
+/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/postgres-outbox.ts
+  3:1  error  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+
+/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/postgres-repository.ts
+  3:1  error  Imports "PrismaClient" are only used as type  @typescript-eslint/consistent-type-imports
+
+✖ 2 problems (2 errors, 0 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.
+
+ ELIFECYCLE  Command failed with exit code 1.

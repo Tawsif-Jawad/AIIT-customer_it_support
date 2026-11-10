@@ -1,0 +1,12 @@
+{
+  "sourceBranch": "audit/day1-day2-full-functional-review",
+  "sourceCommit": "4dfe6358d1eba120edaa50283e2fab2ea62d12f5",
+  "initialWorkingTree": "clean",
+  "day3Branch": "codex/day3-transactional-postgres",
+  "implementationCommit": "225c201e316179c457036e1672f00c6d6934eebc",
+  "testedSourceCommit": "0d41cd12ed640c4c9b8fad4ef781cb05cfbd9b00",
+  "baselineMode": "separate pristine git archive with own dependencies",
+  "finalVerifier": "node scripts/verify-local.ts --output /tmp/aiit-day3-0d41cd1",
+  "integrationMode": "isolated explicit Prisma client; JSON default unchanged",
+  "independentApproval": false
+}

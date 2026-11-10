@@ -1,3 +1,5 @@
+> Day 3 update (2026-11-10): A tested isolated PostgreSQL repository/outbox slice now exists; the application still runs on JSON. See [repository contract](architecture/POSTGRES_REPOSITORY.md) and [Day 3 acceptance](development-reports/DAY3_ACCEPTANCE_2026-11-10.md). Earlier statuses below are historical. Hosted checks, independent review, prerequisite integrations and production cutover remain gates.
+
 # AIIT System Architecture
 
 > Verified runtime correction (2026-11-08): The running frontend and API use Node HTTP and local JSON storage. Next.js, NestJS, PostgreSQL/Prisma and BullMQ entries below describe intended/scaffolded architecture. Live RS256/JWKS OIDC and Redis are not implemented. Development HMAC authentication is disabled in production; see IMPLEMENTATION_STATUS.md.

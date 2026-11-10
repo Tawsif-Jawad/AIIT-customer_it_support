@@ -1,0 +1,39 @@
+{
+  "scope": "READ_ONLY_HOSTED_DIAGNOSTICS",
+  "pullRequest": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4",
+  "headRevision": "11478bb0f2b989335eed7986a9d2931b3c07b310",
+  "runId": 42755426743,
+  "runUrl": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42755426743",
+  "jobs": [
+    {
+      "id": 129628579496,
+      "name": "quality",
+      "conclusion": "failure",
+      "annotation": "The job was not started because your account is locked due to a billing issue.",
+      "executedSteps": 0
+    },
+    {
+      "id": 129628579436,
+      "name": "tests",
+      "conclusion": "failure",
+      "annotation": "The job was not started because your account is locked due to a billing issue.",
+      "executedSteps": 0
+    },
+    {
+      "id": 129628579428,
+      "name": "browser",
+      "conclusion": "failure",
+      "annotation": "The job was not started because your account is locked due to a billing issue.",
+      "executedSteps": 0
+    },
+    {
+      "id": 129628579112,
+      "name": "database",
+      "conclusion": "failure",
+      "annotation": "The job was not started because your account is locked due to a billing issue.",
+      "executedSteps": 0
+    }
+  ],
+  "hostedCiPassed": false,
+  "independentApproval": false
+}

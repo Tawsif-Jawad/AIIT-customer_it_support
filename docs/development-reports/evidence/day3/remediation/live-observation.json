@@ -1,0 +1,29 @@
+{
+  "url": "http://localhost:3000/",
+  "landingHttp": 200,
+  "workspaceHttp": 200,
+  "browserObserved": [
+    "AIIT landing page",
+    "Landing support link navigated to /app",
+    "Development identity sign-in form and mock integration notice visible"
+  ],
+  "liveAuthenticatedMutationsPerformed": false,
+  "reason": "Login and workflow actions persist sessions/business records in the operational JSON file; preserve the running application",
+  "isolatedBrowserWorkflows": {
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "Temporary JSON fixtures on isolated loopback API/web servers",
+    "covers": [
+      "development authentication/session restoration",
+      "employee and customer ticket workflows",
+      "IT approval/escalation",
+      "CTO review/audit",
+      "asset acknowledgment",
+      "notifications",
+      "logout and failure recovery"
+    ]
+  },
+  "serverRestartedOrStopped": false,
+  "postgresLiveStoreClaimed": false
+}

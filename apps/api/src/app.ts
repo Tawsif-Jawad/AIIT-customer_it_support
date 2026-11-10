@@ -18,6 +18,7 @@ import {
   canModifyTicketStatus,
   redactSensitiveData,
   validateCreateTicketInput,
+  validateEscalationReason,
 } from '../../../packages/shared/src/index.ts';
 import {
   DeterministicMockAIOrchestrator,
@@ -194,6 +195,73 @@ export function createApiServer(customStorePath?: string): AppInstance {
     if (!state.authSessions?.some(s => s.id === sessionId && s.userId === claims.sub && s.expiresAt > Date.now())) return null;
     const user = state.users.find((u) => u.id === claims.sub && u.isActive && u.roleName !== 'SYSTEM_SERVICE');
     return user || null;
+  }
+
+  async function escalateTicket(res: http.ServerResponse, actor: User, ticket: Ticket, reasonValue: unknown, clientIp: string) {
+    const state = store.getState();
+          if (!['IT_ADMIN', 'CTO'].includes(actor.roleName)) {
+            recordAudit({
+              actor: actor,
+              action: 'UNAUTHORIZED_CTO_ESCALATION_ATTEMPT',
+              resource: 'Ticket',
+              resourceId: ticket.id,
+              ipAddress: clientIp,
+            });
+            sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators or the CTO may escalate tickets to the CTO queue.');
+            return;
+          }
+
+          const reason = validateEscalationReason(reasonValue);
+
+          const check = canModifyTicketStatus(actor, ticket, 'ESCALATED_TO_CTO');
+          if (!check.allowed) {
+            sendError(res, 400, 'INVALID_TRANSITION', check.reason || 'Cannot escalate from current status.');
+            return;
+          }
+
+          const prevStatus = ticket.status;
+          ticket.status = 'ESCALATED_TO_CTO';
+          ticket.severity = 'CRITICAL';
+          ticket.escalationReason = reason;
+          ticket.updatedAt = new Date().toISOString();
+
+          state.ticketEvents.push({
+            id: crypto.randomUUID(),
+            ticketId: ticket.id,
+            actorId: actor.id,
+            actorName: actor.displayName,
+            eventType: 'ESCALATED_TO_CTO',
+            fromStatus: prevStatus,
+            toStatus: 'ESCALATED_TO_CTO',
+            metadata: { reason, escalatedByRole: actor.roleName },
+            createdAt: ticket.updatedAt,
+          });
+
+          store.persist();
+
+          recordAudit({
+            actor: actor,
+            action: 'TICKET_ESCALATED_TO_CTO',
+            resource: 'Ticket',
+            resourceId: ticket.id,
+            ipAddress: clientIp,
+            details: { ticketNumber: ticket.ticketNumber, fromStatus: prevStatus, reason },
+          });
+
+          const ctoUser = state.users.find((u) => u.roleName === 'CTO');
+          if (ctoUser) {
+            await queueProcessor
+              .enqueueNotification({
+                ticketId: ticket.id,
+                recipientId: ctoUser.id,
+                recipientEmail: ctoUser.email,
+                subject: `[CTO ESCALATION] ${ticket.ticketNumber}: ${ticket.title}`,
+                body: `Ticket ${ticket.ticketNumber} has been escalated to the CTO Queue by ${actor.displayName}.\nReason: ${reason}`,
+              })
+              ;
+          }
+
+          sendJson(res, 200, { ticket });
   }
 
   const runRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -784,6 +852,10 @@ export function createApiServer(customStorePath?: string): AppInstance {
         if (method === 'POST' && subAction === 'transition') {
           const body = await readBody(req);
           const targetStatus = body.status as TicketStatus;
+          if (targetStatus === 'ESCALATED_TO_CTO') {
+            await escalateTicket(res, currentUser, ticket, body.reason ?? body.notes, clientIp);
+            return;
+          }
           const notes = typeof body.notes === 'string' ? redactSensitiveData(body.notes.trim()) : '';
 
           if (!targetStatus) {
@@ -880,74 +952,8 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
         // POST /api/tickets/:id/escalate-cto
         if (method === 'POST' && subAction === 'escalate-cto') {
-          if (!['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
-            recordAudit({
-              actor: currentUser,
-              action: 'UNAUTHORIZED_CTO_ESCALATION_ATTEMPT',
-              resource: 'Ticket',
-              resourceId: ticket.id,
-              ipAddress: clientIp,
-            });
-            sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators or the CTO may escalate tickets to the CTO queue.');
-            return;
-          }
-
           const body = await readBody(req);
-          const reason = typeof body.reason === 'string' ? redactSensitiveData(body.reason.trim()) : '';
-          if (reason.length < 5) {
-            sendError(res, 400, 'VALIDATION_ERROR', 'Escalation reason (min 5 chars) is mandatory.');
-            return;
-          }
-
-          const check = canModifyTicketStatus(currentUser, ticket, 'ESCALATED_TO_CTO');
-          if (!check.allowed) {
-            sendError(res, 400, 'INVALID_TRANSITION', check.reason || 'Cannot escalate from current status.');
-            return;
-          }
-
-          const prevStatus = ticket.status;
-          ticket.status = 'ESCALATED_TO_CTO';
-          ticket.severity = 'CRITICAL';
-          ticket.escalationReason = reason;
-          ticket.updatedAt = new Date().toISOString();
-
-          state.ticketEvents.push({
-            id: crypto.randomUUID(),
-            ticketId: ticket.id,
-            actorId: currentUser.id,
-            actorName: currentUser.displayName,
-            eventType: 'ESCALATED_TO_CTO',
-            fromStatus: prevStatus,
-            toStatus: 'ESCALATED_TO_CTO',
-            metadata: { reason, escalatedByRole: currentUser.roleName },
-            createdAt: ticket.updatedAt,
-          });
-
-          store.persist();
-
-          recordAudit({
-            actor: currentUser,
-            action: 'TICKET_ESCALATED_TO_CTO',
-            resource: 'Ticket',
-            resourceId: ticket.id,
-            ipAddress: clientIp,
-            details: { ticketNumber: ticket.ticketNumber, fromStatus: prevStatus, reason },
-          });
-
-          const ctoUser = state.users.find((u) => u.roleName === 'CTO');
-          if (ctoUser) {
-            await queueProcessor
-              .enqueueNotification({
-                ticketId: ticket.id,
-                recipientId: ctoUser.id,
-                recipientEmail: ctoUser.email,
-                subject: `[CTO ESCALATION] ${ticket.ticketNumber}: ${ticket.title}`,
-                body: `Ticket ${ticket.ticketNumber} has been escalated to the CTO Queue by ${currentUser.displayName}.\nReason: ${reason}`,
-              })
-              .catch(() => {});
-          }
-
-          sendJson(res, 200, { ticket });
+          await escalateTicket(res, currentUser, ticket, body.reason, clientIp);
           return;
         }
 
