@@ -71,6 +71,8 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    try {assert.deepEqual(await verifyImportedSnapshot(restored,source),manifest);for(let i=0;i<delegates.length;i++) assert.equal(await (restored[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,'restored '+delegates[i]);} finally {await restored.$disconnect();}
    const {exerciseDay3}=await import('./support/day3-postgres.ts');
    await exerciseDay3(t,client,url);
+   const {exerciseDay3Remediation}=await import('./support/day3-remediation.ts');
+   await exerciseDay3Remediation(t,client,url);
    // Restore the mutated repository/outbox state too, including leases and versions.
    const fullSnapshot=async (db:InstanceType<typeof PrismaClient>)=>{
     const tables=[...delegates,'notificationJob','ticketCounter'] as const;

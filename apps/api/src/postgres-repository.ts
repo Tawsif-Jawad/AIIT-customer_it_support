@@ -98,7 +98,7 @@ export class PostgresRepository implements TicketRepository {
     if (!canAccessTicket(actor, ticket as unknown as Ticket)) fail("FORBIDDEN");
     return ticket;
   }
-  private async history(
+  private async event(
     tx: Tx,
     actor: User,
     ticket: DbTicket,
@@ -118,6 +118,16 @@ export class PostgresRepository implements TicketRepository {
         metadata,
       },
     });
+  }
+  private async history(
+    tx: Tx,
+    actor: User,
+    ticket: DbTicket,
+    action: string,
+    metadata: Prisma.InputJsonObject = {},
+    fromStatus: TicketStatus | null = null,
+  ) {
+    await this.event(tx, actor, ticket, action, metadata, fromStatus);
     await this.audit(tx, actor, action, "Ticket", ticket.id, metadata);
   }
   private async audit(
@@ -262,7 +272,7 @@ export class PostgresRepository implements TicketRepository {
       notes.length > 2000
     )
       fail("VALIDATION_ERROR");
-    if (status === "ESCALATED_TO_CTO" && !notes.trim())
+    if (status === "ESCALATED_TO_CTO" && notes.trim().length < 5)
       fail("VALIDATION_ERROR");
     return this.atomic(async (tx) => {
       const actor = await this.actor(tx, actorId);
@@ -280,7 +290,10 @@ export class PostgresRepository implements TicketRepository {
           status,
           version: { increment: 1 },
           ...(status === "ESCALATED_TO_CTO"
-            ? { escalationReason: redactSensitiveData(notes.trim()) }
+            ? {
+                escalationReason: redactSensitiveData(notes.trim()),
+                severity: "CRITICAL",
+              }
             : {}),
           ...(status === "REOPENED"
             ? { closedAt: null, resolvedAt: null }
@@ -322,14 +335,41 @@ export class PostgresRepository implements TicketRepository {
           },
         });
       }
-      await this.history(
-        tx,
-        actor,
-        updated,
-        `STATUS_CHANGED_TO_${updated.status}`,
-        { notes: redactSensitiveData(notes) },
-        updated.status !== status ? "REOPENED" : ticket.status,
-      );
+      if (status === "ESCALATED_TO_CTO") {
+        const reason = updated.escalationReason!;
+        await this.event(
+          tx,
+          actor,
+          updated,
+          "ESCALATED_TO_CTO",
+          {
+            reason,
+            escalatedByRole: actor.roleName,
+          },
+          ticket.status,
+        );
+        await this.audit(
+          tx,
+          actor,
+          "TICKET_ESCALATED_TO_CTO",
+          "Ticket",
+          ticketId,
+          {
+            ticketNumber: ticket.ticketNumber,
+            fromStatus: ticket.status,
+            reason,
+          },
+        );
+      } else {
+        await this.history(
+          tx,
+          actor,
+          updated,
+          `STATUS_CHANGED_TO_${updated.status}`,
+          { notes: redactSensitiveData(notes) },
+          updated.status !== status ? "REOPENED" : ticket.status,
+        );
+      }
       await this.intent(tx, updated, `${ticketId}-v${updated.version}`);
       return updated;
     });
@@ -370,13 +410,32 @@ export class PostgresRepository implements TicketRepository {
         },
       });
       if (result.count !== 1) fail("CONFLICT");
-      await this.history(
+      const decisionNotes = redactSensitiveData(notes.trim());
+      await this.event(
         tx,
         actor,
         ticket,
         `APPROVAL_${decision}`,
-        { approvalId },
+        {
+          approvalId,
+          actionType: approval.actionType,
+          decision,
+          decisionNotes,
+        },
         ticket.status,
+      );
+      await this.audit(
+        tx,
+        actor,
+        `APPROVAL_${decision}`,
+        "Approval",
+        approvalId,
+        {
+          ticketId: ticket.id,
+          actionType: approval.actionType,
+          decision,
+          decisionNotes,
+        },
       );
       await this.intent(tx, ticket, approvalId);
     });

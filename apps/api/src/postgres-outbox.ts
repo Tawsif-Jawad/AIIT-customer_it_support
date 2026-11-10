@@ -24,7 +24,7 @@ export class PostgresOutbox implements NotificationOutbox {
       // Expired final attempts are retained as FAILED, never reclaimed forever.
       const exhausted = await tx.$queryRaw<
         { notificationId: string }[]
-      >`UPDATE "NotificationJob" SET state='FAILED', "leaseToken"=NULL, "leaseUntil"=NULL, "lastError"='LEASE_EXHAUSTED' WHERE state='PROCESSING' AND "leaseUntil"<=now() AND attempts>="maxAttempts" RETURNING "notificationId"`;
+      >`UPDATE "NotificationJob" SET state='FAILED', "leaseToken"=NULL, "leaseUntil"=NULL, "lastError"='LEASE_EXHAUSTED' WHERE state='PROCESSING' AND "leaseUntil"<=clock_timestamp() AND attempts>="maxAttempts" RETURNING "notificationId"`;
       if (exhausted.length)
         await tx.notification.updateMany({
           where: { id: { in: exhausted.map((job) => job.notificationId) } },
@@ -32,10 +32,10 @@ export class PostgresOutbox implements NotificationOutbox {
         });
       const jobs = await tx.$queryRaw<NotificationJob[]>`WITH candidate AS (
         SELECT id FROM "NotificationJob" WHERE attempts<"maxAttempts" AND
-        ((state='QUEUED' AND "availableAt"<=now()) OR (state='PROCESSING' AND "leaseUntil"<=now()))
+        ((state='QUEUED' AND "availableAt"<=clock_timestamp()) OR (state='PROCESSING' AND "leaseUntil"<=clock_timestamp()))
         ORDER BY "availableAt", id FOR UPDATE SKIP LOCKED LIMIT 1
       ) UPDATE "NotificationJob" j SET state='PROCESSING', attempts=attempts+1,
-      "leaseToken"=${token}, "leaseUntil"=now()+${leaseMilliseconds}*interval '1 millisecond'
+      "leaseToken"=${token}, "leaseUntil"=clock_timestamp()+${leaseMilliseconds}*interval '1 millisecond'
       FROM candidate c WHERE j.id=c.id RETURNING j.*`;
       return jobs[0] || null;
     });
@@ -50,9 +50,15 @@ export class PostgresOutbox implements NotificationOutbox {
     await this.client.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<
         NotificationJob[]
-      >`SELECT * FROM "NotificationJob" WHERE id=${id} AND state='PROCESSING' AND "leaseToken"=${token} AND "leaseUntil">now() FOR UPDATE`;
+      >`SELECT * FROM "NotificationJob" WHERE id=${id} AND state='PROCESSING' AND "leaseToken"=${token} FOR UPDATE`;
       const job = rows[0];
       if (!job) throw new RepositoryError("LEASE_LOST");
+      // Lock acquisition may outlast the lease. PostgreSQL now() is the
+      // transaction-start time, so validate wall-clock expiry after locking.
+      const [lease] = await tx.$queryRaw<{ valid: boolean }[]>`
+        SELECT "leaseUntil" > clock_timestamp() AS valid
+        FROM "NotificationJob" WHERE id=${id}`;
+      if (!lease?.valid) throw new RepositoryError("LEASE_LOST");
       const state = success
         ? "SENT"
         : job.attempts >= job.maxAttempts
