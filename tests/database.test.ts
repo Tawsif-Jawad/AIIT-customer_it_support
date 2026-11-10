@@ -40,6 +40,14 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    source.approvals[1]={...source.approvals[1],status:'APPROVED',approverId:'user-cto-farhana',decisionNotes:'Synthetic historical decision',decidedAt:'2026-11-09T12:00:00Z'};
    const counts=await importJsonSnapshot(client,source);
    assert.equal(await client.notificationJob.count(),0,'Import must not enqueue historical delivery');
+   await t.test('Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid',async()=>{
+    assert.equal(await client.authSession.count({where:{kind:null}}),1);
+    assert.equal(await client.authSession.count({where:{kind:'oidc'}}),1);
+    for(const data of [{kind:null,issuer:'https://synthetic-issuer.example.test',subject:'fixture-subject'},{kind:'oidc',issuer:null,subject:'fixture-subject'},{kind:'oidc',issuer:'https://synthetic-issuer.example.test',subject:''}]) {
+     await client.$transaction(async tx=>{await assert.rejects(tx.authSession.create({data:{id:'d'.repeat(64),userId:source.users[0].id,expiresAt:new Date(Date.now()+60000),...data}}));});
+    }
+   });
+
    assert.equal(counts.tickets,source.tickets.length);
    const delegates=['sBU','role','user','serviceCategory','ticket','ticketEvent','ticketComment','asset','approval','notification','aIActionLog','auditLog','knowledgeArticle','authSession'] as const;
    const expected=[source.sbus,source.roles,source.users,source.serviceCategories,source.tickets,source.ticketEvents,source.ticketComments,source.assets,source.approvals,source.notifications,source.aiActionLogs,source.auditLogs,source.knowledgeArticles,source.authSessions];
