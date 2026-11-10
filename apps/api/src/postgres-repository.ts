@@ -8,6 +8,7 @@ import {
 import {
   canAccessTicket,
   validateCreateTicketInput,
+  validateEscalationReason,
   validateStatusTransition,
   redactSensitiveData,
   type User,
@@ -272,8 +273,11 @@ export class PostgresRepository implements TicketRepository {
       notes.length > 2000
     )
       fail("VALIDATION_ERROR");
-    if (status === "ESCALATED_TO_CTO" && notes.trim().length < 5)
-      fail("VALIDATION_ERROR");
+    let escalationReason: string | undefined;
+    if (status === "ESCALATED_TO_CTO") {
+      try { escalationReason = validateEscalationReason(notes); }
+      catch { fail("VALIDATION_ERROR"); }
+    }
     return this.atomic(async (tx) => {
       const actor = await this.actor(tx, actorId);
       const ticket = await this.ticket(tx, actor, ticketId);
@@ -291,7 +295,7 @@ export class PostgresRepository implements TicketRepository {
           version: { increment: 1 },
           ...(status === "ESCALATED_TO_CTO"
             ? {
-                escalationReason: redactSensitiveData(notes.trim()),
+                escalationReason,
                 severity: "CRITICAL",
               }
             : {}),

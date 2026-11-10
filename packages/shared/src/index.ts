@@ -409,3 +409,11 @@ export function redactSensitiveData(input: string): string {
     .replace(/\b(?:\d[ -]*?){13,16}\b/g, '[REDACTED_CARD]')
     .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED_TOKEN]');
 }
+
+/** Shared escalation input policy for both HTTP routes and PostgreSQL. */
+export function validateEscalationReason(value: unknown): string {
+  if (typeof value !== 'string' || value.replace(/\s/g, '').length < 5 || value.length > 2000) {
+    throw new ValidationError(['Escalation reason requires at least five non-whitespace characters (maximum 2000).']);
+  }
+  return redactSensitiveData(value.trim());
+}
