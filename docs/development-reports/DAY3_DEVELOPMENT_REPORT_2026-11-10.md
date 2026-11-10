@@ -1,3 +1,5 @@
+> Final remediation update (2026-11-10): implementation `9908a66` passes all ten local commands: 102 native / 25 overlapping security / 28 overlapping DB / 17 browser. See the final remediation section below for current results, the live-data preservation qualification, open JSON route conflict and blocked hosted/review gates. Earlier results are retained historical snapshots.
+
 # Day 3 development report — Tuesday, 10 November 2026
 
 ## Executive summary and verdict
@@ -69,3 +71,57 @@ Day 4: **GO for isolated session/OIDC adapter design and broader repository inte
 Published draft [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) against the correct PR #3 dependency branch. Commits: `225c201` implementation, `0d41cd1` historical import verification, `d5d760d` reports/manifests, `11478bb` safe raw logs, followed by this report-only hosted handoff. Remote dependency head was rechecked and still equals source `4dfe635`.
 
 Fresh PR run [42755426743](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42755426743) at `11478bb` failed quality/tests/database/browser before steps. Every check annotation explicitly confirms the account billing lock; see `evidence/day3/hosted-ci.json`. Formal acceptance remains BLOCKED. PR is draft/unmerged; independent review outstanding. No billing/protection settings were changed.
+
+## Final remediation and verification — 10 November 2026
+
+**Overall PARTIAL. LOCAL ENGINEERING PASS for the requested repository fixes and applicable local checks. FORMAL ACCEPTANCE BLOCKED. PRODUCTION NOT READY.** The task-wide operational-file hash changed during live login activity; only the final verification interval is attested unchanged. This qualification supersedes any earlier blanket task-preservation claim. Earlier implementation/results remain historical evidence.
+
+### Audit, source and root causes
+
+Remediation began on clean `codex/day3-transactional-postgres` at `57ece2b720f47d5f4411e465f3e188371165eb1e`. `git fetch origin` completed; local/remote divergence was 0/0. PR #4 remains based on PR #3's `audit/day1-day2-full-functional-review`, which depends on PR #2. All are unmerged. Read the existing reports, actual PostgreSQL repository/outbox/migration/schema/importer, shared state/authorization/redaction policies, JSON handlers and native/database/browser regressions before edits.
+
+Implementation commit: **`9908a66bfa53673f6c2bf547d287575840e87d62`**. This contains all remediation application/test changes. Subsequent report/evidence changes do not change tested code.
+
+The original escalation discrepancy arose because the new repository implemented the shared state graph and a generic status update without the dedicated API handler's side effects. It accepted short nonblank reasons and did not promote severity. The approval discrepancy arose because a helper coupled ticket-event insertion to a ticket-resource audit, so approvals inherited the wrong audit resource and omitted decision metadata.
+
+### Implemented fixes and files
+
+- `apps/api/src/postgres-repository.ts`: every CTO escalation requires at least five trimmed reason characters, stores redacted rationale, updates status/severity (`ESCALATED_TO_CTO`/`CRITICAL`), version and timestamp, and creates dedicated escalation event/audit plus durable requester intent in one transaction. Existing shared role/state/CTO review guards remain unchanged. Event insertion is separated from the ticket audit wrapper so approval events stay on the ticket while audits correctly target `Approval`/actual approval ID, with current actor/role, ticket ID, action type, decision and redacted decision notes. No prior history is rewritten.
+- `apps/api/src/postgres-outbox.ts`: a newly reproduced expiry bug is fixed. The old completion predicate used transaction-start `now()` before a potentially blocking row lock; a worker could complete after its lease expired. Completion/retry now lock first, then check expiry against `clock_timestamp()`. Claims/reclaims also use current database wall-clock time. Fencing tokens, attempt bounds and atomic notification/job updates remain intact.
+- `tests/support/day3-remediation.ts`: 17 new PostgreSQL regression subtests covering both fixes, five-character boundary/invalid input, authorization and current-role revocation, concurrent escalations/opposing decisions, correct/redacted audit/event metadata, replay denial, full rollback after injected outbox failure, and lock-delayed lease expiry/reclaim.
+- `tests/database.test.ts`: invokes those tests inside the existing disposable cluster before the full post-mutation backup/restore. Original migration/import/restore/UUID/parity tests remain.
+- `tests/day3-remediation.test.ts`: three new isolated JSON API regressions for dedicated IT/CTO escalation, requester/CTO review restrictions and approval audit/redaction/replay parity. Creates explicit temporary datasets; never uses the operational file.
+- `docs/architecture/POSTGRES_REPOSITORY.md`: documents the changed escalation/audit/lease behavior and the pre-existing JSON route conflict below.
+- This report, the existing test/acceptance reports and `evidence/day3/remediation/`: current results, failures, safe manifests, live-scope/preservation qualifications and hosted/review evidence.
+
+The schema and all three migrations are unchanged in this remediation. No dependencies, state graph, shared policies, operational API routes, default storage selection or production integration settings changed.
+
+### Complete review and additional findings
+
+Reviewed transaction scope, current-identity reload, requester/SBU and global IT/CTO policy, version predicates, number allocation, deterministic per-operation job IDs, append-only guards, import equality/canonical projection, parameterized SQL, lease/retry boundaries and error handling. Executable concurrency/rollback/import/recovery regressions pass. SQL owner/DDL bypass, request replay after a lost response, extreme numeric suffix/counter exhaustion, remaining entity/session adapters and full worker/recipient integration remain documented limitations, not silently resolved policies.
+
+**Additional fixed defect:** lease expiry during row-lock wait, reproduced by the new regression before the fix and passing afterward.
+
+**Existing policy conflict, deliberately not modified:** JSON `POST /api/tickets/:id/escalate-cto` requires a five-character reason and CRITICAL severity, but generic `POST /api/tickets/:id/transition` permits escalation through the shared graph without those rules. An isolated fixture probe returned HTTP 200 with one-character notes and MEDIUM severity. This is recorded in `json-policy-conflict.json`. The explicit instruction to keep the operational JSON API unchanged prevents silently harmonizing that route here. It requires an owner-authorized follow-up before universal escalation parity/production acceptance can be claimed. The PostgreSQL method now enforces the dedicated policy consistently.
+
+### Executed results and failure evidence
+
+`node scripts/verify-local.ts --output /tmp/aiit-day3-remediation-final` ran all ten exact mandatory pinned commands on `9908a66`, Node 26.8.1/pnpm 9.15.0, with `DB_REQUIRED=true`. **All commands exit 0; verifier exits 0.** Native **102/102**, security subset **25/25**, database subset **28/28**, browser **17/17**; no failures/skips. Twenty native tests were added (17 DB subtests plus 3 JSON API tests); security/DB counts overlap native coverage. Install, Prisma generation, typecheck, lint, build and moderate dependency audit pass.
+
+Before fixing implementation, the added DB regressions produced **16 pass / 11 fail out of 27**, including the failing parent fixture. They reproduced LOW instead of CRITICAL, short-reason acceptance, missing Approval-resource audits and expired-lease acknowledgment. That red log is preserved. An intermediate edit accidentally renamed JavaScript `Date.now()` while replacing SQL `now()`; the targeted suite caught it and it was corrected. An initial JSON test selected a non-escalatable fixture state; it was corrected to create valid fresh requests while retaining assertions. These failed logs are retained separately and are not counted as final passes.
+
+Disposable PostgreSQL 18.6 applies all three unchanged migrations; IDs/FKs, concurrent ticket/approval operations, atomic records, outbox fencing/reclaim, identical repeat imports, fourteen-collection manifests, late import rollback, populated UUID upgrade and Prisma schema parity pass. Both logical restore drills still compare exact imported source checksums and full post-mutation tables, now including remediated event/audit/job data. No operational database was contacted.
+
+### Live inspection and preservation qualification
+
+Existing processes at ports 3000/4000 were left running. HTTP GET of `/` and `/app` returned 200; browser navigation visibly confirmed landing content, the workspace development-identity form and mock-integration notice. No live login, logout, approval, ticket or custody mutation was performed by the agent. Those workflows were verified through 17 real Chromium tests on temporary JSON-backed servers and isolated API fixtures, not against operational records. PostgreSQL is not the live store.
+
+The initial operational JSON hash and a later observation differ. The live dataset contains an additional `AUTH_LOGIN_SUCCESS` observation at `2026-11-10T05:09:23.779Z` (11:09:23 Asia/Dhaka). Hashes alone do not establish a full record-level diff or the origin of every outside change, so a task-wide unchanged-data claim is **not made**. The agent's live requests were read-only and every test uses explicit temporary storage. `.env` is unchanged from task start. The full ten-command verification interval independently reports **both operational JSON and configuration unchanged**. `task-preservation.json` preserves this distinction; no live state was reverted or overwritten to make hashes match. No raw dataset, session secret, SQL backup or credential is committed.
+
+### Hosted CI, independent review and readiness
+
+Existing PR [#4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) contains `9908a66`; no duplicate PR, merge, retarget or self-approval. At that commit, [run 42760455464](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42760455464) failed quality/tests/database/browser before executing steps. Every check annotation explicitly states: **The job was not started because your account is locked due to a billing issue.** Source and IDs are in `remediation/hosted-ci.json`. No workflow, billing, required check or protection setting changed.
+
+PR #4 has zero review submissions. The user supplied `Tawsif-Jawad` as reviewer, which is also the PR author; GitHub cannot request that author as an independent reviewer. No invalid self-review request or approval was sent. A different eligible reviewer remains required. The PR remains draft/reviewable with honest gates.
+
+**Recommendation:** finish Day 3 independent review, hosted verification and the documented JSON policy decision before formal acceptance or advancing the milestone. No Day 4 work, production deployment/cutover, AD, SMTP or privileged executor was started. Enterprise identity, live repository/session/worker integration, operational role/retention/recovery controls and prerequisite PR integrations remain production blockers.

@@ -1,3 +1,5 @@
+> Final remediation update (2026-11-10): implementation `9908a66` passes all ten local commands: 102 native / 25 overlapping security / 28 overlapping DB / 17 browser. See the final remediation section below for current results, the live-data preservation qualification, open JSON route conflict and blocked hosted/review gates. Earlier results are retained historical snapshots.
+
 # Day 3 acceptance — 10 November 2026
 
 **Overall: PARTIAL. Isolated foundation: LOCAL PASS. Formal integrated acceptance: BLOCKED. Production readiness: NOT ACHIEVED.**
@@ -39,3 +41,35 @@ Owner dependencies: resolve GitHub account lock through the existing Support pro
 Draft [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) targets `audit/day1-day2-full-functional-review` and is attached to the development chat. At documentation head `11478bb0f2b989335eed7986a9d2931b3c07b310`, [run 42755426743](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42755426743) failed all four jobs before any steps executed. Each independently read annotation states: **The job was not started because your account is locked due to a billing issue.** [Machine-readable diagnostics](evidence/day3/hosted-ci.json).
 
 This is a freshly confirmed hosted infrastructure blocker, not an application test failure. The report-only handoff commit follows this observed head; it does not change tested application source. No rerun, payment change, check bypass or merge was performed. Independent approval and PR #2/#3 integrations remain outstanding.
+
+## Final remediation acceptance — 10 November 2026
+
+**Overall PARTIAL. LOCAL ENGINEERING PASS for the remediated PostgreSQL workflows and all applicable local commands. FORMAL ACCEPTANCE BLOCKED. PRODUCTION NOT READY.** Task-wide operational-byte preservation is qualified below; earlier snapshots are historical.
+
+Implementation/test commit: `9908a66bfa53673f6c2bf547d287575840e87d62`, starting from clean/fetched `57ece2b` on `codex/day3-transactional-postgres`. Existing [PR #4](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4) and PR #2 → #3 → #4 dependency chain are preserved. Follow-up commits update reports/evidence only.
+
+| Remediation gate | Result | Evidence / qualification |
+|---|---|---|
+| PostgreSQL escalation policy parity with dedicated JSON endpoint | PASS | IT/CTO authorization, five trimmed characters, redacted reason, CRITICAL severity, dedicated event/audit, atomic version/intent |
+| Approval audit consistency | PASS | Approval resource/ID, current actor/role, ticket/action/decision/redacted rationale; ticket event retained |
+| Atomicity/concurrency/security | PASS | Full rollback after late failure, stale/conflicting escalation and one-time opposing decisions, role/SBU/CTO restrictions |
+| Additional confirmed outbox defect | PASS | Expiry rechecked after row lock with current DB time; expired token cannot acknowledge; safe reclaim |
+| Ten mandatory commands | PASS | All exit 0; 102 native/25 overlapping security/28 overlapping DB/17 browser, zero failed/skipped |
+| Migration/import/recovery | PASS | Three unchanged migrations, IDs/FKs, checksums/reimport/rollback, full restore/UUID upgrade/Prisma parity |
+| Operational API/runtime source preserved | PASS | `apps/api/src/app.ts`, shared policies/default mode and live processes unchanged; no live agent authentication or business mutation |
+| `.env` preservation | PASS | Matches task start and final verifier |
+| Task-wide operational JSON hash | **QUALIFIED** | Initial/later hashes differ; live login activity observed. Agent made only read-only live requests; all test mutations isolated. No unsupported attribution or blanket unchanged claim |
+| Final full-verification preservation interval | PASS | Operational/configuration hashes unchanged during all ten commands |
+| Live observation | PASS, read-only scope | Landing/workspace HTTP 200 and browser sign-in view; authenticated workflows tested only on isolated fixtures |
+| Existing generic JSON escalation conflict | **OPEN** | `/transition` accepts short notes without CRITICAL severity; documented and not silently changed under explicit API-preservation instruction |
+| Existing PR updated | PASS | Remediation pushed to #4; no duplicate PR, retarget, force-push or merge |
+| Required hosted CI | BLOCKED | Run 42760455464 at `9908a66`: all four job annotations explicitly report billing lock, no executed steps |
+| Independent approval / prerequisite PR integrations | BLOCKED | No reviews; requested `Tawsif-Jawad` is author, ineligible as independent reviewer; #2/#3 unmerged |
+
+The initial regression run reproduced both review findings and an additional lock-delayed lease-expiry defect. All are fixed with passing regression evidence. Source review covered repository/outbox, migrations/schema, import/canonical comparisons, historical guards, versioning, parameterization and error/retry boundaries. It does not constitute independent approval.
+
+The operational JSON file changed outside the final verification interval. Its new login audit observation is recorded, but no raw baseline snapshot exists for a complete record-level comparison or definitive attribution. The live server was not stopped, rewritten or restored. This is an explicit evidence limitation, not a successful task-wide hash-preservation claim. See [task-preservation](evidence/day3/remediation/task-preservation.json).
+
+The documented generic JSON route conflict and remaining live API/session/worker integration, full recipient policy, enterprise identity, exact-action approvals, deployment grants/retention/recovery and hosted PostgreSQL 16 coverage remain release blockers. No production migration, AD/mail provisioning or executor was enabled.
+
+**Day 4 recommendation:** close Day 3 review/hosted/prerequisite and policy-decision gates first. This task began no Day 4 development and authorizes no production exposure. A different eligible reviewer, CI account unlock and owner-authorized handling of the JSON route conflict remain required follow-ups. Local test success does not replace those gates.
