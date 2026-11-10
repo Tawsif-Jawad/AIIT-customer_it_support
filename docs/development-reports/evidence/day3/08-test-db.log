@@ -1,0 +1,28 @@
+
+> it-support-system@1.0.0 test:db /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> node --test tests/database.test.ts
+
+Environment variables loaded from .env
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (14.326333ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (8.080042ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (3.926792ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (26.050833ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (8.694333ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (13.960709ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (5.886875ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (6.96075ms)
+  ✔ Day3 independent client restart reloads committed records (5.942ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (16.805416ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (3369.070792ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":3,"sourceManifest":{"sbus":{"count":3,"checksum":"81ee8c36d153f12744c33c54702bd9f595b28a17c0a0a527f6a752c2ce421383"},"roles":{"count":5,"checksum":"6fa677d544cefd0394000152ba09f1bb36c9c3dc39d4526017df15971f97a926"},"users":{"count":5,"checksum":"d5cf255b584e5ad0149d0757f322615cc938a8da96a7c829bc0c8d7b6b5f2dc9"},"serviceCategories":{"count":6,"checksum":"aa25af0aa1ee22fe98e522957d76eb716e5768f5ba002910041f8d73c40e1d6a"},"tickets":{"count":3,"checksum":"4ae696d856f5beee9524e3582687210f4bb0a0556d784adb26747282bb6c81c9"},"ticketEvents":{"count":4,"checksum":"468ba3e48bdda465fdf7762605c26459e88ea0490bd8af8f77c76eca68b232ff"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"15eea21f897f5a50744e6a528191ef53235b76596e5e7fa0ed29c7f17b46dec0"},"approvals":{"count":2,"checksum":"4772aae804318458c51cab70345f85997c4a9f9f2ac719a78971fcf4e68bf337"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"0ffa384948a2b342f8cddfe8420b37211752eda35c59022a41c522be1b4a65a0"},"auditLogs":{"count":1,"checksum":"122b68ff5b7bfc1ee927a03b70a4ece7dfe2432f2a6e801b35f54b6a4f6e4ae5"},"knowledgeArticles":{"count":3,"checksum":"50d75e9172a59a3aed67a4a846219690c513aa3a0cbf54d38e548f262d6be76c"},"authSessions":{"count":1,"checksum":"54b20ccc5f031fdba6d2be76b02eeaac2d191b7cff695d555ecd057d4767f59f"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3468.3195

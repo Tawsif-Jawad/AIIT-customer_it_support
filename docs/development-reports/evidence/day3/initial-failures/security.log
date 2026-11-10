@@ -1,0 +1,50 @@
+
+> it-support-system@1.0.0 test:security /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/day2.test.ts tests/security.test.ts
+
+✔ F01 stale independent writer cannot overwrite a committed record (39.904875ms)
+✔ F14 invalid collections and duplicate IDs fail closed (6.460292ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.120833ms)
+✔ F04 approvals require rationale and cannot be replayed (33.60175ms)
+✔ F03 logout invalidates bearer session (31.113667ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (116.721709ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (18.878208ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (110.630292ms)
+✔ opposing approval decisions serialize to one immutable decision (14.965791ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (7.139917ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (5.255583ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (50.915708ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (17.846ms)
+✔ read-only migration dry run preserves source bytes and reports counts (110.830166ms)
+✔ F05 employee/customer cannot advance reopened ticket into IT-controlled work (0.095958ms)
+✔ F10 requested LOW cannot downgrade critical infrastructure classification (18.338542ms)
+✔ F10 user-reported HIGH priority is preserved and cannot auto-resolve (19.499875ms)
+✔ F05 API denies employee IT-controlled work while allowing IT to resume it (33.249292ms)
+✔ independent API instances preserve concurrent updates through explicit contention retry (25.611416ms)
+✔ cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer (60.385208ms)
+✔ expired signed tokens and expired stored sessions fail closed across restart (33.142292ms)
+✔ role revocation and service conversion apply to existing sessions immediately (43.155291ms)
+✖ customer ownership and employee asset SBU boundaries do not change global IT grant (46.401958ms)
+✔ all role/state pairs obey requester, CTO-review, closure and service boundaries (0.485292ms)
+✔ JSON arrays/null and oversized bodies fail without changing ticket state (34.101208ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 24
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 820.922333
+
+✖ failing tests:
+
+test at tests/security.test.ts:43:1
+✖ customer ownership and employee asset SBU boundaries do not change global IT grant (46.401958ms)
+  Error: PERSISTENCE_INVALID: Asset custodian SBU mismatch
+      at validateDatabaseState (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/store.ts:176:141)
+      at EnterpriseDataStore.persist (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/store.ts:114:7)
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/security.test.ts:51:38
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/security.test.ts:13:8)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+ ELIFECYCLE  Command failed with exit code 1.
