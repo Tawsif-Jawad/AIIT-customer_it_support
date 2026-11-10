@@ -1,3 +1,5 @@
+> Owner-authorized policy closure: the generic JSON escalation conflict is now fixed and verified; see the closure section at the end. Local development may continue while formal gates remain blocked.
+
 > Final remediation update (2026-11-10): implementation `9908a66` passes all ten local commands: 102 native / 25 overlapping security / 28 overlapping DB / 17 browser. See the final remediation section below for current results, the live-data preservation qualification, open JSON route conflict and blocked hosted/review gates. Earlier results are retained historical snapshots.
 
 # Day 3 acceptance — 10 November 2026
@@ -73,3 +75,11 @@ The operational JSON file changed outside the final verification interval. Its n
 The documented generic JSON route conflict and remaining live API/session/worker integration, full recipient policy, enterprise identity, exact-action approvals, deployment grants/retention/recovery and hosted PostgreSQL 16 coverage remain release blockers. No production migration, AD/mail provisioning or executor was enabled.
 
 **Day 4 recommendation:** close Day 3 review/hosted/prerequisite and policy-decision gates first. This task began no Day 4 development and authorizes no production exposure. A different eligible reviewer, CI account unlock and owner-authorized handling of the JSON route conflict remain required follow-ups. Local test success does not replace those gates.
+
+## Owner-authorized JSON escalation policy closure — 10 November 2026
+
+The owner explicitly authorized closing the previously preserved JSON route conflict and continuing isolated Day 4 development while hosted CI/review remains blocked. Commit `b3c4412` unifies dedicated `/escalate-cto` and generic `/transition` escalation through one handler, preserving IT/CTO guards, CTO-review restrictions, dedicated history/audit and CTO notification behavior. A shared domain reason helper requires five non-whitespace characters, trims/redacts input and is also used by the PostgreSQL repository. Both routes set CRITICAL severity. Notification failure now aborts the escalation transaction rather than suppressing a required-intent failure.
+
+Ten new isolated regressions cover both routes, IT/CTO success, requester denial, short/blank/whitespace rejection, audit/history/notifications, CTO review and complete rollback after injected notification failure. All ten pinned verification commands exit 0: **112 native, 25 overlapping security, 28 overlapping DB, 17 browser; no failures/skips**. Protected JSON and .env are unchanged during verification. Evidence: `evidence/day3/policy-closure/summary.json` and adjacent safe logs. No operational server restart, merge, production migration or provisioning occurred.
+
+The generic JSON escalation conflict is **CLOSED in source**, superseding the earlier open-finding statements retained above. Required hosted checks, independent reviews and dependency merges remain blocked. The newly authorized Day 4 branch will derive from this verified Day 3 source plus documentation commit; continued development does not approve a release.

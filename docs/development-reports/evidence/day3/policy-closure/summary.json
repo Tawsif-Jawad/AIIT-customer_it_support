@@ -1,0 +1,106 @@
+{
+  "scope": "LOCAL_DEVELOPMENT_ONLY",
+  "hostedCiPassed": false,
+  "alternativeCiActive": false,
+  "node": "26.8.1",
+  "pnpm": "pnpm@9.15.0",
+  "results": [
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm install --frozen-lockfile --ignore-scripts",
+      "exitCode": 0,
+      "signal": null,
+      "log": "01-install.log",
+      "counts": {}
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm db:generate",
+      "exitCode": 0,
+      "signal": null,
+      "log": "02-db-generate.log",
+      "counts": {}
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm typecheck",
+      "exitCode": 0,
+      "signal": null,
+      "log": "03-typecheck.log",
+      "counts": {}
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm lint",
+      "exitCode": 0,
+      "signal": null,
+      "log": "04-lint.log",
+      "counts": {}
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm build",
+      "exitCode": 0,
+      "signal": null,
+      "log": "05-build.log",
+      "counts": {}
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test",
+      "exitCode": 0,
+      "signal": null,
+      "log": "06-test.log",
+      "counts": {
+        "tests": 112,
+        "pass": 112,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:security",
+      "exitCode": 0,
+      "signal": null,
+      "log": "07-test-security.log",
+      "counts": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:db",
+      "exitCode": 0,
+      "signal": null,
+      "log": "08-test-db.log",
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e",
+      "exitCode": 0,
+      "signal": null,
+      "log": "09-test-e2e.log",
+      "counts": {
+        "pass": 17,
+        "fail": 0,
+        "skipped": 0,
+        "tests": 17
+      }
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm audit --audit-level=moderate",
+      "exitCode": 0,
+      "signal": null,
+      "log": "10-audit.log",
+      "counts": {}
+    }
+  ],
+  "preservation": {
+    "operationalUnchanged": true,
+    "configurationUnchanged": true,
+    "operationalBefore": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+    "operationalAfter": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94"
+  },
+  "exitCode": 0
+}

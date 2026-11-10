@@ -43,3 +43,7 @@ Initial ticket creation stops at NEW; existing mock AI triage, routing/approval 
 ## Existing JSON route conflict recorded during final remediation
 
 The dedicated JSON `/api/tickets/:id/escalate-cto` handler requires a five-character reason and sets CRITICAL severity. The generic JSON `/api/tickets/:id/transition` handler applies the shared state graph but permits ESCALATED_TO_CTO without the dedicated reason/severity rules. A disposable fixture probe reproduced HTTP 200 with one-character notes and MEDIUM severity. The operational API is deliberately unchanged under the explicit preservation instruction. This pre-existing route-policy inconsistency requires an owner-authorized follow-up before claiming universal escalation parity or production readiness. The PostgreSQL transition method now enforces the dedicated escalation contract on every escalation request.
+
+### Policy closure
+
+Owner-authorized commit `b3c4412` closes the JSON route conflict above. Both HTTP routes share the escalation handler and both repositories share reason validation (five non-whitespace characters). Notification intent failure rolls back JSON escalation. Historical finding text is retained; it no longer describes the current source.
