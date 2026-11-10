@@ -27,7 +27,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
   const url=`postgresql://aiit_test@127.0.0.1:${port}/aiit_test`;
   const env={...process.env,DATABASE_URL:url};
   execFileSync('node_modules/.bin/prisma',['migrate','deploy','--schema','apps/api/prisma/schema.prisma'],{env,encoding:'utf8'});
-  const {PrismaClient}=await import('@prisma/client');const {importJsonSnapshot}=await import('../scripts/json-import.ts');
+  const {PrismaClient}=await import('@prisma/client');const {importJsonSnapshot,verifyImportedSnapshot}=await import('../scripts/json-import.ts');
   const client=new PrismaClient({datasources:{db:{url}}});
   try {
    const source=createInitialSeedState();source.authSessions=[{id:'b'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000}];
@@ -39,6 +39,16 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    assert.equal((await client.ticket.findFirstOrThrow()).id.startsWith('ticket-'),true);
    assert.deepEqual(await importJsonSnapshot(client,source),counts);
    assert.equal(await client.ticket.count(),source.tickets.length);
+   await Promise.all([importJsonSnapshot(client,source),importJsonSnapshot(client,source)]);
+   const manifest=await verifyImportedSnapshot(client,source);assert.equal(manifest.tickets.count,source.tickets.length);
+   const invalidScope=structuredClone(source);invalidScope.tickets[0].sbuId='sbu-fin-002';
+   await assert.rejects(importJsonSnapshot(client,invalidScope),/SBU mismatch/);
+   const lateConflict=structuredClone(source);lateConflict.sbus.push({...source.sbus[0],id:'late-rollback',code:'LATE-ROLLBACK'});lateConflict.tickets[0].title='Changed synthetic title';
+   await assert.rejects(importJsonSnapshot(client,lateConflict),/IMPORT_CONFLICT/);
+   assert.equal(await client.sBU.count({where:{id:'late-rollback'}}),0);
+   await assert.rejects(verifyImportedSnapshot(client,lateConflict),/IMPORT_COUNT_MISMATCH/);
+   const checksumMismatch=structuredClone(source);checksumMismatch.tickets[0].title='Changed synthetic title';
+   await assert.rejects(verifyImportedSnapshot(client,checksumMismatch),/IMPORT_CHECKSUM_MISMATCH/);
    const changed=structuredClone(source);changed.sbus[0].name='must roll back';
    await assert.rejects(importJsonSnapshot(client,changed),/IMPORT_CONFLICT/);
    assert.equal((await client.sBU.findUniqueOrThrow({where:{id:source.sbus[0].id}})).name,source.sbus[0].name);
@@ -52,7 +62,21 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    pg('createdb',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','aiit_test_restore']);
    pg('psql',['-X','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p',String(port),'-U','aiit_test','-d','aiit_test_restore','-f',dump]);
    const restored=new PrismaClient({datasources:{db:{url:url+'_restore'}}});
-   try {for(let i=0;i<delegates.length;i++) assert.equal(await (restored[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,'restored '+delegates[i]);} finally {await restored.$disconnect();}
+   try {assert.deepEqual(await verifyImportedSnapshot(restored,source),manifest);for(let i=0;i<delegates.length;i++) assert.equal(await (restored[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,'restored '+delegates[i]);} finally {await restored.$disconnect();}
+   const {exerciseDay3}=await import('./support/day3-postgres.ts');
+   await exerciseDay3(t,client,url);
+   // Restore the mutated repository/outbox state too, including leases and versions.
+   const fullSnapshot=async (db:InstanceType<typeof PrismaClient>)=>{
+    const tables=[...delegates,'notificationJob','ticketCounter'] as const;
+    const canonical=(value:unknown)=>JSON.stringify(value,(_key,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
+    return Object.fromEntries(await Promise.all(tables.map(async name=>[name,(await (db[name] as {findMany():Promise<unknown[]>}).findMany()).map(canonical).sort()])));
+   };
+   const committed=await fullSnapshot(client);
+   const repositoryDump=path.join(dir,'repository.sql');pg('pg_dump',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','--no-owner','--file',repositoryDump,'aiit_test']);
+   pg('createdb',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','aiit_test_repository_restore']);
+   pg('psql',['-X','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p',String(port),'-U','aiit_test','-d','aiit_test_repository_restore','-f',repositoryDump]);
+   const repositoryRestored=new PrismaClient({datasources:{db:{url:url+'_repository_restore'}}});
+   try {assert.deepEqual(await fullSnapshot(repositoryRestored),committed);const audit=await repositoryRestored.auditLog.findFirstOrThrow();await assert.rejects(repositoryRestored.auditLog.delete({where:{id:audit.id}}));}finally{await repositoryRestored.$disconnect();}
    // Upgrade a populated legacy UUID schema, preserving keys and references.
    pg('createdb',['-h','127.0.0.1','-p',String(port),'-U','aiit_test','aiit_test_upgrade']);
    const upgradeUrl=url+'_upgrade';
@@ -65,6 +89,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    try {const user=await upgrade.user.findUniqueOrThrow({where:{id:'33333333-3333-4333-8333-333333333333'}});assert.equal(user.sbuId,'11111111-1111-4111-8111-111111111111');assert.equal(await upgrade.sBU.count(),1);} finally {await upgrade.$disconnect();}
    const diff=execFileSync('node_modules/.bin/prisma',['migrate','diff','--from-url',url,'--to-schema-datamodel','apps/api/prisma/schema.prisma','--exit-code'],{env,encoding:'utf8'});
    assert.match(diff,/No difference detected|empty/i);
+   t.diagnostic('DAY3_DATABASE_EVIDENCE '+JSON.stringify({postgres:pg('postgres',['--version']).trim(),migrationCount:3,sourceManifest:manifest,concurrentIdenticalImports:2,sourceRestoreChecksumMatch:true,repositoryRestoreMatch:true,prismaSchemaParity:true,populatedUuidUpgrade:true,operationalTargetUsed:false}));
   } finally {await client.$disconnect();}
  } finally {if(started) pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(dir,{recursive:true,force:true});}
 });

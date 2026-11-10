@@ -1,3 +1,5 @@
+> Day 3 update (2026-11-10): A tested isolated PostgreSQL repository/outbox slice now exists; the application still runs on JSON. See [repository contract](architecture/POSTGRES_REPOSITORY.md) and [Day 3 acceptance](development-reports/DAY3_ACCEPTANCE_2026-11-10.md). Earlier statuses below are historical. Hosted checks, independent review, prerequisite integrations and production cutover remain gates.
+
 > Final Day 2 status (2026-11-09): local compiler/ESLint/locked install, 54 native tests, 4 Chromium E2E cases and disposable PostgreSQL migration/import/restore verification pass. Hosted Actions is blocked by its explicit account payment/spending-limit diagnostic. See [final acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md). Historical statuses below must be read with this update; production integrations and runtime database cutover remain incomplete.
 
 # AIIT — Week 1 enterprise foundation backlog
