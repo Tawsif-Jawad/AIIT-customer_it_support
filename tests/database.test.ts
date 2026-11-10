@@ -31,7 +31,13 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
   const client=new PrismaClient({datasources:{db:{url}}});
   try {
    const source=createInitialSeedState();source.authSessions=[{id:'b'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000}];
+   // Nonempty historical fixtures prove comments/attachments/notifications are
+   // preserved, rather than merely comparing empty collection counts.
+   source.ticketComments.push({id:'imported-comment',ticketId:source.tickets[0].id,authorId:source.users[0].id,authorName:'Synthetic historical author',authorRole:'EMPLOYEE',body:'Synthetic historical comment',isInternal:false,attachments:[{fileName:'fixture.txt',mimeType:'text/plain',sizeBytes:42}],createdAt:'2026-11-09T18:00:00+06:00'});
+   source.notifications.push({id:'imported-notification',ticketId:source.tickets[0].id,recipientId:source.users[0].id,recipientEmail:'fixture@example.test',channel:'IN_APP_ONLY',subject:'Synthetic historical notification',body:'Preserve without replay',status:'SENT',errorDetails:null,readAt:null,sentAt:'2026-11-09T12:00:00Z',createdAt:'2026-11-09T12:00:00Z'});
+   source.approvals[1]={...source.approvals[1],status:'APPROVED',approverId:'user-cto-farhana',decisionNotes:'Synthetic historical decision',decidedAt:'2026-11-09T12:00:00Z'};
    const counts=await importJsonSnapshot(client,source);
+   assert.equal(await client.notificationJob.count(),0,'Import must not enqueue historical delivery');
    assert.equal(counts.tickets,source.tickets.length);
    const delegates=['sBU','role','user','serviceCategory','ticket','ticketEvent','ticketComment','asset','approval','notification','aIActionLog','auditLog','knowledgeArticle','authSession'] as const;
    const expected=[source.sbus,source.roles,source.users,source.serviceCategories,source.tickets,source.ticketEvents,source.ticketComments,source.assets,source.approvals,source.notifications,source.aiActionLogs,source.auditLogs,source.knowledgeArticles,source.authSessions];
