@@ -1,0 +1,58 @@
+{
+  "realm": "aiit-local",
+  "enabled": true,
+  "displayName": "AIIT isolated authentication test realm",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "aiit-local",
+      "name": "AIIT loopback test client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [
+        "http://127.0.0.1:4300/api/auth/oidc/callback"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:4300"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "synthetic-employee",
+      "email": "employee@example.test",
+      "enabled": true,
+      "emailVerified": false
+    },
+    {
+      "username": "synthetic-customer",
+      "email": "customer@example.test",
+      "enabled": true,
+      "emailVerified": false
+    },
+    {
+      "username": "synthetic-it",
+      "email": "it@example.test",
+      "enabled": true,
+      "emailVerified": false
+    },
+    {
+      "username": "synthetic-cto",
+      "email": "cto@example.test",
+      "enabled": true,
+      "emailVerified": false
+    }
+  ]
+}

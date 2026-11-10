@@ -31,6 +31,8 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
   const client=new PrismaClient({datasources:{db:{url}}});
   try {
    const source=createInitialSeedState();source.authSessions=[{id:'b'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000}];
+   source.users[0].oidcIssuer='https://synthetic-issuer.example.test/realm';
+   source.authSessions.push({id:'c'.repeat(64),userId:source.users[0].id,expiresAt:Date.now()+60000,kind:'oidc',issuer:source.users[0].oidcIssuer,subject:source.users[0].oidcSubject});
    // Nonempty historical fixtures prove comments/attachments/notifications are
    // preserved, rather than merely comparing empty collection counts.
    source.ticketComments.push({id:'imported-comment',ticketId:source.tickets[0].id,authorId:source.users[0].id,authorName:'Synthetic historical author',authorRole:'EMPLOYEE',body:'Synthetic historical comment',isInternal:false,attachments:[{fileName:'fixture.txt',mimeType:'text/plain',sizeBytes:42}],createdAt:'2026-11-09T18:00:00+06:00'});
@@ -38,6 +40,14 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    source.approvals[1]={...source.approvals[1],status:'APPROVED',approverId:'user-cto-farhana',decisionNotes:'Synthetic historical decision',decidedAt:'2026-11-09T12:00:00Z'};
    const counts=await importJsonSnapshot(client,source);
    assert.equal(await client.notificationJob.count(),0,'Import must not enqueue historical delivery');
+   await t.test('Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid',async()=>{
+    assert.equal(await client.authSession.count({where:{kind:null}}),1);
+    assert.equal(await client.authSession.count({where:{kind:'oidc'}}),1);
+    for(const data of [{kind:null,issuer:'https://synthetic-issuer.example.test',subject:'fixture-subject'},{kind:'oidc',issuer:null,subject:'fixture-subject'},{kind:'oidc',issuer:'https://synthetic-issuer.example.test',subject:''}]) {
+     await client.$transaction(async tx=>{await assert.rejects(tx.authSession.create({data:{id:'d'.repeat(64),userId:source.users[0].id,expiresAt:new Date(Date.now()+60000),...data}}));});
+    }
+   });
+
    assert.equal(counts.tickets,source.tickets.length);
    const delegates=['sBU','role','user','serviceCategory','ticket','ticketEvent','ticketComment','asset','approval','notification','aIActionLog','auditLog','knowledgeArticle','authSession'] as const;
    const expected=[source.sbus,source.roles,source.users,source.serviceCategories,source.tickets,source.ticketEvents,source.ticketComments,source.assets,source.approvals,source.notifications,source.aiActionLogs,source.auditLogs,source.knowledgeArticles,source.authSessions];
@@ -97,7 +107,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    try {const user=await upgrade.user.findUniqueOrThrow({where:{id:'33333333-3333-4333-8333-333333333333'}});assert.equal(user.sbuId,'11111111-1111-4111-8111-111111111111');assert.equal(await upgrade.sBU.count(),1);} finally {await upgrade.$disconnect();}
    const diff=execFileSync('node_modules/.bin/prisma',['migrate','diff','--from-url',url,'--to-schema-datamodel','apps/api/prisma/schema.prisma','--exit-code'],{env,encoding:'utf8'});
    assert.match(diff,/No difference detected|empty/i);
-   t.diagnostic('DAY3_DATABASE_EVIDENCE '+JSON.stringify({postgres:pg('postgres',['--version']).trim(),migrationCount:3,sourceManifest:manifest,concurrentIdenticalImports:2,sourceRestoreChecksumMatch:true,repositoryRestoreMatch:true,prismaSchemaParity:true,populatedUuidUpgrade:true,operationalTargetUsed:false}));
+   t.diagnostic('DAY3_DATABASE_EVIDENCE '+JSON.stringify({postgres:pg('postgres',['--version']).trim(),migrationCount:fs.readdirSync('apps/api/prisma/migrations',{withFileTypes:true}).filter(item=>item.isDirectory()).length,sourceManifest:manifest,concurrentIdenticalImports:2,sourceRestoreChecksumMatch:true,repositoryRestoreMatch:true,prismaSchemaParity:true,populatedUuidUpgrade:true,operationalTargetUsed:false}));
   } finally {await client.$disconnect();}
  } finally {if(started) pg('pg_ctl',['-D',data,'-m','immediate','-w','stop']);fs.rmSync(dir,{recursive:true,force:true});}
 });

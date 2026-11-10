@@ -1,0 +1,23 @@
+{
+  "scope": "CONTROLLED_LOOPBACK_OIDC_ISSUER_NOT_KEYCLOAK",
+  "library": "openid-client 6.8.9",
+  "realCryptographicSignatureVerification": true,
+  "signatureVerificationImplementation": "Library enableNonRepudiationChecks against actual fixture JWKS",
+  "acceptedAlgorithm": "RS256",
+  "flow": "Authorization Code + S256 PKCE + state + nonce + HttpOnly browser binding",
+  "oidcSecurityCases": 21,
+  "oidcBrowserCases": 3,
+  "upstreamTokensPersistedOrReturned": false,
+  "liveLocalhostObservation": {
+    "landingHttp": 200,
+    "workspaceHttp": 200,
+    "mutationScope": "Only isolated test instances; existing user server left running"
+  },
+  "keycloakAvailable": false,
+  "keycloakPort8080ListenerObserved": false,
+  "realKeycloakIntegration": "PENDING",
+  "sampleRealmValidation": "JSON safety shape only; not imported",
+  "corporateAdConnected": false,
+  "smtpEnabled": false,
+  "independentApproval": false
+}

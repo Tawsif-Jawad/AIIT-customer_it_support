@@ -24,7 +24,7 @@ import type {
 } from '../../../packages/shared/src/index.ts';
 
 export interface DatabaseState {
-  authSessions?: { id: string; userId: string; expiresAt: number }[];
+  authSessions?: { id: string; userId: string; expiresAt: number; kind?: 'oidc'; issuer?: string; subject?: string }[];
   sbus: SBU[];
   roles: Role[];
   users: User[];
@@ -150,6 +150,8 @@ export function validateDatabaseState(state: DatabaseState): void {
   for (const user of state.users) {
     if (!has('sbus', user.sbuId) || !has('roles', user.roleId) || !state.roles.some(r => r.id === user.roleId && r.name === user.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user scope/role');
   }
+  const identityBindings=state.users.filter(u=>u.oidcIssuer).map(u=>JSON.stringify([u.oidcIssuer,u.oidcSubject]));
+  if(new Set(identityBindings).size!==identityBindings.length) throw new Error('PERSISTENCE_INVALID: Duplicate enterprise identity binding');
   const numbers = new Set<string>();
   for (const ticket of state.tickets) {
     if (!has('users', ticket.requesterId) || !has('sbus', ticket.sbuId) || !has('serviceCategories', ticket.serviceCategoryId) || typeof ticket.title !== 'string' || !ticket.title || numbers.has(ticket.ticketNumber)) throw new Error('PERSISTENCE_INVALID: Invalid ticket reference or number');
