@@ -37,6 +37,12 @@ export async function importJsonSnapshot(client:PrismaClient,source:DatabaseStat
     } else await delegate.create({data});
    }
   }
+  if (source.ticketNumberHighWatermark !== undefined) {
+   await tx.$executeRaw`
+    INSERT INTO "TicketCounter" (id, value) VALUES ('tickets', ${source.ticketNumberHighWatermark}::integer)
+    ON CONFLICT (id) DO UPDATE SET value = GREATEST("TicketCounter".value, EXCLUDED.value)
+   `;
+  }
   return counts;
  },{timeout:60000});
 }

@@ -49,7 +49,7 @@ test('parallel ticket requests preserve tickets, audit and unique numbers after 
   const app = createApiServer(file);
   const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com',role:'CTO',sbuId:'untrusted'}})).data.token;
   const before = app.store.getState().tickets.length;
-  const results = await Promise.all(Array.from({length:12}, (_, i) => app.inject({method:'POST',url:'/api/tickets',token,body:{serviceCategoryId:'cat-outlook-config',title:`Configure Outlook profile number ${i}`,description:'Help configuring Outlook with secure TLS settings on my laptop',severity:'LOW'}})));
+  const results = await Promise.all(Array.from({length:12}, (_, i) => app.inject({method:'POST',url:'/api/tickets',token,body:{serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },title:`Configure Outlook profile number ${i}`,description:'Help configuring Outlook with secure TLS settings on my laptop',severity:'LOW'}})));
   assert.ok(results.every(r => r.status === 201));
   const restarted = createApiServer(file);
   const state = restarted.store.getState();
@@ -67,7 +67,7 @@ test('failed replacement returns failure, rolls back memory and preserves exact 
   const rename = fs.renameSync;
   fs.renameSync = () => { throw new Error('synthetic interrupted replacement'); };
   try {
-    const res = await app.inject({method:'POST',url:'/api/tickets',token,body:{serviceCategoryId:'cat-outlook-config',title:'Interrupted Outlook request',description:'Help configuring secure Outlook on my laptop'}});
+    const res = await app.inject({method:'POST',url:'/api/tickets',token,body:{serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },title:'Interrupted Outlook request',description:'Help configuring secure Outlook on my laptop'}});
     assert.equal(res.status,503);
     assert.equal(fs.readFileSync(file,'utf8'),before);
     assert.deepEqual(app.store.getState(),JSON.parse(before));
@@ -169,7 +169,7 @@ test('F10 requested LOW cannot downgrade critical infrastructure classification'
   const app = createApiServer(file);
   const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
   const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
-    serviceCategoryId:'cat-outlook-config',
+    serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },
     title:'Entire SBU production outage',
     description:'Entire SBU production down due to a severe outage; urgent human IT review is required',
     severity:'LOW',
@@ -184,7 +184,7 @@ test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () 
   const app = createApiServer(file);
   const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
   const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
-    serviceCategoryId:'cat-outlook-config',
+    serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },
     title:'High-priority Outlook connectivity issue',
     description:'Outlook certificate prompts block my business-critical work despite normal troubleshooting',
     severity:'HIGH',

@@ -360,7 +360,7 @@ test("OIDC requester scope and trusted application role/SBU defeat body and issu
       body: JSON.stringify({
         title: "OIDC synthetic scoped request",
         description: "Synthetic isolated Outlook setup request",
-        serviceCategoryId: "cat-outlook-config",
+        serviceCategoryId: "cat-outlook-config", customFormPayload: { osPlatform: 'macOS' },
         role: "CTO",
         requesterId: "user-it-kamal",
         sbuId: "sbu-corp-003",
@@ -434,7 +434,7 @@ test("OIDC requester scope and trusted application role/SBU defeat body and issu
       body: JSON.stringify({
         title: "OIDC customer own request",
         description: "Synthetic customer request requires Outlook help",
-        serviceCategoryId: "cat-outlook-config",
+        serviceCategoryId: "cat-outlook-config", customFormPayload: { osPlatform: 'macOS' },
       }),
     });
     assert.equal(created.status, 201);

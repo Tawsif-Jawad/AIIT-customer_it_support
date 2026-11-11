@@ -20,7 +20,8 @@ export async function exerciseDay3Remediation(
     repo.createTicket(actor, {
       title: "Remediation synthetic request",
       description: "Isolated policy parity regression fixture",
-      serviceCategoryId: "cat-outlook-config",
+      serviceCategoryId: "cat-outlook-config", customFormPayload: { osPlatform: 'macOS' },
+    severity: 'HIGH',
     });
   const snapshot = () =>
     Promise.all([
@@ -68,7 +69,7 @@ export async function exerciseDay3Remediation(
           where: { ticketId: ticket.id, toStatus: "ESCALATED_TO_CTO" },
         });
         assert.equal(event.actorId, actor);
-        assert.equal(event.fromStatus, "NEW");
+        assert.equal(event.fromStatus, "ASSIGNED_TO_IT");
         const audit = await client.auditLog.findFirstOrThrow({
           where: { resourceId: ticket.id, action: "TICKET_ESCALATED_TO_CTO" },
         });

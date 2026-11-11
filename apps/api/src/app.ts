@@ -7,7 +7,6 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import {
-  type Approval,
   type RoleName,
   type Ticket,
   type TicketSeverity,
@@ -19,6 +18,8 @@ import {
   redactSensitiveData,
   validateCreateTicketInput,
   validateEscalationReason,
+  selectEscalationRecipient,
+  MAX_TICKET_SEQUENCE,
 } from '../../../packages/shared/src/index.ts';
 import {
   DeterministicMockAIOrchestrator,
@@ -26,6 +27,7 @@ import {
   MockActiveDirectoryAdapter,
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
+import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
 import { EnterpriseDataStore } from './store.ts';
 import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
@@ -229,6 +231,12 @@ export function createApiServer(customStorePath?: string): AppInstance {
             return;
           }
 
+          const ctoUser = selectEscalationRecipient(state.users);
+          if (!ctoUser) {
+            sendError(res, 409, 'CTO_ROUTING_UNAVAILABLE', 'Escalation requires exactly one active CTO recipient.');
+            return;
+          }
+
           const prevStatus = ticket.status;
           ticket.status = 'ESCALATED_TO_CTO';
           ticket.severity = 'CRITICAL';
@@ -258,18 +266,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
             details: { ticketNumber: ticket.ticketNumber, fromStatus: prevStatus, reason },
           });
 
-          const ctoUser = state.users.find((u) => u.roleName === 'CTO');
-          if (ctoUser) {
-            await queueProcessor
-              .enqueueNotification({
-                ticketId: ticket.id,
-                recipientId: ctoUser.id,
-                recipientEmail: ctoUser.email,
-                subject: `[CTO ESCALATION] ${ticket.ticketNumber}: ${ticket.title}`,
-                body: `Ticket ${ticket.ticketNumber} has been escalated to the CTO Queue by ${actor.displayName}.\nReason: ${reason}`,
-              })
-              ;
-          }
+          await queueProcessor.enqueueNotification(escalationNotification(ticket, actor, ctoUser, reason));
 
           sendJson(res, 200, { ticket });
   }
@@ -624,219 +621,35 @@ export function createApiServer(customStorePath?: string): AppInstance {
         }
 
         const now = new Date();
-        const slaDue = new Date(now.getTime() + category.slaResolutionMinutes * 60_000).toISOString();
-        const seqNum = 1000 + state.tickets.length + 1;
-        const prefix = category.slug.includes('incident') ? 'INC' : 'REQ';
-        const ticketNumber = `${prefix}-2026-${seqNum}`;
-
-        // Create initial ticket in NEW status
-        const ticket: Ticket = {
-          id: `ticket-${crypto.randomUUID()}`,
-          ticketNumber,
-          title: validInput.title,
-          description: validInput.description,
-          status: 'NEW',
-          severity: validInput.severity || category.defaultSeverity,
-          sbuId: currentUser.sbuId,
-          requesterId: currentUser.id,
-          assigneeId: null,
-          serviceCategoryId: category.id,
-          customFormPayload: validInput.customFormPayload || {},
-          aiSummary: null,
-          aiSuggestedFix: null,
-          aiConfidence: null,
-          escalationReason: null,
-          slaDueAt: slaDue,
-          resolvedAt: null,
-          closedAt: null,
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        };
-
+        const existingHigh = state.tickets.reduce((high, ticket) => {
+          const suffix = /-([0-9]+)$/.exec(ticket.ticketNumber);
+          return suffix ? Math.max(high, Number(suffix[1])) : high;
+        }, 1000);
+        const sequence = Math.max(state.ticketNumberHighWatermark ?? 1000, existingHigh) + 1;
+        if (sequence > MAX_TICKET_SEQUENCE) {
+          sendError(res, 409, 'TICKET_NUMBER_EXHAUSTED', 'A ticket number could not be allocated.');
+          return;
+        }
+        const workflow = planTicketCreation(
+          validInput, category, currentUser, state.users.filter(u => u.roleName === 'IT_ADMIN' && u.isActive)
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0],
+          state.knowledgeArticles, aiOrchestrator, ticketNumberFor(category.slug, sequence, now), now,
+        );
+        const { ticket, events, approvals, aiLog, aiDecision, auditDetails, notification } = workflow;
+        state.ticketNumberHighWatermark = sequence;
         state.tickets.unshift(ticket);
-
-        // Event 1: Created (NEW)
-        state.ticketEvents.push({
-          id: crypto.randomUUID(),
-          ticketId: ticket.id,
-          actorId: currentUser.id,
-          actorName: currentUser.displayName,
-          eventType: 'TICKET_CREATED',
-          fromStatus: null,
-          toStatus: 'NEW',
-          metadata: { ticketNumber: ticket.ticketNumber, category: category.slug },
-          createdAt: now.toISOString(),
-        });
-
-        // Event 2: Triaged (NEW -> TRIAGED -> AI_HANDLING)
-        ticket.status = 'TRIAGED';
-        state.ticketEvents.push({
-          id: crypto.randomUUID(),
-          ticketId: ticket.id,
-          actorId: null,
-          actorName: 'Automated Workflow Engine',
-          eventType: 'TICKET_TRIAGED',
-          fromStatus: 'NEW',
-          toStatus: 'TRIAGED',
-          metadata: { slaDueAt: slaDue },
-          createdAt: now.toISOString(),
-        });
-
-        ticket.status = 'AI_HANDLING';
-        state.ticketEvents.push({
-          id: crypto.randomUUID(),
-          ticketId: ticket.id,
-          actorId: null,
-          actorName: 'Deterministic Mock AI Orchestrator',
-          eventType: 'AI_HANDLING_STARTED',
-          fromStatus: 'TRIAGED',
-          toStatus: 'AI_HANDLING',
-          metadata: { provider: aiOrchestrator.providerName },
-          createdAt: now.toISOString(),
-        });
-
-        // Evaluate with Deterministic Mock AI & Policy Engine
-        const aiDecision = aiOrchestrator.evaluateTicket({
-          title: ticket.title,
-          description: ticket.description,
-          categorySlug: category.slug,
-          sbuCode: currentUser.sbuCode,
-          knowledgeBase: state.knowledgeArticles,
-        });
-
-        // Record AIActionLog
-        // Final severity policy also controls the returned decision and execution
-        // record, not only the ticket state. A low-risk suggestion cannot claim
-        // autonomous resolution when requester/classifier priority requires IT.
-        if ([ticket.severity, aiDecision.recommendedSeverity].some(s => s === 'HIGH' || s === 'CRITICAL')) {
-          aiDecision.canAutoResolve = false;
-          aiDecision.escalateToIT = true;
-          aiDecision.escalationReason ||= 'HIGH/CRITICAL severity requires human IT review.';
-          if (aiDecision.policyDecision === 'ALLOWED_LOW_RISK') aiDecision.policyDecision = 'ESCALATE_TO_IT';
-        }
-
-        const aiLog = {
-          id: `ailog-${crypto.randomUUID()}`,
-          ticketId: ticket.id,
-          provider: aiDecision.provider,
-          modelName: aiDecision.modelName,
-          redactedPrompt: aiDecision.redactedPrompt,
-          classification: aiDecision.classification,
-          recommendedSeverity: aiDecision.recommendedSeverity,
-          confidence: aiDecision.confidence,
-          proposedTool: aiDecision.proposedTool,
-          policyDecision: aiDecision.policyDecision,
-          dryRun: aiDecision.dryRun,
-          toolOutput: aiDecision.toolOutput,
-          escalatedToIT: aiDecision.escalateToIT,
-          createdAt: new Date().toISOString(),
-        };
+        state.ticketEvents.push(...events);
+        state.approvals.unshift(...approvals);
         state.aiActionLogs.unshift(aiLog);
-
-        // A requester's chosen priority may raise severity, but cannot lower a
-        // critical/high severity determined by the policy-governed classifier.
-        const severityRank: Record<TicketSeverity, number> = {
-          LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3,
-        };
-        if (severityRank[aiDecision.recommendedSeverity] > severityRank[ticket.severity]) {
-          ticket.severity = aiDecision.recommendedSeverity;
-        }
-        ticket.aiSummary = `Classification: ${aiDecision.classification} (${Math.round(aiDecision.confidence * 100)}% confidence) | Policy: ${aiDecision.policyDecision}`;
-        ticket.aiSuggestedFix = aiDecision.suggestedResponse;
-        ticket.aiConfidence = aiDecision.confidence;
-
-        const itAdmin = state.users.find((u) => u.roleName === 'IT_ADMIN');
-
-        // High/critical requests always require human review, even when text resembles a low-risk FAQ.
-        if (aiDecision.canAutoResolve && category.aiEligible && severityRank[ticket.severity] < severityRank.HIGH) {
-          // Transition AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION
-          ticket.status = 'RESOLVED_PENDING_CONFIRMATION';
-          ticket.resolvedAt = new Date().toISOString();
-          state.ticketEvents.push({
-            id: crypto.randomUUID(),
-            ticketId: ticket.id,
-            actorId: null,
-            actorName: 'Deterministic Mock AI Orchestrator',
-            eventType: 'AI_PROPOSED_RESOLUTION',
-            fromStatus: 'AI_HANDLING',
-            toStatus: 'RESOLVED_PENDING_CONFIRMATION',
-            metadata: {
-              classification: aiDecision.classification,
-              confidence: aiDecision.confidence,
-              proposedTool: aiDecision.proposedTool,
-            },
-            createdAt: new Date().toISOString(),
-          });
-        } else {
-          // Route to IT Administrator Queue (AI_HANDLING -> ASSIGNED_TO_IT)
-          ticket.status = 'ASSIGNED_TO_IT';
-          ticket.assigneeId = itAdmin?.id || null;
-          ticket.escalationReason = aiDecision.escalationReason || 'Routed to IT Administrator queue.';
-          state.ticketEvents.push({
-            id: crypto.randomUUID(),
-            ticketId: ticket.id,
-            actorId: null,
-            actorName: 'Deterministic Mock AI Orchestrator',
-            eventType: 'ASSIGNED_TO_IT_QUEUE',
-            fromStatus: 'AI_HANDLING',
-            toStatus: 'ASSIGNED_TO_IT',
-            metadata: {
-              reason: ticket.escalationReason,
-              policyDecision: aiDecision.policyDecision,
-              assignedTo: itAdmin?.email || 'IT Queue',
-            },
-            createdAt: new Date().toISOString(),
-          });
-
-          // Create an approval record if category or AI policy requires human approval
-          if (category.requiresApprovalRole || aiDecision.policyDecision === 'REQUIRES_HUMAN_APPROVAL') {
-            const approval: Approval = {
-              id: `approval-${crypto.randomUUID()}`,
-              ticketId: ticket.id,
-              actionType: category.slug.toUpperCase().replace(/-/g, '_'),
-              requiredRole: category.requiresApprovalRole || 'IT_ADMIN',
-              status: 'PENDING',
-              requestedById: currentUser.id,
-              approverId: null,
-              justification: `Approval required for ${category.name}: ${ticket.title}`,
-              decisionNotes: null,
-              decidedAt: null,
-              createdAt: new Date().toISOString(),
-            };
-            state.approvals.unshift(approval);
-          }
-        }
-
-        store.persist();
-
-        // Record Audit Event
         recordAudit({
           actor: currentUser,
           action: 'TICKET_CREATED',
           resource: 'Ticket',
           resourceId: ticket.id,
           ipAddress: clientIp,
-          details: {
-            ticketNumber: ticket.ticketNumber,
-            resultingStatus: ticket.status,
-            severity: ticket.severity,
-            classifierSeverity: aiDecision.recommendedSeverity,
-            aiClassification: aiDecision.classification,
-          },
+          details: auditDetails,
         });
-
-        // Queue notification safely (fails safely if transport/queue is degraded)
-        await queueProcessor
-          .enqueueNotification({
-            ticketId: ticket.id,
-            recipientId: currentUser.id,
-            recipientEmail: currentUser.email,
-            subject: `[${ticket.ticketNumber}] Ticket Received - ${ticket.title}`,
-            body: `Hello ${currentUser.displayName},\n\nYour ticket (${ticket.ticketNumber}) is currently in status: ${ticket.status}.\n\n${ticket.aiSuggestedFix || ''}`,
-          })
-          .catch((err) => {
-            logStructured('WARN', 'NOTIFICATION_ENQUEUE_DEGRADED', { error: String(err) });
-          });
+        await queueProcessor.enqueueNotification(notification);
 
         sendJson(res, 201, {
           ticket,

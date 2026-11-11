@@ -217,7 +217,7 @@ describe('Milestone 1 Full-Stack Acceptance & Integration Suite', () => {
 
     try {
       const degradedRes = await apiRequest('POST', '/api/tickets', employeeTawsifToken, {
-        serviceCategoryId: 'cat-internet-conn',
+        serviceCategoryId: 'cat-internet-conn', customFormPayload: { connectionType: 'Corporate Wi-Fi', floorLocation: 'Floor 2' },
         title: 'VPN gateway timeout during simulated integration outage',
         description: 'Testing that ticket creation succeeds even when AI, Redis, and SMTP are unavailable.',
         severity: 'MEDIUM',

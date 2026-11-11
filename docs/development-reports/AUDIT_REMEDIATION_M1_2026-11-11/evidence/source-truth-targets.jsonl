@@ -1,0 +1,6 @@
+{"id":"DEF-006","http":201,"required":["targetAdGroup","businessJustification"],"persistedKeys":[]}
+{"id":"CODEX-AUDIT-001","http":200,"routedToDisabledCto":true,"channel":"EMAIL_AND_IN_APP"}
+{"id":"DEF-013","humanLabel":true,"dryRun":true,"rawOutputHasSimulated":false,"year":"2026"}
+{"id":"DEF-013","sparseValidFixtureCollision":500,"committedTicketCount":3}
+{"id":"DEF-002","json":{"status":"ASSIGNED_TO_IT","severity":"MEDIUM","approvals":1,"aiLogs":1,"events":["NEW","TRIAGED","AI_HANDLING","ASSIGNED_TO_IT"],"descriptionRetained":true,"promptRedacted":true},"postgres":{"status":"NEW","severity":"LOW","approvals":0,"aiLogs":0,"events":1,"descriptionRedacted":true,"auditIp":null,"jobs":1}}
+{"id":"DEF-003","status":"ESCALATED_TO_CTO","severity":"CRITICAL","jsonRecipient":"CTO","jsonChannel":"EMAIL_AND_IN_APP","pgRecipient":"REQUESTER","pgChannel":"IN_APP_ONLY","jobState":"QUEUED","pgCtoIntents":0}

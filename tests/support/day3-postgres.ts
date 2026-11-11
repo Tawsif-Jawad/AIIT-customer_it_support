@@ -16,7 +16,8 @@ export async function exerciseDay3(
   const input = {
     title: "Synthetic persistence request",
     description: "Synthetic isolated database fixture",
-    serviceCategoryId: "cat-outlook-config",
+    serviceCategoryId: "cat-outlook-config", customFormPayload: { osPlatform: 'macOS' },
+    severity: 'HIGH',
   };
   const retry = async <T>(fn: () => Promise<T>): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
@@ -35,13 +36,13 @@ export async function exerciseDay3(
       const ticket = await repo.createTicket(employee, input);
       ticketId = ticket.id;
       assert.match(ticket.id, /^ticket-/);
-      assert.match(ticket.ticketNumber, /^REQ-2026-\d+$/);
-      assert.ok(Number(ticket.ticketNumber.split("-").at(-1)) > 1003);
+      assert.match(ticket.ticketNumber, new RegExp(`^REQ-${new Date().getUTCFullYear()}-\\d+$`));
+      assert.ok(Number(ticket.ticketNumber.split("-").at(-1)) > 9100);
       assert.equal(
         (await repo.getTicket(employee, ticket.id)).title,
         input.title,
       );
-      assert.equal(await client.ticketEvent.count({ where: { ticketId } }), 1);
+      assert.equal(await client.ticketEvent.count({ where: { ticketId } }), 4);
       assert.equal(
         await client.auditLog.count({ where: { resourceId: ticketId } }),
         1,
@@ -152,8 +153,8 @@ export async function exerciseDay3(
     "Day3 simultaneous stale-version updates yield one commit and one conflict",
     async () => {
       const results = await Promise.allSettled([
-        repo.transition(admin, ticketId, 0, "ASSIGNED_TO_IT", "assign"),
-        repo.transition(admin, ticketId, 0, "TRIAGED", "triage"),
+        repo.transition(admin, ticketId, 0, "IN_PROGRESS", "begin"),
+        repo.transition(admin, ticketId, 0, "AWAITING_USER", "clarify"),
       ]);
       assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
       const rejected = results.find(
@@ -299,10 +300,13 @@ export async function exerciseDay3(
           client.auditLog.count(),
           client.notification.count(),
           client.ticketCounter.findMany(),
+          client.approval.count(),
+          client.aIActionLog.count(),
+          client.notificationJob.count(),
         ]);
       const before = await counts();
       try {
-        await assert.rejects(repo.createTicket(employee, input));
+        await assert.rejects(repo.createTicket(employee, { ...input, serviceCategoryId: "cat-ad-account", customFormPayload: { targetAdGroup: "Synthetic readers", businessJustification: "Rollback fixture" } }));
         assert.deepEqual(await counts(), before);
       } finally {
         await client.$executeRawUnsafe(
