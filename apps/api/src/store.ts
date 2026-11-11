@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {validateRecordSchemas} from './persistence-schema.ts';
+import { MAX_TICKET_SEQUENCE } from '../../../packages/shared/src/index.ts';
 import type {
   AIActionLog,
   Approval,
@@ -24,6 +25,7 @@ import type {
 } from '../../../packages/shared/src/index.ts';
 
 export interface DatabaseState {
+  ticketNumberHighWatermark?: number;
   authSessions?: { id: string; userId: string; expiresAt: number; kind?: 'oidc'; issuer?: string; subject?: string }[];
   sbus: SBU[];
   roles: Role[];
@@ -137,6 +139,10 @@ export class EnterpriseDataStore {
 
 export function validateDatabaseState(state: DatabaseState): void {
   validateRecordSchemas(state);
+  if (state.ticketNumberHighWatermark !== undefined &&
+      (!Number.isSafeInteger(state.ticketNumberHighWatermark) || state.ticketNumberHighWatermark < 1000 || state.ticketNumberHighWatermark > MAX_TICKET_SEQUENCE)) {
+    throw new Error('PERSISTENCE_INVALID: Invalid ticket number watermark');
+  }
   const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
   for (const name of collections) {
     if (!state || !Array.isArray(state[name])) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
@@ -146,7 +152,7 @@ export function validateDatabaseState(state: DatabaseState): void {
       ids.add(row.id);
     }
   }
-  const has = (name: Exclude<keyof DatabaseState, 'authSessions'>, id: string) => state[name].some(row => row.id === id);
+  const has = (name: (typeof collections)[number], id: string) => state[name].some(row => row.id === id);
   for (const user of state.users) {
     if (!has('sbus', user.sbuId) || !has('roles', user.roleId) || !state.roles.some(r => r.id === user.roleId && r.name === user.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user scope/role');
   }
@@ -160,7 +166,8 @@ export function validateDatabaseState(state: DatabaseState): void {
   for (const name of ['ticketEvents','ticketComments','approvals','aiActionLogs','notifications'] as const)
     for (const row of state[name]) if (row.ticketId && !has('tickets', row.ticketId)) throw new Error('PERSISTENCE_INVALID: Broken ticket reference in ' + name);
   if(new Set((state.authSessions || []).map(s=>s.id)).size!==(state.authSessions || []).length) throw new Error('PERSISTENCE_INVALID: Duplicate session ID');
-  const references: [keyof DatabaseState,string,keyof DatabaseState][] = [
+  type Collection = (typeof collections)[number] | "authSessions";
+  const references: [Collection, string, Collection][] = [
     ['tickets','assigneeId','users'],['ticketEvents','actorId','users'],['ticketComments','authorId','users'],
     ['assets','sbuId','sbus'],['assets','assignedUserId','users'],['approvals','requestedById','users'],['approvals','approverId','users'],
     ['notifications','recipientId','users'],['auditLogs','actorId','users'],['auditLogs','sbuId','sbus'],['authSessions','userId','users'],

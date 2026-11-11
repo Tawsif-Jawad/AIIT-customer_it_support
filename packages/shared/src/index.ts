@@ -418,3 +418,52 @@ export function validateEscalationReason(value: unknown): string {
   }
   return redactSensitiveData(value.trim());
 }
+
+/** Existing single-recipient routing. An absent or ambiguous recipient blocks escalation. */
+export function selectEscalationRecipient<T extends Pick<User, 'roleName' | 'isActive'>>(users: readonly T[]): T | undefined {
+  const eligible = users.filter(user => user.isActive && user.roleName === 'CTO');
+  return eligible.length === 1 ? eligible[0] : undefined;
+}
+
+/** Validate the current catalog contract for new submissions only. */
+export function validateServicePayload(fields: ServiceFormField[], payload: Record<string, unknown> = {}): Record<string, unknown> {
+  const errors: string[] = [];
+  const values: [string, string | boolean][] = [];
+  const keys = new Set(fields.map(field => field.key));
+  if (Object.keys(payload).some(key => !keys.has(key))) errors.push('Unexpected service form field.');
+  for (const field of fields) {
+    const raw = Object.hasOwn(payload, field.key) ? payload[field.key] : undefined;
+    const value = typeof raw === 'string' ? raw.trim() : raw;
+    if (value === undefined || value === '') {
+      if (field.required) errors.push(`${field.label} is required.`);
+      continue;
+    }
+    if (field.type === 'boolean') {
+      if (typeof value === 'boolean') values.push([field.key, value]);
+      else errors.push(`${field.label} must be Yes or No.`);
+      continue;
+    }
+    if (typeof value !== 'string' || value.length > 5000) {
+      errors.push(`${field.label} must be text up to 5000 characters.`);
+      continue;
+    }
+    if (field.type === 'select' && !field.options?.includes(value)) {
+      errors.push(`Choose a valid option for ${field.label}.`);
+      continue;
+    }
+    if (field.key === 'managerEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      errors.push(`${field.label} must be a valid email address.`);
+      continue;
+    }
+    if (field.key === 'desiredEmailPrefix' && !/^[a-z0-9]+(?:[._+-][a-z0-9]+)*$/i.test(value)) {
+      errors.push(`${field.label} must be a mailbox prefix, without a domain.`);
+      continue;
+    }
+    values.push([field.key, value]);
+  }
+  if (errors.length) throw new ValidationError(errors);
+  return Object.fromEntries(values);
+}
+
+/** Largest sequence representable by the existing PostgreSQL ticket counter. */
+export const MAX_TICKET_SEQUENCE = 2_147_483_647;

@@ -38,7 +38,10 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    source.ticketComments.push({id:'imported-comment',ticketId:source.tickets[0].id,authorId:source.users[0].id,authorName:'Synthetic historical author',authorRole:'EMPLOYEE',body:'Synthetic historical comment',isInternal:false,attachments:[{fileName:'fixture.txt',mimeType:'text/plain',sizeBytes:42}],createdAt:'2026-11-09T18:00:00+06:00'});
    source.notifications.push({id:'imported-notification',ticketId:source.tickets[0].id,recipientId:source.users[0].id,recipientEmail:'fixture@example.test',channel:'IN_APP_ONLY',subject:'Synthetic historical notification',body:'Preserve without replay',status:'SENT',errorDetails:null,readAt:null,sentAt:'2026-11-09T12:00:00Z',createdAt:'2026-11-09T12:00:00Z'});
    source.approvals[1]={...source.approvals[1],status:'APPROVED',approverId:'user-cto-farhana',decisionNotes:'Synthetic historical decision',decidedAt:'2026-11-09T12:00:00Z'};
+   source.tickets[0].ticketNumber = 'INC-2024-9100';
+   source.ticketNumberHighWatermark = 8100;
    const counts=await importJsonSnapshot(client,source);
+   assert.equal((await client.ticketCounter.findUniqueOrThrow({where:{id:"tickets"}})).value, 8100);
    assert.equal(await client.notificationJob.count(),0,'Import must not enqueue historical delivery');
    await t.test('Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid',async()=>{
     assert.equal(await client.authSession.count({where:{kind:null}}),1);
@@ -81,8 +84,20 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    try {assert.deepEqual(await verifyImportedSnapshot(restored,source),manifest);for(let i=0;i<delegates.length;i++) assert.equal(await (restored[delegates[i]] as {count():Promise<number>}).count(),expected[i].length,'restored '+delegates[i]);} finally {await restored.$disconnect();}
    const {exerciseDay3}=await import('./support/day3-postgres.ts');
    await exerciseDay3(t,client,url);
+   assert.equal((await client.ticket.findUniqueOrThrow({where:{id:source.tickets[0].id}})).ticketNumber, 'INC-2024-9100');
    const {exerciseDay3Remediation}=await import('./support/day3-remediation.ts');
    await exerciseDay3Remediation(t,client,url);
+   const {exerciseM1Parity}=await import("./support/m1-parity.ts");
+   const fixtureEnvironment = { NODE_ENV: 'test', AUTH_MODE: 'dev_oidc', MAIL_PROVIDER: 'mock' };
+   const priorEnvironment = Object.fromEntries(Object.keys(fixtureEnvironment).map(key => [key, process.env[key]]));
+   Object.assign(process.env, fixtureEnvironment);
+   try { await exerciseM1Parity(t,client,dir); }
+   finally {
+    for (const [key,value] of Object.entries(priorEnvironment)) {
+     if (value === undefined) delete process.env[key];
+     else process.env[key] = value;
+    }
+   }
    // Restore the mutated repository/outbox state too, including leases and versions.
    const fullSnapshot=async (db:InstanceType<typeof PrismaClient>)=>{
     const tables=[...delegates,'notificationJob','ticketCounter'] as const;

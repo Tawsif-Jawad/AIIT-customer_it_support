@@ -35,7 +35,7 @@ test("Day3 remediation JSON dedicated escalation retains reason, severity and go
           title: `Synthetic escalation fixture ${index}`,
           description:
             "Synthetic group membership review requiring human approval",
-          serviceCategoryId: "cat-ad-account",
+          serviceCategoryId: "cat-ad-account", customFormPayload: { targetAdGroup: 'Synthetic readers', businessJustification: 'Synthetic review access' },
         },
       });
       assert.equal(created.status, 201);

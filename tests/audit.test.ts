@@ -70,8 +70,8 @@ test('API inventory: category/KB filtering and authorized mock AD lookup',()=>fi
 }));
 test('API inventory: ticket creation rejects malformed fields and uses trusted actor scope',()=>fixture(async app=>{
  const token=await login(app);
- for(const body of [{},{title:'x',description:'short',serviceCategoryId:'missing'},{title:'Fixture validation',description:'Synthetic long description',serviceCategoryId:'missing'},{title:'Fixture validation',description:'Synthetic long description',serviceCategoryId:'cat-outlook-config',severity:'HUGE'}])assert.equal((await app.inject({method:'POST',url:'/api/tickets',token,body})).status,400);
- const r=await app.inject({method:'POST',url:'/api/tickets',token,body:{title:'Outlook configuration audit',description:'Configure Outlook incoming TLS on my laptop',serviceCategoryId:'cat-outlook-config',role:'CTO',requesterId:'user-cto-farhana',sbuId:'sbu-fin-002'}});
+ for(const body of [{},{title:'x',description:'short',serviceCategoryId:'missing'},{title:'Fixture validation',description:'Synthetic long description',serviceCategoryId:'missing'},{title:'Fixture validation',description:'Synthetic long description',serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },severity:'HUGE'}])assert.equal((await app.inject({method:'POST',url:'/api/tickets',token,body})).status,400);
+ const r=await app.inject({method:'POST',url:'/api/tickets',token,body:{title:'Outlook configuration audit',description:'Configure Outlook incoming TLS on my laptop',serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },role:'CTO',requesterId:'user-cto-farhana',sbuId:'sbu-fin-002'}});
  assert.equal(r.status,201);assert.equal(r.data.ticket.requesterId,'user-emp-tawsif');assert.equal(r.data.ticket.sbuId,'sbu-tech-001');
  const detail=await app.inject({method:'GET',url:`/api/tickets/${r.data.ticket.id}`,token});
  assert.deepEqual(detail.data.events.slice(0,3).map((e:{toStatus:string})=>e.toStatus),['NEW','TRIAGED','AI_HANDLING']);assert.ok(detail.data.aiLogs[0].dryRun);
@@ -88,7 +88,7 @@ test('API inventory: search/filter/page boundaries return only authorized record
 }));
 test('API inventory: requester/IT/CTO lifecycle, comments, immutable approvals and restart',()=>fixture(async(app,file)=>{
  const employee=await login(app),it=await login(app,'kamal.hossain@upstra.local'),cto=await login(app,'farhana.ahmed@upstra.local');
- const created=await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Audit AD privilege request',description:'Synthetic request requiring human IT administrator review',serviceCategoryId:'cat-ad-account'}});const id=created.data.ticket.id;
+ const created=await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Audit AD privilege request',description:'Synthetic request requiring human IT administrator review',serviceCategoryId:'cat-ad-account', customFormPayload: { targetAdGroup: 'Synthetic readers', businessJustification: 'Synthetic review access' }}});const id=created.data.ticket.id;
  const action=(token:string,sub:string,body:Record<string,unknown>)=>app.inject({method:'POST',url:`/api/tickets/${id}/${sub}`,token,body});
  assert.equal(created.data.ticket.status,'ASSIGNED_TO_IT');assert.equal(created.data.ticket.assigneeId,'user-it-kamal');
  assert.equal((await action(it,'comments',{body:'Internal synthetic note',isInternal:true})).status,201);
@@ -126,7 +126,7 @@ test('API rate limiter rejects excess requests and recovers after its window',()
 }));
 test('AU11 requester notification metrics never expose another user mock-delivery count',()=>fixture(async app=>{
  const employee=await login(app),customer=await login(app,'rahim.chowdhury@client.upstra.local');
- assert.equal((await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Outlook private notification audit',description:'Synthetic Outlook TLS request creates one mock notification',serviceCategoryId:'cat-outlook-config'}})).status,201);
+ assert.equal((await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Outlook private notification audit',description:'Synthetic Outlook TLS request creates one mock notification',serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' }}})).status,201);
  const own=await app.inject({method:'GET',url:'/api/notifications',token:customer});assert.equal(own.data.items.length,0);assert.equal(own.data.deliveredTransportCount,0);
 }));
 test('API mutation negatives reject missing fields, bad notes and unauthorized ownership',()=>fixture(async app=>{

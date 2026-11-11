@@ -11,10 +11,16 @@ import {
   validateEscalationReason,
   validateStatusTransition,
   redactSensitiveData,
+  selectEscalationRecipient,
+  MAX_TICKET_SEQUENCE,
+  type ServiceFormField,
   type User,
   type Ticket,
   type TicketStatus,
 } from "../../../packages/shared/src/index.ts";
+
+import { DeterministicMockAIOrchestrator } from "../../../packages/connectors/src/index.ts";
+import { escalationNotification, planTicketCreation, ticketNumberFor } from "./ticket-workflow.ts";
 
 export class RepositoryError extends Error {
   public code: string;
@@ -58,8 +64,10 @@ function fail(code: string): never {
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 export class PostgresRepository implements TicketRepository {
   private client: PrismaClient;
-  constructor(client: PrismaClient) {
+  private aiOrchestrator: DeterministicMockAIOrchestrator;
+  constructor(client: PrismaClient, aiOrchestrator = new DeterministicMockAIOrchestrator()) {
     this.client = client;
+    this.aiOrchestrator = aiOrchestrator;
   }
   private async atomic<T>(operation: (tx: Tx) => Promise<T>): Promise<T> {
     try {
@@ -153,22 +161,33 @@ export class PostgresRepository implements TicketRepository {
       },
     });
   }
-  private async intent(tx: Tx, ticket: DbTicket, operationId: string) {
-    const recipient = await tx.user.findUniqueOrThrow({
-      where: { id: ticket.requesterId },
-    });
+  private async intent(
+    tx: Tx,
+    ticket: DbTicket,
+    operationId: string,
+    notification?: ReturnType<typeof escalationNotification>,
+  ) {
     const notificationId = `notification-${operationId}`;
-    await tx.notification.create({
-      data: {
-        id: notificationId,
-        ticketId: ticket.id,
-        recipientId: recipient.id,
-        recipientEmail: recipient.email,
-        channel: "IN_APP_ONLY",
-        subject: `Ticket ${ticket.ticketNumber}`,
-        body: `Ticket status: ${ticket.status}`,
-      },
-    });
+    if (notification) {
+      await tx.notification.create({
+        data: { ...notification, id: notificationId, channel: "EMAIL_AND_IN_APP" },
+      });
+    } else {
+      const recipient = await tx.user.findUniqueOrThrow({
+        where: { id: ticket.requesterId },
+      });
+      await tx.notification.create({
+        data: {
+          id: notificationId,
+          ticketId: ticket.id,
+          recipientId: recipient.id,
+          recipientEmail: recipient.email,
+          channel: "IN_APP_ONLY",
+          subject: `Ticket ${ticket.ticketNumber}`,
+          body: `Ticket status: ${ticket.status}`,
+        },
+      });
+    }
     await tx.notificationJob.create({
       data: { id: `job-${operationId}`, notificationId },
     });
@@ -191,29 +210,58 @@ export class PostgresRepository implements TicketRepository {
         },
       });
       if (!category) fail("INVALID_REFERENCE");
-      // Atomic counter considers imported legacy suffixes and preserves INC/REQ format.
-      const [allocation] = await tx.$queryRaw<
-        { value: number }[]
-      >`INSERT INTO "TicketCounter" (id,value) VALUES ('tickets', (SELECT GREATEST(1000,COALESCE(MAX(substring("ticketNumber" from '-([0-9]+)$')::integer),1000))+1 FROM "Ticket")) ON CONFLICT (id) DO UPDATE SET value=GREATEST("TicketCounter".value+1,(SELECT COALESCE(MAX(substring("ticketNumber" from '-([0-9]+)$')::integer),1000)+1 FROM "Ticket")) RETURNING value`;
-      const ticketId = id("ticket");
+      const now = new Date();
+      // Serialize allocation and advance past imported ticket numbers.
+      const [allocation] = await tx.$queryRaw<{ value: number }[]>`
+        WITH historical AS (
+          SELECT GREATEST(1000, MAX(substring("ticketNumber" from '-([0-9]+)$')::numeric)) + 1 AS next
+          FROM "Ticket"
+        )
+        INSERT INTO "TicketCounter" (id, value)
+        SELECT 'tickets', next::integer FROM historical WHERE next <= ${MAX_TICKET_SEQUENCE}
+        ON CONFLICT (id) DO UPDATE SET value = GREATEST("TicketCounter".value + 1, EXCLUDED.value)
+        WHERE "TicketCounter".value < ${MAX_TICKET_SEQUENCE}
+        RETURNING value
+      `;
+      if (!allocation) fail("TICKET_NUMBER_EXHAUSTED");
+      const admin = await tx.user.findFirst({
+        where: { role: { name: "IT_ADMIN" }, isActive: true },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      });
+      const articles = await tx.knowledgeArticle.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+      const workflow = planTicketCreation(
+        data,
+        { ...category, formSchema: category.formSchema as unknown as ServiceFormField[] },
+        actor,
+        admin,
+        articles.map(article => ({
+          ...article,
+          createdAt: article.createdAt.toISOString(),
+          updatedAt: article.updatedAt.toISOString(),
+        })),
+        this.aiOrchestrator,
+        ticketNumberFor(category.slug, allocation.value, now),
+        now,
+      );
       const ticket = await tx.ticket.create({
         data: {
-          id: ticketId,
-          ticketNumber: `${category.slug.includes("incident") ? "INC" : "REQ"}-${new Date().getUTCFullYear()}-${allocation.value}`,
-          title: data.title,
-          description: redactSensitiveData(data.description),
-          requesterId: actor.id,
-          sbuId: actor.sbuId,
-          serviceCategoryId: category.id,
-          severity: data.severity || category.defaultSeverity,
-          customFormPayload: data.customFormPayload as Prisma.InputJsonObject,
-          slaDueAt: new Date(
-            Date.now() + category.slaResolutionMinutes * 60000,
-          ),
+          ...workflow.ticket,
+          description: redactSensitiveData(workflow.ticket.description),
+          customFormPayload: workflow.ticket.customFormPayload as Prisma.InputJsonObject,
         },
       });
-      await this.history(tx, actor, ticket, "TICKET_CREATED");
-      await this.intent(tx, ticket, `${ticket.id}-created`);
+      await tx.ticketEvent.createMany({
+        data: workflow.events.map(event => ({ ...event, metadata: event.metadata as Prisma.InputJsonObject })),
+      });
+      if (workflow.approvals.length) await tx.approval.createMany({ data: workflow.approvals });
+      await tx.aIActionLog.create({
+        data: {
+          ...workflow.aiLog,
+          toolOutput: workflow.aiLog.toolOutput === null ? Prisma.DbNull : workflow.aiLog.toolOutput as Prisma.InputJsonObject,
+        },
+      });
+      await this.audit(tx, actor, "TICKET_CREATED", "Ticket", ticket.id, workflow.auditDetails);
+      await this.intent(tx, ticket, `${ticket.id}-created`, workflow.notification);
       return ticket;
     });
   }
@@ -281,6 +329,7 @@ export class PostgresRepository implements TicketRepository {
     return this.atomic(async (tx) => {
       const actor = await this.actor(tx, actorId);
       const ticket = await this.ticket(tx, actor, ticketId);
+      if (version !== ticket.version) fail("CONFLICT");
       const check = validateStatusTransition(
         ticket.status,
         status,
@@ -288,6 +337,16 @@ export class PostgresRepository implements TicketRepository {
         ticket.requesterId === actor.id,
       );
       if (!check.valid) fail("TRANSITION_NOT_ALLOWED");
+      let notification: ReturnType<typeof escalationNotification> | undefined;
+      if (escalationReason !== undefined) {
+        const candidates = await tx.user.findMany({
+          where: { role: { name: "CTO" }, isActive: true },
+          take: 2,
+        });
+        const recipient = selectEscalationRecipient(candidates.map(user => ({ ...user, roleName: "CTO" })));
+        if (!recipient) fail("CTO_ROUTING_UNAVAILABLE");
+        notification = escalationNotification(ticket, actor, recipient, escalationReason);
+      }
       const result = await tx.ticket.updateMany({
         where: { id: ticketId, version },
         data: {
@@ -374,7 +433,7 @@ export class PostgresRepository implements TicketRepository {
           updated.status !== status ? "REOPENED" : ticket.status,
         );
       }
-      await this.intent(tx, updated, `${ticketId}-v${updated.version}`);
+      await this.intent(tx, updated, `${ticketId}-v${updated.version}`, notification);
       return updated;
     });
   }
