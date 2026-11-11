@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 import * as oidc from "openid-client";
 import type { User } from "../../../packages/shared/src/index.ts";
-import type { EnterpriseDataStore } from "./store.ts";
+import type { RequestStore } from "./store.ts";
 
 export interface EnterpriseSession {
   id: string;
@@ -12,6 +12,8 @@ export interface EnterpriseSession {
   issuer: string;
   subject: string;
 }
+export class SessionPersistenceError extends Error {}
+
 /** Implement atomically with business-side persistence; no implicit DB cutover. */
 export interface AuthenticationRepository {
   resolveIdentity(issuer: string, subject: string): Promise<User | null>;
@@ -20,8 +22,8 @@ export interface AuthenticationRepository {
   revoke(digest: string): Promise<void>;
 }
 export class JsonAuthenticationRepository implements AuthenticationRepository {
-  private store: EnterpriseDataStore;
-  constructor(store: EnterpriseDataStore) {
+  private store: RequestStore;
+  constructor(store: RequestStore) {
     this.store = store;
   }
   async resolveIdentity(issuer: string, subject: string) {
