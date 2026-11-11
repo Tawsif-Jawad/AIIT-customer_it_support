@@ -156,6 +156,7 @@ model Ticket {
   requester          User            @relation("TicketRequester", fields: [requesterId, sbuId], references: [id, sbuId], onDelete: NoAction, onUpdate: NoAction)
   assignee           User?           @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   serviceCategory    ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@index([requesterId, createdAt])
   @@index([sbuId, status, slaDueAt])
   @@index([assigneeId, status])
@@ -334,4 +335,28 @@ model NotificationJob {
 model TicketCounter {
  id String @id
  value Int
+}
+
+model AbuseBucket {
+  key       String   @id
+  hits      Int
+  expiresAt DateTime @db.Timestamptz(6)
+
+  @@index([expiresAt])
+}
+
+model OidcLoginFlow {
+  id             String   @id
+  state          String
+  nonce          String
+  verifier       String
+  expiresAt      DateTime @db.Timestamptz(6)
+  previousDigest String?
+
+  @@index([expiresAt])
+}
+
+model AbuseKey {
+  id String @id
+  secret String
 }

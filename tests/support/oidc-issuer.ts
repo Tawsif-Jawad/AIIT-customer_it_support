@@ -33,6 +33,7 @@ export async function startTestIssuer() {
     };
     if (url.pathname === "/.well-known/openid-configuration") {
       discoveryRequests++;
+      if (mode === "stall-discovery") return;
       if (mode === "unavailable") {
         json({ error: "temporarily_unavailable" }, 503);
         return;

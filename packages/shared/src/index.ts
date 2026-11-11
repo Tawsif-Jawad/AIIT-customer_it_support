@@ -317,12 +317,14 @@ export function validateStatusTransition(
 // RBAC & SBU Resource-Level Authorization Policy
 // ============================================================================
 
+export function ticketAccessScope(user: User): 'all' | 'owned' | 'none' {
+  if (user.roleName === 'SYSTEM_SERVICE') return 'none';
+  return user.roleName === 'CTO' || user.roleName === 'IT_ADMIN' ? 'all' : 'owned';
+}
+
 export function canAccessTicket(user: User, ticket: Ticket): boolean {
-  if (user.roleName === 'CTO' || user.roleName === 'IT_ADMIN' || user.roleName === 'SYSTEM_SERVICE') {
-    return user.roleName !== 'SYSTEM_SERVICE';
-  }
-  // Customers and Employees can only view their own tickets within their SBU
-  return ticket.requesterId === user.id && ticket.sbuId === user.sbuId;
+  const scope = ticketAccessScope(user);
+  return scope === 'all' || (scope === 'owned' && ticket.requesterId === user.id && ticket.sbuId === user.sbuId);
 }
 
 export function canModifyTicketStatus(user: User, ticket: Ticket, targetStatus: TicketStatus): {

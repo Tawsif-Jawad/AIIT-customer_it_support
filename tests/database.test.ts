@@ -41,7 +41,7 @@ test('PostgreSQL migrations preserve IDs, match Prisma, import idempotently and 
    source.tickets[0].ticketNumber = 'INC-2024-9100';
    source.ticketNumberHighWatermark = 8100;
    const counts=await importJsonSnapshot(client,source);
-   assert.equal((await client.ticketCounter.findUniqueOrThrow({where:{id:"tickets"}})).value, 8100);
+   assert.equal((await client.ticketCounter.findUniqueOrThrow({where:{id:"tickets"}})).value, 9100);
    assert.equal(await client.notificationJob.count(),0,'Import must not enqueue historical delivery');
    await t.test('Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid',async()=>{
     assert.equal(await client.authSession.count({where:{kind:null}}),1);

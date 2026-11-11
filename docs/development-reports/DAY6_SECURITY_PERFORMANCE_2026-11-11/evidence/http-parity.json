@@ -1,0 +1,428 @@
+{
+  "live": [
+    200,
+    [
+      "environment",
+      "status",
+      "storageMode"
+    ],
+    null
+  ],
+  "ready": [
+    200,
+    [
+      "status",
+      "storageMode"
+    ],
+    null
+  ],
+  "health": [
+    200,
+    [
+      "components",
+      "service",
+      "status",
+      "timestamp",
+      "version"
+    ],
+    null
+  ],
+  "openapi.json": [
+    200,
+    [
+      "info",
+      "openapi",
+      "paths"
+    ],
+    null
+  ],
+  "auth/config": [
+    200,
+    [
+      "loginUrl",
+      "mode",
+      "ready"
+    ],
+    null
+  ],
+  "auth/identities": [
+    200,
+    [
+      "authMode",
+      "identities",
+      "keycloakRealm"
+    ],
+    null
+  ],
+  "dev mode OIDC login": [
+    503,
+    [
+      "error"
+    ],
+    "OIDC_NOT_CONFIGURED"
+  ],
+  "dev mode OIDC callback": [
+    503,
+    [
+      "error"
+    ],
+    "OIDC_NOT_CONFIGURED"
+  ],
+  "login invalid": [
+    401,
+    [
+      "error"
+    ],
+    "INVALID_IDENTITY"
+  ],
+  "session profile": [
+    200,
+    [
+      "permissions",
+      "sbu",
+      "user"
+    ],
+    null
+  ],
+  "unauthenticated": [
+    401,
+    [
+      "error"
+    ],
+    "UNAUTHORIZED"
+  ],
+  "catalog": [
+    200,
+    [
+      "categories",
+      "sbus"
+    ],
+    null
+  ],
+  "KB search": [
+    200,
+    [
+      "items"
+    ],
+    null
+  ],
+  "invalid category fields": [
+    400,
+    [
+      "error"
+    ],
+    "VALIDATION_ERROR"
+  ],
+  "ticket creation": [
+    201,
+    [
+      "aiDecision",
+      "ticket"
+    ],
+    null
+  ],
+  "triage": [
+    "RESOLVED_PENDING_CONFIRMATION",
+    "LOW",
+    "ALLOWED_LOW_RISK",
+    {
+      "osPlatform": "macOS"
+    }
+  ],
+  "filtered pagination": [
+    200,
+    [
+      "items",
+      "pagination"
+    ],
+    null
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 1,
+    "total": 1,
+    "totalPages": 1
+  },
+  "invalid pagination": [
+    400,
+    [
+      "error"
+    ],
+    "VALIDATION_ERROR"
+  ],
+  "category filter": [
+    200,
+    [
+      "items",
+      "pagination"
+    ],
+    null
+  ],
+  "invalid enum filter": [
+    200,
+    [
+      "items",
+      "pagination"
+    ],
+    null
+  ],
+  "literal substring filter": [
+    200,
+    [
+      "items",
+      "pagination"
+    ],
+    null
+  ],
+  "safe deep pagination": [
+    200,
+    [
+      "items",
+      "pagination"
+    ],
+    null
+  ],
+  "cross-SBU deny": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN_RESOURCE"
+  ],
+  "customer deny": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN_RESOURCE"
+  ],
+  "customer approvals deny": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN"
+  ],
+  "invalid comment": [
+    400,
+    [
+      "error"
+    ],
+    "VALIDATION_ERROR"
+  ],
+  "internal note": [
+    201,
+    [
+      "comment"
+    ],
+    null
+  ],
+  "ticket detail by number": [
+    200,
+    [
+      "aiLogs",
+      "approvals",
+      "comments",
+      "events",
+      "ticket"
+    ],
+    null
+  ],
+  "history": [
+    "AI_HANDLING_STARTED",
+    "AI_PROPOSED_RESOLUTION",
+    "INTERNAL_NOTE_ADDED",
+    "TICKET_CREATED",
+    "TICKET_TRIAGED"
+  ],
+  "resolution confirmation": [
+    200,
+    [
+      "ticket"
+    ],
+    null
+  ],
+  "reopen": [
+    200,
+    [
+      "ticket"
+    ],
+    null
+  ],
+  "create approval": [
+    201,
+    [
+      "aiDecision",
+      "ticket"
+    ],
+    null
+  ],
+  "approval list": [
+    200,
+    [
+      "items"
+    ],
+    null
+  ],
+  "approval decision": [
+    200,
+    [
+      "approval"
+    ],
+    null
+  ],
+  "approval replay": [
+    409,
+    [
+      "error"
+    ],
+    "APPROVAL_ALREADY_DECIDED"
+  ],
+  "IT transition": [
+    200,
+    [
+      "ticket"
+    ],
+    null
+  ],
+  "CTO escalation": [
+    200,
+    [
+      "ticket"
+    ],
+    null
+  ],
+  "notifications": [
+    200,
+    [
+      "deliveredTransportCount",
+      "items"
+    ],
+    null
+  ],
+  "escalation": [
+    "cto@example.test",
+    "EMAIL_AND_IN_APP"
+  ],
+  "notification recipient restriction": [
+    404,
+    [
+      "error"
+    ],
+    "NOTIFICATION_NOT_FOUND"
+  ],
+  "mark notification read": [
+    200,
+    [
+      "notification"
+    ],
+    null
+  ],
+  "mark notification replay": [
+    200,
+    [
+      "notification"
+    ],
+    null
+  ],
+  "assets": [
+    200,
+    [
+      "items"
+    ],
+    null
+  ],
+  "custody scope": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN"
+  ],
+  "custody acknowledgement": [
+    200,
+    [
+      "asset"
+    ],
+    null
+  ],
+  "custody replay": [
+    200,
+    [
+      "asset"
+    ],
+    null
+  ],
+  "analytics": [
+    200,
+    [
+      "aiResolvedPendingConfirmation",
+      "assignedToIT",
+      "bySbu",
+      "byStatus",
+      "escalatedToCTO",
+      "pendingApprovals",
+      "totalAccessibleTickets"
+    ],
+    null
+  ],
+  "analyticsCounts": {
+    "totalAccessibleTickets": 3,
+    "aiResolvedPendingConfirmation": 1,
+    "assignedToIT": 0,
+    "escalatedToCTO": 1,
+    "pendingApprovals": 0,
+    "byStatus": {
+      "RESOLVED_PENDING_CONFIRMATION": 1,
+      "ESCALATED_TO_CTO": 1,
+      "REOPENED": 1
+    },
+    "bySbu": {
+      "SBU-TECH": 3
+    }
+  },
+  "audit": [
+    200,
+    [
+      "items"
+    ],
+    null
+  ],
+  "audit deny": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN"
+  ],
+  "mock directory lookup": [
+    200,
+    [
+      "groups",
+      "provider",
+      "record"
+    ],
+    null
+  ],
+  "directory deny": [
+    403,
+    [
+      "error"
+    ],
+    "FORBIDDEN"
+  ],
+  "logout": [
+    200,
+    [
+      "loggedOut"
+    ],
+    null
+  ],
+  "revoked profile": [
+    401,
+    [
+      "error"
+    ],
+    "UNAUTHORIZED"
+  ]
+}

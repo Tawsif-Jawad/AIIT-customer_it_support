@@ -213,14 +213,8 @@ export class PostgresRepository implements TicketRepository {
       const now = new Date();
       // Serialize allocation and advance past imported ticket numbers.
       const [allocation] = await tx.$queryRaw<{ value: number }[]>`
-        WITH historical AS (
-          SELECT GREATEST(1000, MAX(substring("ticketNumber" from '-([0-9]+)$')::numeric)) + 1 AS next
-          FROM "Ticket"
-        )
-        INSERT INTO "TicketCounter" (id, value)
-        SELECT 'tickets', next::integer FROM historical WHERE next <= ${MAX_TICKET_SEQUENCE}
-        ON CONFLICT (id) DO UPDATE SET value = GREATEST("TicketCounter".value + 1, EXCLUDED.value)
-        WHERE "TicketCounter".value < ${MAX_TICKET_SEQUENCE}
+        UPDATE "TicketCounter" SET value = value + 1
+        WHERE id = 'tickets' AND value < ${MAX_TICKET_SEQUENCE}
         RETURNING value
       `;
       if (!allocation) fail("TICKET_NUMBER_EXHAUSTED");
