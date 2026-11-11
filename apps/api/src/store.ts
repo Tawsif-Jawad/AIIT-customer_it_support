@@ -48,7 +48,29 @@ export interface RequestScope {
   developmentSessionDigest?: string;
 }
 
+export interface TicketPageFilters {
+  status: string | null;
+  severity: string | null;
+  sbuId: string | null;
+  category: string | null;
+  search: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface TicketAnalytics {
+  totalAccessibleTickets: number;
+  aiResolvedPendingConfirmation: number;
+  assignedToIT: number;
+  escalatedToCTO: number;
+  pendingApprovals: number;
+  byStatus: Record<string, number>;
+  bySbu: Record<string, number>;
+}
+
 export interface RequestStore {
+  ticketPage?(user: User, filters: TicketPageFilters): Promise<{ items: unknown[]; total: number }>;
+  ticketAnalytics?(user: User): Promise<TicketAnalytics>;
   getState(): DatabaseState;
   persist(): void;
   isHealthy(): boolean | Promise<boolean>;

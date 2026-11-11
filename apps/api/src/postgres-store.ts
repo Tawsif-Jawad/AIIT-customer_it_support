@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { isDeepStrictEqual } from 'node:util';
-import type { User } from '../../../packages/shared/src/index.ts';
-import type { DatabaseState, RequestScope, RequestStore } from './store.ts';
+import { ticketAccessScope, type User } from '../../../packages/shared/src/index.ts';
+import type { DatabaseState, RequestScope, RequestStore, TicketPageFilters } from './store.ts';
 
 type Tx = Prisma.TransactionClient;
 type Row = { id: string };
@@ -43,7 +43,8 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   let ticketKey: string | undefined;
   try { if (ticketDetail) ticketKey = decodeURIComponent(ticketDetail[1]); } catch { /* HTTP validation handles malformed input */ }
   const ticketWhere = ticketKey ? { OR: [{ id: ticketKey }, { ticketNumber: ticketKey }] } : undefined;
-  const listing = ['/api/tickets', '/api/analytics/summary'].includes(pathname) || pathname.startsWith('/api/approvals');
+  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary'].includes(pathname);
+  const listing = pathname.startsWith('/api/approvals');
   const creating = method === 'POST' && pathname === '/api/tickets';
   const detail = !!ticketKey && method === 'GET' && !ticketDetail?.[2];
   const ticketFilter = ticketKey ? { ticket: ticketWhere } : undefined;
@@ -51,15 +52,19 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   let notificationId: string | undefined;
   try { if (notificationRead) notificationId = decodeURIComponent(notificationRead[1]); } catch { /* HTTP validation handles malformed input */ }
   const [users, sbus, roles, categories, tickets, events, comments, assets, approvals, notifications, aiLogs, audits, articles, sessions, counter] = await Promise.all([
-    tx.user.findMany({ include: { role: true, sbu: true }, orderBy: [...oldest] }),
-    tx.sBU.findMany({ orderBy: [...oldest] }),
+    !scopedRead || developmentSessionDigest
+      ? tx.user.findMany({
+        where: scopedRead ? { sessions: { some: { id: developmentSessionDigest, kind: null } } } : undefined,
+        include: { role: true, sbu: true }, orderBy: [...oldest],
+      }) : [],
+    scopedRead ? [] : tx.sBU.findMany({ orderBy: [...oldest] }),
     pathname === '/api/auth/me' ? tx.role.findMany() : [],
-    creating || detail || pathname === '/api/catalog' || pathname === '/api/tickets' ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
+    creating || detail || pathname === '/api/catalog' ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
     (listing && !creating) || ticketWhere ? tx.ticket.findMany({ where: ticketWhere, orderBy: [...newest] }) : [],
     detail ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     pathname.startsWith('/api/assets') ? tx.asset.findMany({ orderBy: [...oldest] }) : [],
-    detail || pathname.startsWith('/api/approvals') || pathname === '/api/analytics/summary'
+    detail || pathname.startsWith('/api/approvals')
       ? tx.approval.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
     pathname === '/api/notifications' || notificationId
       ? tx.notification.findMany({ where: notificationId ? { id: notificationId } : undefined, orderBy: [...newest] }) : [],
@@ -68,12 +73,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     creating || pathname === '/api/kb' ? tx.knowledgeArticle.findMany({ orderBy: [...oldest] }) : [],
     developmentSessionDigest
       ? tx.authSession.findMany({ where: { id: developmentSessionDigest, kind: null } }) : [],
-    creating ? tx.$queryRaw<{ value: number }[]>`
-      SELECT LEAST(2147483647, GREATEST(
-        1000,
-        (SELECT value FROM "TicketCounter" WHERE id = 'tickets'),
-        (SELECT MAX(substring("ticketNumber" from '-([0-9]+)$')::numeric) FROM "Ticket")
-      ))::int AS value` : [],
+    creating ? tx.ticketCounter.findUniqueOrThrow({ where: { id: 'tickets' } }) : null,
   ]);
   return {
     users: users.map(applicationUser), sbus: project(sbus), roles: project(roles),
@@ -82,7 +82,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     approvals: project(unversion(approvals)), notifications: project(notifications), aiActionLogs: project(aiLogs),
     auditLogs: project(audits), knowledgeArticles: project(articles),
     authSessions: sessions.map(({ id, userId, expiresAt }) => ({ id, userId, expiresAt: expiresAt.getTime() })),
-    ticketNumberHighWatermark: counter[0]?.value,
+    ticketNumberHighWatermark: counter?.value,
   };
 }
 
@@ -136,11 +136,13 @@ async function commitChanges(tx: Tx, before: DatabaseState, after: DatabaseState
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${row.userId} FOR UPDATE`;
     await tx.authSession.create({ data: { ...row, expiresAt: new Date(row.expiresAt) } });
   }
+}
 
-  if (after.ticketNumberHighWatermark !== undefined && before.ticketNumberHighWatermark !== after.ticketNumberHighWatermark) {
-    const value = after.ticketNumberHighWatermark;
-    await tx.ticketCounter.upsert({ where: { id: 'tickets' }, create: { id: 'tickets', value }, update: { value } });
-  }
+function visibleTicketSql(user: User) {
+  const scope = ticketAccessScope(user);
+  if (scope === 'all') return Prisma.sql`TRUE`;
+  if (scope === 'none') return Prisma.sql`FALSE`;
+  return Prisma.sql`t."requesterId" = ${user.id} AND t."sbuId" = ${user.sbuId}`;
 }
 
 class RollbackResponse extends Error {}
@@ -166,6 +168,60 @@ export class PostgresRequestStore implements RequestStore {
   }
 
   persist() { void this.transactionClient; }
+
+  async ticketPage(user: User, { status, severity, sbuId, category, search, page, pageSize }: TicketPageFilters) {
+    const tx = this.transactionClient;
+    const filters = [visibleTicketSql(user)];
+    if (status) filters.push(Prisma.sql`t.status::text = ${status}`);
+    if (severity) filters.push(Prisma.sql`t.severity::text = ${severity}`);
+    if (sbuId) filters.push(Prisma.sql`t."sbuId" = ${sbuId}`);
+    if (category) filters.push(Prisma.sql`t."serviceCategoryId" IN (SELECT id FROM "ServiceCategory" WHERE id = ${category} OR slug = ${category})`);
+    if (search) filters.push(Prisma.sql`strpos(lower(t."ticketNumber" || ' ' || t.title || ' ' || t.description), ${search}) > 0`);
+    const where = Prisma.join(filters, ' AND ');
+    const [{ total }] = await tx.$queryRaw<{ total: number }[]>`SELECT count(*)::int AS total FROM "Ticket" t WHERE ${where}`;
+    const offset = (page - 1) * pageSize;
+    if (offset >= total) return { items: [], total };
+    const items = await tx.$queryRaw<Record<string, unknown>[]>`
+      SELECT t.*, u."displayName" AS "requesterName", u.email AS "requesterEmail",
+             s.code AS "sbuCode", c.name AS "categoryName"
+      FROM (
+        SELECT t.* FROM "Ticket" t WHERE ${where}
+        ORDER BY t."createdAt" DESC, t.id DESC LIMIT ${pageSize} OFFSET ${offset}
+      ) t
+      JOIN "User" u ON u.id = t."requesterId"
+      JOIN "SBU" s ON s.id = t."sbuId"
+      JOIN "ServiceCategory" c ON c.id = t."serviceCategoryId"
+      ORDER BY t."createdAt" DESC, t.id DESC`;
+    return { items: items.map(({ version, ...item }) => { void version; return item; }), total };
+  }
+
+  async ticketAnalytics(user: User) {
+    const tx = this.transactionClient;
+    const where = visibleTicketSql(user);
+    const groups = await tx.$queryRaw<{ status: string; code: string; count: number }[]>`
+      SELECT t.status, s.code, count(*)::int AS count
+      FROM "Ticket" t JOIN "SBU" s ON s.id = t."sbuId"
+      WHERE ${where} GROUP BY t.status, s.code`;
+    const [{ pendingApprovals }] = await tx.$queryRaw<{ pendingApprovals: number }[]>`
+      SELECT count(*)::int AS "pendingApprovals"
+      FROM "Approval" a JOIN "Ticket" t ON t.id = a."ticketId"
+      WHERE a.status = 'PENDING' AND ${where}`;
+    const byStatus: Record<string, number> = Object.create(null);
+    const bySbu: Record<string, number> = Object.create(null);
+    let totalAccessibleTickets = 0;
+    for (const { status, code, count } of groups) {
+      totalAccessibleTickets += count;
+      byStatus[status] = (byStatus[status] ?? 0) + count;
+      bySbu[code] = (bySbu[code] ?? 0) + count;
+    }
+    return {
+      totalAccessibleTickets,
+      aiResolvedPendingConfirmation: byStatus.RESOLVED_PENDING_CONFIRMATION ?? 0,
+      assignedToIT: (byStatus.ASSIGNED_TO_IT ?? 0) + (byStatus.IN_PROGRESS ?? 0),
+      escalatedToCTO: byStatus.ESCALATED_TO_CTO ?? 0,
+      pendingApprovals, byStatus, bySbu,
+    };
+  }
 
   async isHealthy() {
     try { await this.client.$queryRaw`SELECT 1`; return true; }

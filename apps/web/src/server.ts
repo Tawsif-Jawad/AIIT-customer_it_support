@@ -6,6 +6,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
+import { authenticatedForwarders, proxyTokenHeader, validateProxyToken } from '../../../packages/shared/src/ingress.ts';
 import { getLandingHtml } from './landing.ts';
 
 const WEB_PORT = Number(process.env.WEB_PORT || 3000);
@@ -875,7 +876,12 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
 export function createWebServer(apiTargetUrl = API_URL): http.Server {
   const target = new URL(apiTargetUrl);
+  const upstream = authenticatedForwarders(process.env.WEB_TRUSTED_PROXY_IPS, process.env.WEB_PROXY_TOKEN);
+  const apiProxyToken = validateProxyToken(process.env.WEB_API_PROXY_TOKEN);
   if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Unsupported API proxy protocol');
+  if (apiProxyToken && target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) {
+    throw new Error('INGRESS_TOKEN_REQUIRES_HTTPS_OR_LOOPBACK');
+  }
 
   return http.createServer((req, res) => {
     const url = req.url || '/';
@@ -906,13 +912,26 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
     }
     // Proxy /api/* requests to the backend API server
     if (url.startsWith('/api/')) {
+      let client: string;
+      try { client = upstream.resolve(req.socket.remoteAddress, req.headers); }
+      catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { code: 'INVALID_INGRESS' } }));
+        return;
+      }
+      const hopHeaders = new Set(['connection', 'keep-alive', 'proxy-authorization', 'proxy-authenticate',
+        'te', 'trailer', 'transfer-encoding', 'upgrade', ...((req.headers.connection ?? '').toLowerCase().split(',').map(name => name.trim()))]);
+      const headers = Object.fromEntries(Object.entries(req.headers).filter(([name]) =>
+        !hopHeaders.has(name) && name !== proxyTokenHeader && name !== 'forwarded' && !name.startsWith('x-forwarded-') && name !== 'x-real-ip'));
+      headers['x-forwarded-for'] = client;
+      if (apiProxyToken) headers[proxyTokenHeader] = apiProxyToken;
       const proxyReq = (target.protocol === 'https:' ? https : http).request(
         {
           hostname: target.hostname,
           port: target.port,
           path: url,
           method: req.method,
-          headers: req.headers,
+          headers,
         },
         (proxyRes) => {
           res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);

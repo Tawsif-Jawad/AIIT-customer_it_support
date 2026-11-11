@@ -4,8 +4,9 @@ import { createServer } from './app.ts';
 export async function createPostgresApiServer(client: PrismaClient) {
   const { PostgresRequestStore } = await import('./postgres-store.ts');
   const { PostgresAuthenticationRepository } = await import('./postgres-auth.ts');
+  const { postgresAbuseCounter, postgresLoginFlows } = await import('./postgres-abuse.ts');
   const store = new PostgresRequestStore(client);
-  return createServer(() => store, new PostgresAuthenticationRepository(() => store.transactionClient));
+  return createServer(() => store, new PostgresAuthenticationRepository(() => store.transactionClient), await postgresAbuseCounter(client), postgresLoginFlows(client));
 }
 
 export function storageMode(env = process.env): 'json' | 'postgres' {
@@ -38,8 +39,16 @@ export async function connectPostgres(env = process.env): Promise<PrismaClient> 
         WHERE tgrelid = '"User"'::regclass
           AND tgname = 'revoke_changed_identity_sessions'
           AND tgenabled IN ('O', 'A')
+      ) AND EXISTS (
+        SELECT 1 FROM pg_trigger
+        WHERE tgrelid = '"Ticket"'::regclass
+          AND tgname = 'advance_ticket_floor'
+          AND tgenabled IN ('O', 'A')
       ) AS enabled`;
-    if (!guard?.enabled) throw new Error('POSTGRES_IDENTITY_GUARD_REQUIRED');
+    if (!guard?.enabled) throw new Error('POSTGRES_RUNTIME_GUARDS_REQUIRED');
+    await client.ticketCounter.findUniqueOrThrow({ where: { id: 'tickets' } });
+    await client.$queryRaw`SELECT 1 FROM "AbuseBucket" LIMIT 1`;
+    await client.$queryRaw`SELECT 1 FROM "OidcLoginFlow" LIMIT 1`;
     return client;
   } catch {
     await client.$disconnect();

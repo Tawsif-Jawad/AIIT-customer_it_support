@@ -5,6 +5,8 @@
  */
 
 import http from 'node:http';
+import { authenticatedForwarders, configuredOrigin, directOrigin } from '../../../packages/shared/src/ingress.ts';
+import { LocalAbuseCounter, abusePolicy, checkAbuse, type AbuseCounter } from './abuse-control.ts';
 import crypto from 'node:crypto';
 import {
   type RoleName,
@@ -33,7 +35,7 @@ import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './aut
 import { NotificationQueueProcessor } from './queue.ts';
 import {EnterpriseAuthAdapter,JsonAuthenticationRepository,readEnterpriseSettings,cookieValue,sessionDigest,csrfForSession,secureEqual} from './enterprise-auth.ts';
 
-import { SessionPersistenceError, type AuthenticationRepository } from './enterprise-auth.ts';
+import { SessionPersistenceError, type AuthenticationRepository, type LoginFlowStore } from './enterprise-auth.ts';
 
 export interface AppInstance<Store extends RequestStore = EnterpriseDataStore> {
   server: http.Server;
@@ -67,15 +69,21 @@ export function createApiServer(customStorePath?: string): AppInstance {
 export function createServer<Store extends RequestStore>(
   createStore: () => Store,
   durableAuth?: AuthenticationRepository,
+  abuse: AbuseCounter = new LocalAbuseCounter(),
+  loginFlows?: LoginFlowStore,
 ): AppInstance<Store> {
   if (process.env.MAIL_PROVIDER && process.env.MAIL_PROVIDER !== 'mock') throw new Error(durableAuth ? 'POSTGRES_REQUIRES_MOCK_MAIL' : 'JSON_MODE_REQUIRES_MOCK_MAIL');
+  const ingress = authenticatedForwarders(process.env.API_TRUSTED_PROXY_IPS, process.env.API_PROXY_TOKEN);
+  const publicOrigin = configuredOrigin(process.env.API_PUBLIC_ORIGIN);
+  if (ingress.enabled && !publicOrigin) throw new Error('TRUSTED_PROXY_REQUIRES_PUBLIC_ORIGIN');
+  const policy = abusePolicy();
   const store = createStore();
   const postgres = !!durableAuth;
   const authRepository = durableAuth ?? new JsonAuthenticationRepository(store);
   // Configuration is captured per server; a failure never enables dev fallback.
   let enterpriseAuth: EnterpriseAuthAdapter | undefined;
   if(process.env.AUTH_MODE==='oidc') {
-    try {enterpriseAuth=new EnterpriseAuthAdapter(readEnterpriseSettings());} catch { /* public config reports unconfigured */ }
+    try {enterpriseAuth=new EnterpriseAuthAdapter(readEnterpriseSettings(), loginFlows);} catch { /* public config reports unconfigured */ }
   }
 
   const aiOrchestrator = new DeterministicMockAIOrchestrator();
@@ -89,8 +97,6 @@ export function createServer<Store extends RequestStore>(
   const mailboxProvisioner = new UnconfiguredMailboxProvisioningAdapter();
   const queueProcessor = new NotificationQueueProcessor(store, emailTransport, !!postgres);
 
-  // Simple per-IP rate limiting map
-  const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
 
   function logStructured(level: 'INFO' | 'WARN' | 'ERROR', event: string, meta: Record<string, unknown> = {}) {
     // Ensure tokens/passwords never leak in logs
@@ -281,17 +287,17 @@ export function createServer<Store extends RequestStore>(
           sendJson(res, 200, { ticket });
   }
 
-  const runRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+  type VerifiedLogin = Awaited<ReturnType<EnterpriseAuthAdapter['exchange']>>;
+  const runRequest = async (req: http.IncomingMessage, res: http.ServerResponse, clientIp: string, login?: VerifiedLogin) => {
     const method = req.method || 'GET';
     const rawUrl = req.url || '/';
-    const parsedUrl = new URL(rawUrl, `http://${req.headers?.host || 'localhost'}`);
+    const parsedUrl = new URL(rawUrl, 'http://localhost');
     const pathname = parsedUrl.pathname;
-    const clientIp = req.socket?.remoteAddress || '127.0.0.1';
 
     // Browser cookie writes require a verified same-origin request. Bearer-only
     // CLI clients need no Origin; external browser origins must be allowlisted.
     const origin = req.headers.origin;
-    const sameOrigin = `${('encrypted' in (req.socket || {}) && (req.socket as { encrypted?: boolean }).encrypted) ? 'https' : 'http'}://${req.headers.host}`;
+    const sameOrigin = publicOrigin ?? directOrigin(req.headers.host, !!(req.socket as { encrypted?: boolean }).encrypted);
     const allowedOrigin = process.env.AUTH_MODE==='oidc' ? origin===enterpriseAuth?.publicUrl : origin === sameOrigin || (!!process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*' && origin === process.env.CORS_ORIGIN);
     if ((origin && !allowedOrigin) || (req.headers.cookie?.includes('itsupport_session=') && !['GET','HEAD','OPTIONS'].includes(method) && !allowedOrigin)) {
       sendError(res, 403, 'ORIGIN_DENIED', 'A verified same-origin request is required.'); return;
@@ -313,19 +319,6 @@ export function createServer<Store extends RequestStore>(
     if (method === 'OPTIONS') {
       sendJson(res, 204, {});
       return;
-    }
-
-    // Rate limiting check (250 requests per minute per IP)
-    const nowMs = Date.now();
-    const rateRecord = rateLimitMap.get(clientIp);
-    if (!rateRecord || nowMs - rateRecord.windowStart > 60_000) {
-      rateLimitMap.set(clientIp, { count: 1, windowStart: nowMs });
-    } else {
-      rateRecord.count++;
-      if (rateRecord.count > 250) {
-        sendError(res, 429, 'RATE_LIMIT_EXCEEDED', 'Too many requests; please retry shortly.');
-        return;
-      }
     }
 
     try {
@@ -420,7 +413,8 @@ export function createServer<Store extends RequestStore>(
         if(!enterpriseAuth||process.env.AUTH_MODE!=='oidc'){sendError(res,503,'OIDC_NOT_CONFIGURED','Enterprise authentication is not configured.');return;}
         let result;
         try {
-          result=await enterpriseAuth.finish(new URL(rawUrl,enterpriseAuth.publicUrl).href,cookieValue(req.headers.cookie,'aiit_oidc_flow'),authRepository);
+          if (!login) throw new Error('OIDC_FLOW_INVALID');
+          result = await enterpriseAuth.establish(login, authRepository);
         } catch (error) {
           if (error instanceof SessionPersistenceError) throw error;
           res.setHeader('Set-Cookie', enterpriseAuth.flowCookie('', 0));
@@ -576,6 +570,7 @@ export function createServer<Store extends RequestStore>(
         const statusFilter = parsedUrl.searchParams.get('status') as TicketStatus | null;
         const sbuFilter = parsedUrl.searchParams.get('sbuId');
         const severityFilter = parsedUrl.searchParams.get('severity') as TicketSeverity | null;
+        const categoryFilter = parsedUrl.searchParams.get('category');
         const search = (parsedUrl.searchParams.get('search') || '').trim().toLowerCase();
         const page = Math.max(1, Number(parsedUrl.searchParams.get('page') || 1));
         const pageSize = Math.min(100, Math.max(1, Number(parsedUrl.searchParams.get('pageSize') || 25)));
@@ -584,11 +579,21 @@ export function createServer<Store extends RequestStore>(
           sendError(res, 400, 'VALIDATION_ERROR', 'Pagination must use finite integers.'); return;
         }
 
+        if (store.ticketPage) {
+          const { items, total } = await store.ticketPage(currentUser, {
+            status: statusFilter, severity: severityFilter, sbuId: sbuFilter,
+            category: categoryFilter, search, page, pageSize,
+          });
+          sendJson(res, 200, { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 } });
+          return;
+        }
         const accessible = state.tickets.filter((t) => canAccessTicket(currentUser, t));
         const filtered = accessible.filter((t) => {
           if (statusFilter && t.status !== statusFilter) return false;
           if (sbuFilter && t.sbuId !== sbuFilter) return false;
           if (severityFilter && t.severity !== severityFilter) return false;
+          if (categoryFilter && !state.serviceCategories.some(c => c.id === t.serviceCategoryId &&
+            (c.id === categoryFilter || c.slug === categoryFilter))) return false;
           if (search) {
             const hay = `${t.ticketNumber} ${t.title} ${t.description}`.toLowerCase();
             if (!hay.includes(search)) return false;
@@ -1067,6 +1072,10 @@ export function createServer<Store extends RequestStore>(
       }
 
       if (method === 'GET' && pathname === '/api/analytics/summary') {
+        if (store.ticketAnalytics) {
+          sendJson(res, 200, await store.ticketAnalytics(currentUser));
+          return;
+        }
         const state = store.getState();
         const visibleTickets = state.tickets.filter((t) => canAccessTicket(currentUser, t));
         const byStatus: Record<string, number> = {};
@@ -1131,19 +1140,68 @@ export function createServer<Store extends RequestStore>(
 
   // Attach body listeners before waiting for the local serial queue.
   const requestIds = new WeakMap<http.IncomingMessage, string>();
+  let providerOperations = 0;
   let tail: Promise<void> = Promise.resolve();
-  const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+  const handleAdmittedRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const requestId = crypto.randomUUID();
     requestIds.set(req, requestId);
     res.setHeader('X-Request-Id', requestId);
     const method = req.method || 'GET';
-    const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+    const rawTarget = req.url || '/';
+    if (!rawTarget.startsWith('/') || rawTarget.startsWith('//') || rawTarget.includes('\\')) {
+      sendError(res, 400, 'INVALID_REQUEST_TARGET', 'Invalid request target.');
+      return;
+    }
+    const pathname = new URL(rawTarget, 'http://localhost').pathname;
     if (method === 'GET' && pathname === '/api/live') {
       sendJson(res, 200, { status: 'ALIVE', storageMode: postgres ? 'postgres' : 'json', environment: process.env.NODE_ENV || 'unset' });
       return;
     }
     const body = consumeBody(req);
     body.catch(() => {});
+    let clientIp: string;
+    try { clientIp = ingress.resolve(req.socket?.remoteAddress, req.headers); }
+    catch {
+      sendError(res, 400, 'INVALID_INGRESS', 'Invalid client address or forwarding chain.');
+      return;
+    }
+    if (method !== 'OPTIONS' && !(method === 'GET' && pathname === '/api/ready')) {
+      let retry: number;
+      try { retry = await checkAbuse(abuse, policy, clientIp, pathname); }
+      catch {
+        logStructured('WARN', 'ABUSE_STORE_UNAVAILABLE', { requestId });
+        sendError(res, 503, 'PERSISTENCE_FAILURE', 'Request protection is temporarily unavailable.');
+        return;
+      }
+      if (retry) {
+        res.setHeader('Retry-After', String(retry));
+        sendError(res, 429, 'RATE_LIMIT_EXCEEDED', 'Too many requests; please retry shortly.');
+        return;
+      }
+    }
+    let login: VerifiedLogin | undefined;
+    const beginOidc = method === 'GET' && pathname === '/api/auth/oidc/login';
+    const exchangeOidc = method === 'GET' && pathname === '/api/auth/oidc/callback' && (!req.headers.origin || req.headers.origin === enterpriseAuth?.publicUrl)
+      ? enterpriseAuth : undefined;
+    if (beginOidc || exchangeOidc) {
+      if (providerOperations >= 4) {
+        res.setHeader('Retry-After', '2');
+        sendError(res, 429, 'OIDC_BUSY', 'Sign-in is busy. Please retry shortly.');
+        return;
+      }
+      providerOperations++;
+      try {
+        if (beginOidc) {
+          await runRequest(req, res, clientIp);
+          return;
+        }
+        if (exchangeOidc) {
+          login = await exchangeOidc.exchange(new URL(rawTarget, exchangeOidc.publicUrl).href,
+            cookieValue(req.headers.cookie, 'aiit_oidc_flow'));
+        }
+      } catch { /* The callback emits a generic failure without provider data. */ }
+      finally { providerOperations--; }
+    }
     bodies.set(req, body);
     const previous = tail;
     let done!: () => void;
@@ -1167,7 +1225,7 @@ export function createServer<Store extends RequestStore>(
         try { await body; } catch (err) {
           sendError(buffered, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.'); return false;
         }
-        await runRequest(req, buffered);
+        await runRequest(req, buffered, clientIp, login);
         // Denials may contain a security audit event; only server failures roll back.
         return code < 500;
       };
@@ -1185,6 +1243,19 @@ export function createServer<Store extends RequestStore>(
     } finally { bodies.delete(req); done(); }
   };
 
+  let inFlight = 0;
+  const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    if (req.method === 'GET' && req.url === '/api/live') return handleAdmittedRequest(req, res);
+    if (inFlight >= policy.inFlight) {
+      req.resume?.();
+      res.setHeader('Retry-After', '1');
+      sendError(res, 429, 'API_BUSY', 'The API is busy. Please retry shortly.');
+      return;
+    }
+    inFlight++;
+    try { await handleAdmittedRequest(req, res); }
+    finally { inFlight--; }
+  };
   const server = http.createServer(handleRequest);
   server.requestTimeout = 15000;
   server.headersTimeout = 10000;

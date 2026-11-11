@@ -128,19 +128,33 @@ export function readEnterpriseSettings(
     sessionSeconds,
   };
 }
-interface PendingLogin {
+export interface PendingLogin {
   state: string;
   nonce: string;
   verifier: string;
   expiresAt: number;
-  previousDigest?: string;
+  previousDigest?: string | null;
 }
+export interface LoginFlowStore {
+  put(id: string, flow: PendingLogin): Promise<void>;
+  consume(id: string): Promise<PendingLogin | undefined>;
+}
+
+interface VerifiedLogin {
+  issuer: string;
+  subject: string;
+  expiresAt: number;
+  previousDigest?: string | null;
+}
+
 export class EnterpriseAuthAdapter {
   private settings: EnterpriseAuthSettings;
   private configuration?: Promise<oidc.Configuration>;
   private pending = new Map<string, PendingLogin>();
-  constructor(settings: EnterpriseAuthSettings) {
+  private flows?: LoginFlowStore;
+  constructor(settings: EnterpriseAuthSettings, flows?: LoginFlowStore) {
     this.settings = settings;
+    this.flows = flows;
   }
   get issuer() {
     return this.settings.issuer;
@@ -219,13 +233,15 @@ export class EnterpriseAuthAdapter {
       state = oidc.randomState(),
       nonce = oidc.randomNonce(),
       verifier = oidc.randomPKCECodeVerifier();
-    this.pending.set(sessionDigest(flow), {
+    const pending = {
       state,
       nonce,
       verifier,
       expiresAt: now + 300000,
       previousDigest: previousToken ? sessionDigest(previousToken) : undefined,
-    });
+    };
+    if (this.flows) await this.flows.put(sessionDigest(flow), pending);
+    else this.pending.set(sessionDigest(flow), pending);
     const url = oidc.buildAuthorizationUrl(config, {
       redirect_uri: this.settings.publicUrl + "/api/auth/oidc/callback",
       response_type: "code",
@@ -237,14 +253,11 @@ export class EnterpriseAuthAdapter {
     });
     return { url: url.href, flow };
   }
-  async finish(
-    currentUrl: string,
-    flow: string | null,
-    repository: AuthenticationRepository,
-  ) {
-    const key = flow ? sessionDigest(flow) : "";
-    const pending = this.pending.get(key);
-    this.pending.delete(key);
+  async exchange(currentUrl: string, flow: string | null): Promise<VerifiedLogin> {
+    if (!flow || !/^[-_A-Za-z0-9]{43}$/.test(flow)) throw new Error("OIDC_FLOW_INVALID");
+    const key = sessionDigest(flow);
+    const pending = this.flows ? await this.flows.consume(key) : this.pending.get(key);
+    if (!this.flows) this.pending.delete(key);
     if (!pending || pending.expiresAt <= Date.now())
       throw new Error("OIDC_FLOW_INVALID");
     const url = new URL(currentUrl);
@@ -272,7 +285,12 @@ export class EnterpriseAuthAdapter {
       claims.iat > Math.floor(Date.now() / 1000) + 30
     )
       throw new Error("OIDC_IDENTITY_INVALID");
-    const user = await repository.resolveIdentity(claims.iss, claims.sub);
+    return { issuer: claims.iss, subject: claims.sub, expiresAt: claims.exp * 1000, previousDigest: pending.previousDigest };
+  }
+
+  async establish(login: VerifiedLogin, repository: AuthenticationRepository) {
+    if (login.expiresAt <= Date.now()) throw new Error("OIDC_IDENTITY_INVALID");
+    const user = await repository.resolveIdentity(login.issuer, login.subject);
     if (!user) throw new Error("OIDC_IDENTITY_NOT_BOUND");
     const token = crypto.randomBytes(32).toString("base64url");
     await repository.establish(
@@ -281,13 +299,13 @@ export class EnterpriseAuthAdapter {
         userId: user.id,
         expiresAt: Math.min(
           Date.now() + this.settings.sessionSeconds * 1000,
-          claims.exp * 1000,
+          login.expiresAt,
         ),
         kind: "oidc",
-        issuer: claims.iss,
-        subject: claims.sub,
+        issuer: login.issuer,
+        subject: login.subject,
       },
-      pending.previousDigest,
+      login.previousDigest ?? undefined,
     );
     // Upstream access/refresh/ID tokens are intentionally not persisted or returned.
     return { token, user };
