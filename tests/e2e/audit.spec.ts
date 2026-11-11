@@ -25,7 +25,7 @@ async function tab(page:Page,name:string){
 }
 async function shot(page:Page,name:string){if(process.env.AIIT_AUDIT_EVIDENCE_DIR){const dir=path.resolve(process.env.AIIT_AUDIT_EVIDENCE_DIR,'screenshots');fs.mkdirSync(dir,{recursive:true});await page.screenshot({path:path.join(dir,name+'.png'),fullPage:true});}}
 async function create(page:Page,title:string,category='cat-outlook-config'){
- await tab(page,'create');await page.selectOption('#ticket-category',category);await page.fill('#ticket-title',title);await page.fill('#ticket-description','Synthetic audit Outlook TLS setup requires assistance with configuration');
+ await tab(page,'create');await page.selectOption('#ticket-category',category);if(category==='cat-ad-account'){await page.fill('#ticket-service-targetAdGroup','Synthetic readers');await page.fill('#ticket-service-businessJustification','Synthetic review access');}else{await page.selectOption('#ticket-service-osPlatform','macOS');}await page.fill('#ticket-title',title);await page.fill('#ticket-description','Synthetic audit Outlook TLS setup requires assistance with configuration');
  const response=page.waitForResponse(r=>r.url().endsWith('/api/tickets')&&r.request().method()==='POST');await page.click('#submit-ticket-btn');const result=await response;expect(result.status()).toBe(201);return (await result.json()).ticket;
 }
 
@@ -63,7 +63,7 @@ test('AU08 logout failure remains signed in and shows retry feedback',async({pag
 });
 test('assistant creates a mock request; catalog start and recoverable panel errors work',async({page})=>{
  await signIn(page);await tab(page,'catalog');await page.locator('[data-service="cat-outlook-config"]').click();await expect(page.locator('#tab-create')).toBeVisible();
- await tab(page,'assistant');await page.selectOption('#assistant-category','cat-outlook-config');await page.fill('#assistant-input','How do I configure Outlook TLS for this synthetic audit?');await page.locator('#assistant-form button').click();await expect(page.locator('#assistant-messages')).toContainText('MOCK AI RECOMMENDATION');await page.click('#assistant-view-ticket');await expect(page.locator('#ticket-detail-container')).toContainText('Outlook');
+ await tab(page,'assistant');await page.selectOption('#assistant-category','cat-outlook-config');await page.selectOption('#assistant-service-osPlatform','macOS');await page.fill('#assistant-input','How do I configure Outlook TLS for this synthetic audit?');await page.locator('#assistant-form button').click();await expect(page.locator('#assistant-messages')).toContainText('MOCK AI RECOMMENDATION');await page.click('#assistant-view-ticket');await expect(page.locator('#ticket-detail-container')).toContainText('Outlook');
  await page.route('**/api/assets',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Synthetic panel outage'}})}));await tab(page,'assets');await expect(page.locator('#assets-container')).toContainText('Synthetic panel outage');await page.unroute('**/api/assets');await page.getByRole('button',{name:'Try again',exact:true}).click();await expect(page.locator('#assets-container table')).toBeVisible();
 });
 for(const width of [320,390,768,1440])test(`responsive landing/workspace, menu and keyboard at ${width}px`,async({page})=>{
@@ -88,7 +88,7 @@ test('AU09 a delayed older detail response cannot replace the selected ticket',a
 test('ticket filters, pagination, keyboard activation and required form fields work',async({page,baseURL})=>{
  await signIn(page);
  for(let i=0;i<26;i++){
-  const response=await page.request.post(baseURL+'/api/tickets',{headers:{origin:baseURL!},data:{title:'Pagination browser fixture '+i,description:'Outlook configuration synthetic audit pagination test',serviceCategoryId:'cat-outlook-config',severity:'LOW'}});expect(response.status()).toBe(201);
+  const response=await page.request.post(baseURL+'/api/tickets',{headers:{origin:baseURL!},data:{title:'Pagination browser fixture '+i,description:'Outlook configuration synthetic audit pagination test',serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },severity:'LOW'}});expect(response.status()).toBe(201);
  }
  await tab(page,'tickets');await page.fill('#filter-search','Pagination browser fixture');await page.selectOption('#filter-status','RESOLVED_PENDING_CONFIRMATION');await page.selectOption('#filter-severity','LOW');await page.click('#refresh-tickets-btn');
  await expect(page.locator('#page-label')).toHaveText('Page 1 of 2');await page.click('#next-page');await expect(page.locator('#page-label')).toHaveText('Page 2 of 2');await expect(page.locator('.ticket-row')).toHaveCount(1);await page.click('#previous-page');await expect(page.locator('#page-label')).toHaveText('Page 1 of 2');

@@ -14,6 +14,7 @@ test.describe('Enterprise IT Support Portal Browser Workflows', () => {
     // Submit a new Outlook configuration ticket
     await page.click('button[data-tab="create"]');
     await page.selectOption('#ticket-category', 'cat-outlook-config');
+    await page.selectOption('#ticket-service-osPlatform', 'macOS');
     await page.fill('#ticket-title', 'Outlook STARTTLS setup prompt on macOS');
     await page.fill('#ticket-description', 'Please provide steps to configure IMAP 993 and SMTP 587 STARTTLS.');
     await page.click('#submit-ticket-btn');
@@ -54,3 +55,46 @@ test('slow initial data cannot reset an early support-form navigation',async({pa
  await page.click('button[data-tab="create"]');await page.fill('#ticket-title','Form survives initialization');
  await expect(page.locator('#tab-create')).toBeVisible();await expect(page.locator('#ticket-title')).toHaveValue('Form survives initialization');
 });
+
+for (const width of [390, 1280]) {
+  test(`M1 catalog fields validate and retain unrelated input at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/app');
+    await page.fill('#login-email-input', 'tawsif.zawad@upstra.com');
+    await page.click('#login-submit-btn');
+    await expect(page.getByTestId('active-user-badge')).toBeVisible();
+    await page.click('#quick-create');
+    const form = page.locator('#create-ticket-form');
+    const category = form.locator('#ticket-category');
+    await category.selectOption('cat-outlook-config');
+    await form.getByLabel('Operating System (required)').selectOption('macOS');
+    await form.getByLabel('Outlook Version').fill('16.90');
+    await page.fill('#ticket-title', 'M1 synthetic category switching');
+    await page.fill('#ticket-description', 'M1 synthetic request to review access requirements.');
+    await category.selectOption('cat-ad-account');
+    await expect(form.getByLabel('Operating System (required)')).toHaveCount(0);
+    await expect(page.locator('#ticket-title')).toHaveValue('M1 synthetic category switching');
+    await expect(page.locator('#ticket-description')).toHaveValue('M1 synthetic request to review access requirements.');
+    await page.click('#submit-ticket-btn');
+    const group = form.getByLabel('Target AD Security Group / Resource (required)');
+    await expect(group).toBeFocused();
+    expect(await group.evaluate(input => (input as HTMLInputElement).validationMessage)).toBeTruthy();
+    await group.fill('Synthetic readers');
+    await form.getByLabel('Business Justification (required)').fill('Review fixture access');
+    await category.selectOption('cat-outlook-config');
+    await expect(form.getByLabel('Operating System (required)')).toHaveValue('');
+    await expect(form.getByLabel('Outlook Version')).toHaveValue('');
+    await category.selectOption('cat-ad-account');
+    await expect(group).toHaveValue('');
+    await group.fill('Synthetic readers');
+    await form.getByLabel('Business Justification (required)').fill('Review fixture access');
+    const posted = page.waitForResponse(response => response.url().endsWith('/api/tickets') && response.request().method() === 'POST');
+    await page.click('#submit-ticket-btn');
+    const response = await posted;
+    expect(response.status()).toBe(201);
+    expect(response.request().postDataJSON().customFormPayload).toEqual({
+      targetAdGroup: 'Synthetic readers', businessJustification: 'Review fixture access',
+    });
+    await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
+  });
+}

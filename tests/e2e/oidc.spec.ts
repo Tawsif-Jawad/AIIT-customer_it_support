@@ -44,6 +44,7 @@ test("enterprise sign-in restores a cookie session, creates an authorized reques
   await expect(page.locator("#workspace-section")).toBeVisible();
   await page.click('button[data-tab="create"]');
   await page.selectOption("#ticket-category", "cat-outlook-config");
+    await page.selectOption('#ticket-service-osPlatform', 'macOS');
   await page.fill("#ticket-title", "OIDC browser isolated request");
   await page.fill(
     "#ticket-description",

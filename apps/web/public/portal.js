@@ -7,11 +7,59 @@ function renderOverview(summary) {
   const groups=Object.entries(summary.byStatus||{});
   document.getElementById('overview-distribution').innerHTML=groups.map(([status,count])=>'<div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:9px"><span>'+escapeHtml(status.replaceAll('_',' '))+'</span><strong>'+count+'</strong></div><meter style="width:100%;height:12px;accent-color:var(--violet)" min="0" max="'+Math.max(1,summary.totalAccessibleTickets)+'" value="'+count+'" aria-label="'+escapeHtml(status)+'">'+count+'</meter></div>').join('')||'<p class="empty-state">No authorized tickets yet.</p>';
 }
+function renderServiceFields(form) {
+  const categoryId = document.getElementById(form + '-category').value;
+  const category = catalogCategories.find(item => item.id === categoryId);
+  const container = document.getElementById(form + '-service-fields');
+  container.replaceChildren();
+
+  for (const field of category?.formSchema || []) {
+    const group = document.createElement('div');
+    group.className = 'form-group';
+    const label = document.createElement('label');
+    const isSelect = field.type === 'boolean' || field.type === 'select';
+    const input = document.createElement(isSelect ? 'select' : field.type === 'textarea' ? 'textarea' : 'input');
+    input.id = form + '-service-' + field.key;
+    input.dataset.fieldKey = field.key;
+    input.dataset.fieldType = field.type;
+    input.required = field.required;
+    label.htmlFor = input.id;
+    label.textContent = field.label + (field.required ? ' (required)' : '');
+    if (isSelect) {
+      input.add(new Option('Choose an option', ''));
+      const options = field.type === 'boolean' ? [['Yes', 'true'], ['No', 'false']] : (field.options || []).map(value => [value, value]);
+      for (const [text, value] of options) input.add(new Option(text, value));
+    } else {
+      input.maxLength = 5000;
+      if (field.key === 'managerEmail') input.type = 'email';
+      if (field.key === 'desiredEmailPrefix') input.pattern = '[A-Za-z0-9]+(?:[._+\\-][A-Za-z0-9]+)*';
+      input.addEventListener('input', () => {
+        input.setCustomValidity(field.required && input.value && !input.value.trim() ? 'Enter a value.' : '');
+      });
+    }
+    group.append(label, input);
+    container.append(group);
+  }
+}
+
+function collectServiceFields(form) {
+  const fields = document.getElementById(form + '-service-fields').querySelectorAll('[data-field-key]');
+  return Object.fromEntries(Array.from(fields)
+    .filter(input => input.value.trim() !== '')
+    .map(input => [input.dataset.fieldKey, input.dataset.fieldType === 'boolean' ? input.value === 'true' : input.value.trim()]));
+}
+
+for (const form of ['ticket', 'assistant']) {
+  document.getElementById(form + '-category').addEventListener('change', () => renderServiceFields(form));
+}
+
 function setupWorkspace(){
   document.getElementById('assistant-category').innerHTML=catalogCategories.map(c=>'<option value="'+escapeHtml(c.id)+'">'+escapeHtml(c.name)+'</option>').join('');
+  renderServiceFields('ticket');
+  renderServiceFields('assistant');
   const grid=document.getElementById('catalog-grid');
   grid.innerHTML=catalogCategories.map((c,i)=>'<article class="catalog-item"><div class="eyebrow">'+String(i+1).padStart(2,'0')+' / SERVICE</div><h3 style="margin-top:22px">'+escapeHtml(c.name)+'</h3><p>'+escapeHtml(c.description||'Submit a request for authorized IT assistance.')+'</p><p><span class="badge '+(c.aiEligible?'badge-status':'badge-it')+'">'+(c.aiEligible?'Knowledge-assisted triage':'IT / approval review')+'</span></p><button class="btn-secondary" data-service="'+escapeHtml(c.id)+'">Start a request ↗</button></article>').join('');
-  grid.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{document.getElementById('ticket-category').value=b.dataset.service;switchTab('create');document.getElementById('ticket-title').focus();});
+  grid.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{document.getElementById('ticket-category').value=b.dataset.service;renderServiceFields('ticket');switchTab('create');document.getElementById('ticket-title').focus();});
 }
 function onWorkspaceTab(name){
   const titles={dashboard:'Overview',tickets:'Tickets & queue',create:'New support request',assistant:'AI Assistant',catalog:'Service catalog',assets:'Equipment & custody',kb:'Knowledge base',notifications:'Notifications',approvals:'Approval center',cto:'CTO escalations',audit:'Audit & monitoring'};
@@ -39,9 +87,9 @@ document.getElementById('previous-page').onclick=()=>{if(ticketPage>1){ticketPag
 document.getElementById('next-page').onclick=()=>{if(ticketPage<ticketPages){ticketPage++;refreshAllData().catch(e=>showFeedback(e.message,'error'));}};
 document.getElementById('previous-page').setAttribute('aria-label','Previous ticket page');document.getElementById('next-page').setAttribute('aria-label','Next ticket page');
 document.getElementById('assistant-form').onsubmit=async e=>{
-  e.preventDefault();const input=document.getElementById('assistant-input'),button=e.target.querySelector('button'),messages=document.getElementById('assistant-messages');button.disabled=true;button.textContent='Creating request…';
+  e.preventDefault();const input=document.getElementById('assistant-input'),button=e.target.querySelector('button'),messages=document.getElementById('assistant-messages');if(button.disabled||!e.currentTarget.reportValidity())return;button.disabled=true;button.textContent='Creating request…';
   const user=document.createElement('div');user.className='bubble user';user.innerHTML='<strong>YOU</strong><p>'+escapeHtml(input.value)+'</p>';messages.append(user);
-  try{const result=await apiFetch('/api/tickets',{method:'POST',body:JSON.stringify({serviceCategoryId:document.getElementById('assistant-category').value,title:input.value.trim().slice(0,100),description:input.value.trim(),severity:'LOW'})});const t=result.ticket;const answer=document.createElement('div');answer.className='bubble';answer.innerHTML='<strong>AIIT · MOCK AI RECOMMENDATION</strong><p>'+escapeHtml(t.aiSuggestedFix||t.escalationReason||'Your request has been recorded and routed to IT for review.')+'</p>';messages.append(answer);input.value='';selectedTicketId=t.id;document.getElementById('assistant-context').innerHTML='<p style="font-size:12px;margin-bottom:12px">'+escapeHtml(t.ticketNumber)+'</p><span class="badge badge-status">'+escapeHtml(t.status)+'</span><button class="btn-secondary" id="assistant-view-ticket" style="margin-top:20px">View request ↗</button>';document.getElementById('assistant-view-ticket').onclick=()=>{switchTab('tickets');inspectTicket(t.id).catch(e=>showFeedback(e.message,'error'));};await refreshAllData().catch(error=>showFeedback('Request saved. '+error.message,'error'));messages.scrollTop=messages.scrollHeight;}catch(error){const answer=document.createElement('div');answer.className='alert-error';answer.textContent=error.message+' Your text is preserved; try again.';messages.append(answer);}finally{button.disabled=false;button.textContent='Create request & ask ↗';}
+  try{const result=await apiFetch('/api/tickets',{method:'POST',body:JSON.stringify({serviceCategoryId:document.getElementById('assistant-category').value,title:input.value.trim().slice(0,100),description:input.value.trim(),severity:'LOW',customFormPayload:collectServiceFields('assistant')})});const t=result.ticket;const answer=document.createElement('div');answer.className='bubble';answer.innerHTML='<strong>AIIT · MOCK AI RECOMMENDATION</strong><p>'+escapeHtml(t.aiSuggestedFix||t.escalationReason||'Your request has been recorded and routed to IT for review.')+'</p>';messages.append(answer);input.value='';renderServiceFields('assistant');selectedTicketId=t.id;document.getElementById('assistant-context').innerHTML='<p style="font-size:12px;margin-bottom:12px">'+escapeHtml(t.ticketNumber)+'</p><span class="badge badge-status">'+escapeHtml(t.status)+'</span><button class="btn-secondary" id="assistant-view-ticket" style="margin-top:20px">View request ↗</button>';document.getElementById('assistant-view-ticket').onclick=()=>{switchTab('tickets');inspectTicket(t.id).catch(e=>showFeedback(e.message,'error'));};await refreshAllData().catch(error=>showFeedback('Request saved. '+error.message,'error'));messages.scrollTop=messages.scrollHeight;}catch(error){const answer=document.createElement('div');answer.className='alert-error';answer.textContent=error.message+' Your text is preserved; try again.';messages.append(answer);}finally{button.disabled=false;button.textContent='Create request & ask ↗';}
 };
 const mobileNavigation=matchMedia('(max-width: 767px)');
 function syncNavigation(){const isMobile=mobileNavigation.matches;const open=isMobile?document.body.classList.contains('nav-open'):!document.body.classList.contains('nav-collapsed');document.getElementById('workspace-navigation').inert=!open;document.getElementById('app-menu').setAttribute('aria-expanded',String(open));}
@@ -52,7 +100,7 @@ onWorkspaceTab=name=>{originalOnWorkspaceTab(name);syncNavigation();};
 document.getElementById('kb-search').oninput=()=>loadKbTab().catch(error=>showFeedback(error.message,'error'));
 function resetPrivateViews(){
   currentTickets=[];selectedTicketId=null;ticketPage=1;overviewSummary=null;
-  for(const id of ['global-feedback','ticket-list-container','ticket-detail-container','overview-tickets','overview-distribution','metrics-container','notifications-list','assets-container','kb-container','approvals-container','cto-escalation-container','audit-logs-container','connector-health-box','assistant-context'])document.getElementById(id).replaceChildren();
+  for(const id of ['global-feedback','ticket-list-container','ticket-detail-container','overview-tickets','overview-distribution','metrics-container','notifications-list','assets-container','kb-container','approvals-container','cto-escalation-container','audit-logs-container','connector-health-box','assistant-context','ticket-service-fields','assistant-service-fields'])document.getElementById(id).replaceChildren();
   document.getElementById('assistant-messages').innerHTML='<div class="bubble"><strong>AIIT · MOCK AI</strong><p>Describe your issue to create a support request and get knowledge-assisted recommendations.</p></div>';
   document.getElementById('assistant-input').value='';document.getElementById('approval-reason').value='';document.getElementById('ticket-title').value='';document.getElementById('ticket-description').value='';
   document.getElementById('app-menu').setAttribute('aria-expanded','false');
