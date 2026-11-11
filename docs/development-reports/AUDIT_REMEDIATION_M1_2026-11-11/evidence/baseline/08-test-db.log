@@ -1,0 +1,46 @@
+
+> it-support-system@1.0.0 test:db /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> node --test tests/database.test.ts
+
+Environment variables loaded from .env
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid (5.082209ms)
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (17.812875ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (8.337458ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (4.217875ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (29.840959ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (8.996042ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (14.915333ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (6.461708ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (8.154042ms)
+  ✔ Day3 independent client restart reloads committed records (7.013709ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (20.710334ms)
+  ✔ remediation valid IT escalation is CRITICAL, redacted and atomic (7.752042ms)
+  ✔ remediation valid CTO escalation is CRITICAL, redacted and atomic (6.735375ms)
+  ✔ remediation escalation accepts exactly five trimmed reason characters (5.164333ms)
+  ✔ remediation escalation rejects missing reason without writes (6.998417ms)
+  ✔ remediation escalation rejects blank reason without writes (7.247333ms)
+  ✔ remediation escalation rejects short reason without writes (4.536958ms)
+  ✔ remediation escalation rejects trimmed short reason without writes (5.050041ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (15.845916ms)
+  ✔ remediation concurrent escalations preserve one complete version and intent (14.720958ms)
+  ✔ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (12.191583ms)
+  ✔ remediation CTO APPROVED audit names the Approval and preserves rationale (9.538667ms)
+  ✔ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (11.65775ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (16.0365ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (6.618666ms)
+  ✔ remediation opposing approvals produce exactly one correctly attributed audit (6.74ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (16.445334ms)
+  ✔ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (1118.076ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (6036.773458ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":4,"sourceManifest":{"sbus":{"count":3,"checksum":"a528b00c25ac4b2d908a31c91d6f80fabc3c391b7de721f6e9ded90230bcb24f"},"roles":{"count":5,"checksum":"39be7eec5c6ad93d83fffc3ceeaa0b7df0db706407eba6b4236182b892a2ce5e"},"users":{"count":5,"checksum":"8019293401878b05ff817c9b27ab93383f19283cef3725f563fcdfa790b2af13"},"serviceCategories":{"count":6,"checksum":"553d86ba167803cd72e04f1705161995912b46b1f889581a4d9cc036d18670cb"},"tickets":{"count":3,"checksum":"37be9c92fc4de2cb78a6c146f4fe4ccf3b45b92e6e72918fff9b4afb642e5765"},"ticketEvents":{"count":4,"checksum":"9f62431e01189399663ff6cd9a40f35611eed3adfaaed8de8bcd719b5ac804e7"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"956beed961e3c208ec3e500721b63c27e781a01c91e3251f1664feac801c9f74"},"approvals":{"count":2,"checksum":"a93d7b25c740ce8c01213c2a46ddb2c05d4d49928bf0a81ce0afaf2c6d4cdd00"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"8dfa876d253bedc193bf9f3be8b3cfcdce61b49ad711606cc82aa76613428bcf"},"auditLogs":{"count":1,"checksum":"f7bf3a899fbea71db76b8701fd298cfa8eea6c89b3af159dd48358b7549aa624"},"knowledgeArticles":{"count":3,"checksum":"704505b6f7263cac5e00ee9c5a78f50f0f80eaed86c733d3c78670ce4a1080ed"},"authSessions":{"count":2,"checksum":"321a015ee32c9f9637c0856f1733e963fed003e97bb29d0bee3f4aac412c300d"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6157.827625

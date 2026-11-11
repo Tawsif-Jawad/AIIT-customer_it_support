@@ -1,0 +1,58 @@
+
+> it-support-system@1.0.0 test:security /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/day2.test.ts tests/security.test.ts tests/oidc-security.test.ts
+
+✔ F01 stale independent writer cannot overwrite a committed record (64.297667ms)
+✔ F14 invalid collections and duplicate IDs fail closed (24.206417ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.16925ms)
+✔ F04 approvals require rationale and cannot be replayed (34.754333ms)
+✔ F03 logout invalidates bearer session (27.705875ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (180.913458ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (16.26625ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (126.645666ms)
+✔ opposing approval decisions serialize to one immutable decision (22.21475ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (10.63275ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (3.98925ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (56.858125ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (13.913667ms)
+✔ read-only migration dry run preserves source bytes and reports counts (122.999375ms)
+✔ F05 employee/customer cannot advance reopened ticket into IT-controlled work (0.124458ms)
+✔ F10 requested LOW cannot downgrade critical infrastructure classification (18.680625ms)
+✔ F10 user-reported HIGH priority is preserved and cannot auto-resolve (13.972875ms)
+✔ F05 API denies employee IT-controlled work while allowing IT to resume it (29.170292ms)
+✔ independent API instances preserve concurrent updates through explicit contention retry (31.052083ms)
+✔ OIDC code PKCE nonce and trusted JWKS establish an opaque session without upstream tokens (172.631833ms)
+✔ OIDC rejects wrong-issuer without establishing a session or success audit (101.25525ms)
+✔ OIDC rejects wrong-audience without establishing a session or success audit (79.575ms)
+✔ OIDC rejects wrong-nonce without establishing a session or success audit (46.700166ms)
+✔ OIDC rejects bad-signature without establishing a session or success audit (93.626625ms)
+✔ OIDC rejects wrong-alg without establishing a session or success audit (86.754916ms)
+✔ OIDC rejects expired without establishing a session or success audit (100.688875ms)
+✔ OIDC rejects future-nbf without establishing a session or success audit (59.109041ms)
+✔ OIDC rejects future-iat without establishing a session or success audit (83.752ms)
+✔ OIDC rejects no-id-token without establishing a session or success audit (67.490417ms)
+✔ OIDC fails closed for bad-discovery with no development fallback (139.714959ms)
+✔ OIDC fails closed for unsafe-endpoint with no development fallback (97.466042ms)
+✔ OIDC fails closed for unavailable with no development fallback (93.095959ms)
+✔ OIDC callback is bound to browser cookie, state, PKCE, one-time consumption and expiry (134.663334ms)
+✔ OIDC refuses unknown disabled service and conflicting identity associations without email provisioning (71.698458ms)
+✔ OIDC sessions persist across API reload, expire, revoke and immediately observe role/SBU changes (117.082083ms)
+✔ OIDC rotating login prevents fixation, allows independent sessions, and rejects modified cookies (138.318667ms)
+✔ OIDC production requires HTTPS, complete configuration and secure cookies (0.217417ms)
+✔ OIDC requester scope and trusted application role/SBU defeat body and issuer role escalation (238.4105ms)
+✔ OIDC preserves organization IT grant and CTO-only review; disabled or rebound identity loses access (172.080875ms)
+✔ OIDC callback persistence failure never releases a cookie or partial success audit (92.480334ms)
+✔ cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer (105.874042ms)
+✔ expired signed tokens and expired stored sessions fail closed across restart (34.333ms)
+✔ role revocation and service conversion apply to existing sessions immediately (41.428583ms)
+✔ customer ownership and employee asset SBU boundaries do not change global IT grant (93.258541ms)
+✔ all role/state pairs obey requester, CTO-review, closure and service boundaries (0.380667ms)
+✔ JSON arrays/null and oversized bodies fail without changing ticket state (49.170042ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2413.629209
