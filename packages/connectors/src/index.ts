@@ -148,6 +148,7 @@ export class MockActiveDirectoryAdapter implements ActiveDirectoryAdapter {
 // ============================================================================
 
 export interface EmailMessagePayload {
+  deliveryId?: string;
   to: string;
   subject: string;
   textBody: string;
@@ -175,6 +176,7 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
     smtpHost: string;
     smtpPort: number;
     fromAddress: string;
+    retainMockMessages?: boolean;
   };
 
   constructor(config: {
@@ -182,6 +184,7 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
     smtpHost: string;
     smtpPort: number;
     fromAddress: string;
+    retainMockMessages?: boolean;
   }) {
     this.config = config;
     this.providerName = config.mode === 'mailpit' ? 'mailpit-smtp-transport' : 'in-memory-dev-mail-transport';
@@ -217,13 +220,13 @@ export class DevelopmentEmailTransport implements EmailTransportAdapter {
     }
 
     // Safety guard: never transmit real external network traffic to unverified corporate domains in mock mode
-    const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@local.dev`;
+    const messageId = message.deliveryId ? `${message.deliveryId}@local.dev` : `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@local.dev`;
     const record = {
       ...message,
       messageId,
       sentAt: new Date().toISOString(),
     };
-    this.deliveredLog.push(record);
+    if (this.config.retainMockMessages !== false) this.deliveredLog.push(record);
 
 
     return {
