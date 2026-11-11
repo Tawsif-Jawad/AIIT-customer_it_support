@@ -3,19 +3,35 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {createApiServer} from '../../apps/api/src/app.ts';
+import {connectPostgres, createPostgresApiServer} from '../../apps/api/src/postgres-runtime.ts';
+import {disposablePostgres, fixtureIdentities, runtimeFixture} from '../support/disposable-postgres.ts';
+import {importJsonSnapshot} from '../../scripts/json-import.ts';
 import {createWebServer} from '../../apps/web/src/server.ts';
+const postgres = process.env.AIIT_E2E_POSTGRES === 'true';
+const employee = postgres ? fixtureIdentities[0].email : 'tawsif.zawad@upstra.com';
+const customer = postgres ? fixtureIdentities[2].email : 'rahim.chowdhury@client.upstra.local';
+const admin = postgres ? fixtureIdentities[3].email : 'kamal.hossain@upstra.local';
+const cto = postgres ? fixtureIdentities[4].email : 'farhana.ahmed@upstra.local';
 const test=baseTest.extend({baseURL:async({},use)=>{
  process.env.NODE_ENV='test';process.env.AUTH_MODE='dev_oidc';process.env.MAIL_PROVIDER='mock';
  const webFactory=process.env.AIIT_AUDIT_BASELINE_WEB?(await import(process.env.AIIT_AUDIT_BASELINE_WEB)).createWebServer:createWebServer;
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-browser-audit-'));const app=createApiServer(path.join(dir,'db.json'));
+ const cluster = postgres ? await disposablePostgres() : undefined;
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-browser-audit-'));
+ const client = cluster ? await connectPostgres({ NODE_ENV: 'test', STORAGE_MODE: 'postgres', DATABASE_URL: cluster.url }) : undefined;
+ if (client) await importJsonSnapshot(client, runtimeFixture());
+ const app = client ? await createPostgresApiServer(client) : createApiServer(path.join(dir,'db.json'));
  await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));const web=webFactory('http://127.0.0.1:'+(app.server.address() as {port:number}).port);
  await new Promise<void>(r=>web.listen(0,'127.0.0.1',r));
- try{await use('http://127.0.0.1:'+(web.address() as {port:number}).port);}finally{await new Promise<void>(r=>web.close(()=>r()));await new Promise<void>(r=>app.server.close(()=>r()));fs.rmSync(dir,{recursive:true,force:true});}
+ try{
+  const ready = await app.inject({ method: 'GET', url: '/api/ready' });
+  expect(ready.data.storageMode).toBe(postgres ? 'postgres' : 'json');
+  await use('http://127.0.0.1:'+(web.address() as {port:number}).port);
+ }finally{await new Promise<void>(r=>web.close(()=>r()));await new Promise<void>(r=>app.server.close(()=>r()));await client?.$disconnect();cluster?.close();fs.rmSync(dir,{recursive:true,force:true});}
 }});
 const observations=new Map<Page,{errors:string[];failedRequests:{path:string;reason:string}[];httpErrors:{path:string;status:number}[]}>();
 test.beforeEach(async({page})=>{const record={errors:[] as string[],failedRequests:[] as {path:string;reason:string}[],httpErrors:[] as {path:string;status:number}[]};observations.set(page,record);page.on('pageerror',e=>record.errors.push(e.message));page.on('requestfailed',r=>record.failedRequests.push({path:new URL(r.url()).pathname,reason:r.failure()?.errorText||'unknown'}));page.on('response',r=>{if(r.status()>=400)record.httpErrors.push({path:new URL(r.url()).pathname,status:r.status()});});});
 test.afterEach(async({page},info)=>{const record=observations.get(page)!;if(process.env.AIIT_AUDIT_EVIDENCE_DIR){const dir=path.resolve(process.env.AIIT_AUDIT_EVIDENCE_DIR);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'browser-observation-'+info.title.replace(/[^a-z0-9]+/gi,'-').slice(0,85)+'.json'),JSON.stringify({test:info.title,...record},null,2)+'\n');}expect(record.errors).toEqual([]);observations.delete(page);});
-async function signIn(page:Page,email='tawsif.zawad@upstra.com'){
+async function signIn(page:Page,email=employee){
  await page.goto('/app');await expect(page.locator('#login-identity-select option')).not.toHaveCount(0);
  await page.fill('#login-email-input',email);await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
 }
@@ -42,24 +58,24 @@ test('browser employee full lifecycle, comments, assets, KB, notifications and s
  await shot(page,'employee-desktop');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();expect(errors).toEqual([]);
 });
 test('browser customer creates and rejects mock resolution without IT privileges',async({page})=>{
- await signIn(page,'rahim.chowdhury@client.upstra.local');await tab(page,'assets');await expect(page.locator('#assets-container')).toContainText('No equipment');await create(page,'Customer audit Outlook question');await page.click('#btn-reopen-it');await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
+ await signIn(page,customer);await tab(page,'assets');await expect(page.locator('#assets-container')).toContainText('No equipment');await create(page,'Customer audit Outlook question');await page.click('#btn-reopen-it');await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
  await expect(page.locator('#btn-start-progress')).toHaveCount(0);await expect(page.locator('#tab-btn-approvals')).toBeHidden();await shot(page,'customer-desktop');
 });
 test('browser IT approval/internal note/escalation and CTO review share persisted ticket',async({page})=>{
  await signIn(page);const ticket=await create(page,'Browser audit AD approval','cat-ad-account');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
- await page.fill('#login-email-input','kamal.hossain@upstra.local');await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
+ await page.fill('#login-email-input',admin);await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
  await tab(page,'tickets');await page.fill('#filter-search',ticket.ticketNumber);await page.click('#refresh-tickets-btn');await page.locator('#ticket-list-container [role="button"]').first().click();
  await page.click('#btn-start-progress');await expect(page.getByTestId('detail-ticket-status')).toHaveText('IN_PROGRESS');
  await page.fill('#ticket-comment','Private audit note for IT');await page.check('#comment-internal');await page.locator('#ticket-comment-form button').click();await expect(page.locator('#ticket-detail-container')).toContainText('INTERNAL NOTE');
  await tab(page,'approvals');await page.fill('#approval-reason','Reviewed synthetic audit request');const row=page.locator('#approvals-container tr').filter({hasText:ticket.ticketNumber});await row.getByRole('button',{name:'Approve',exact:true}).click();await expect(row).toContainText('APPROVED');
  await tab(page,'tickets');await page.click('#btn-escalate-cto');await expect(page.getByTestId('detail-ticket-status')).toHaveText('ESCALATED_TO_CTO');await shot(page,'it-escalation');
- await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();await page.fill('#login-email-input','farhana.ahmed@upstra.local');await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
+ await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();await page.fill('#login-email-input',cto);await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
  await tab(page,'cto');await expect(page.getByTestId('cto-escalated-row').filter({hasText:ticket.ticketNumber})).toBeVisible();await tab(page,'tickets');await page.fill('#filter-search',ticket.ticketNumber);await page.click('#refresh-tickets-btn');await page.locator('#ticket-list-container [role="button"]').first().click();await page.click('#btn-cto-resolve');await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');
  await tab(page,'audit');await expect(page.locator('#audit-logs-container')).toContainText('TICKET_ESCALATED_TO_CTO');await expect(page.locator('#connector-health-box')).toContainText('MOCK');await shot(page,'cto-audit');
 });
 test('AU08 logout failure remains signed in and shows retry feedback',async({page})=>{
  await signIn(page);await page.route('**/api/auth/logout',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Synthetic storage outage'}})}));
- await page.click('#logout-btn');await expect(page.locator('#global-feedback')).toContainText('Your session is still active');await expect(page.getByTestId('active-user-badge')).toContainText('Tawsif');await shot(page,'logout-failure');await page.unroute('**/api/auth/logout');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
+ await page.click('#logout-btn');await expect(page.locator('#global-feedback')).toContainText('Your session is still active');await expect(page.getByTestId('active-user-badge')).toContainText(postgres ? fixtureIdentities[0].name : 'Tawsif');await shot(page,'logout-failure');await page.unroute('**/api/auth/logout');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
 });
 test('assistant creates a mock request; catalog start and recoverable panel errors work',async({page})=>{
  await signIn(page);await tab(page,'catalog');await page.locator('[data-service="cat-outlook-config"]').click();await expect(page.locator('#tab-create')).toBeVisible();
