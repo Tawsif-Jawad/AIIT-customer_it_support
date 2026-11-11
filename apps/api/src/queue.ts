@@ -4,19 +4,23 @@
  * with DevelopmentEmailTransport (Mock / Mailpit).
  */
 
+import { randomUUID } from 'node:crypto';
 import type { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
-import type { EnterpriseDataStore } from './store.ts';
+import type { RequestStore } from './store.ts';
 
 export class NotificationQueueProcessor {
   private isProcessing = false;
   private simulateRedisOutage = false;
-  private readonly store: EnterpriseDataStore;
+  private readonly durable: boolean;
+  private readonly store: RequestStore;
   private readonly emailTransport: DevelopmentEmailTransport;
 
   constructor(
-    store: EnterpriseDataStore,
-    emailTransport: DevelopmentEmailTransport
+    store: RequestStore,
+    emailTransport: DevelopmentEmailTransport,
+    durable = false,
   ) {
+    this.durable = durable;
     this.store = store;
     this.emailTransport = emailTransport;
   }
@@ -26,6 +30,7 @@ export class NotificationQueueProcessor {
   }
 
   public getQueueHealth() {
+    if (this.durable) return { status: 'DURABLE_OUTBOX', details: 'PostgreSQL queue. Worker readiness is reported by the worker.' };
     if (this.simulateRedisOutage) {
       return {
         status: 'DEGRADED_FALLBACK' as const,
@@ -47,7 +52,7 @@ export class NotificationQueueProcessor {
   }) {
     const state = this.store.getState();
     const notification = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: this.durable ? randomUUID() : `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       ticketId: params.ticketId,
       recipientId: params.recipientId,
       recipientEmail: params.recipientEmail,
@@ -64,7 +69,7 @@ export class NotificationQueueProcessor {
     this.store.persist();
 
     // If Redis/Queue is healthy, trigger immediate background processing
-    if (!this.simulateRedisOutage) {
+    if (!this.durable && !this.simulateRedisOutage) {
       await this.processPendingJobs();
     }
 
@@ -72,7 +77,7 @@ export class NotificationQueueProcessor {
   }
 
   public async processPendingJobs(): Promise<{ processedCount: number; sentCount: number; failedCount: number }> {
-    if (this.isProcessing || this.simulateRedisOutage) {
+    if (this.durable || this.isProcessing || this.simulateRedisOutage) {
       return { processedCount: 0, sentCount: 0, failedCount: 0 };
     }
     this.isProcessing = true;

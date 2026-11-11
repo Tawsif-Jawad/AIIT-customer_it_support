@@ -1,14 +1,27 @@
 import { test as base, expect } from "@playwright/test";
+import { connectPostgres } from "../../apps/api/src/postgres-runtime.ts";
+import { disposablePostgres } from "../support/disposable-postgres.ts";
 import { startOidcApplication } from "../support/oidc-application.ts";
 const test = base.extend<{
-  oidc: Awaited<ReturnType<typeof startOidcApplication>>;
+  oidc: Pick<Awaited<ReturnType<typeof startOidcApplication>>, "issuer" | "publicUrl" | "expireSessions">;
 }>({
   oidc: async ({}, use) => {
-    const fixture = await startOidcApplication();
+    const postgres = process.env.AIIT_E2E_POSTGRES === 'true';
+    const cluster = postgres ? await disposablePostgres() : undefined;
+    let client;
     try {
-      await use(fixture);
+      if (cluster) client = await connectPostgres({ NODE_ENV: 'test', STORAGE_MODE: 'postgres', DATABASE_URL: cluster.url });
+      const fixture = client ? await startOidcApplication(client) : await startOidcApplication();
+      try {
+        const ready = await fixture.app.inject({ method: 'GET', url: '/api/ready' });
+        expect(ready.data.storageMode).toBe(postgres ? 'postgres' : 'json');
+        await use(fixture);
+      } finally {
+        await fixture.close();
+      }
     } finally {
-      await fixture.close();
+      await client?.$disconnect();
+      cluster?.close();
     }
   },
 });
@@ -81,10 +94,7 @@ test("expired enterprise session clears private workspace and gives sign-in feed
   await page.click("#enterprise-login-btn");
   await expect(page.locator("#workspace-section")).toBeVisible();
   await page.click('button[data-tab="tickets"]');
-  const state = oidc.app.store.getState();
-  for (const session of state.authSessions || [])
-    session.expiresAt = Date.now() - 1;
-  oidc.app.store.persist();
+  await oidc.expireSessions();
   await page.click("#refresh-tickets-btn");
   await expect(page.locator("#workspace-section")).toBeHidden();
   await expect(page.locator("#login-section")).toBeVisible();

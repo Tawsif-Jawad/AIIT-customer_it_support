@@ -1,0 +1,72 @@
+{
+  "milestone": "Day 5 PostgreSQL Runtime Integration",
+  "date": "2026-11-11",
+  "branch": "codex/day5-postgres-runtime-integration",
+  "baseBranch": "codex/audit-remediation-m1-business-workflows",
+  "baseCommit": "f151b88edfa4e63da8b240d6603a5728bf6b8391",
+  "verifiedSource": "389f8c023f3bcfa97649fdf2c79c9fa23c098e7d",
+  "draftPr": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/7",
+  "verdict": "LOCAL ENGINEERING PASS",
+  "productionCutover": false,
+  "toolchain": {
+    "node": "26.8.1",
+    "pnpm": "9.15.0",
+    "postgres": "18.6"
+  },
+  "baselinePassed": {
+    "native": 151,
+    "security": 46,
+    "database": 40,
+    "jsonBrowser": 22,
+    "postgresBrowser": 0
+  },
+  "finalPassed": {
+    "native": 162,
+    "security": 46,
+    "database": 51,
+    "jsonBrowser": 22,
+    "postgresBrowser": 15
+  },
+  "mandatoryCommands": {
+    "total": 10,
+    "passed": 10,
+    "evidence": "evidence/mandatory-commands.json"
+  },
+  "postgresBrowser": {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e:postgres",
+    "exitCode": 0,
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0
+  },
+  "evidence": {
+    "parity": "evidence/http-parity.json",
+    "browser": "evidence/postgres-browser.txt",
+    "database": "evidence/database-integrity.json",
+    "performance": "evidence/performance.json",
+    "preservation": "evidence/preservation.json",
+    "implementationFiles": "evidence/implementation-files.txt",
+    "hostedInitial": "evidence/hosted-initial.json"
+  },
+  "hosted": {
+    "observedSource": "81fa2ffd68fe9093a97748544596c764d12da86c",
+    "run": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42979856820",
+    "job": 130387506694,
+    "status": "billing-blocked",
+    "annotation": "The job was not started because your account is locked due to a billing issue.",
+    "jobsWithNoSteps": [
+      "quality",
+      "tests",
+      "browser",
+      "database"
+    ]
+  },
+  "remainingDecisions": [
+    "CTO routing",
+    "canonical privacy",
+    "multi-issuer identity",
+    "retention and erasure",
+    "real action governance",
+    "approved ingress and abuse controls"
+  ]
+}

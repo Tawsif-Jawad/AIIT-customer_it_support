@@ -42,6 +42,19 @@ export interface DatabaseState {
   knowledgeArticles: KnowledgeArticle[];
 }
 
+export interface RequestScope {
+  pathname: string;
+  method: string;
+  developmentSessionDigest?: string;
+}
+
+export interface RequestStore {
+  getState(): DatabaseState;
+  persist(): void;
+  isHealthy(): boolean | Promise<boolean>;
+  transaction(operation: () => Promise<boolean>, scope?: RequestScope): Promise<void>;
+}
+
 /** Local JSON containment only: exclusive transaction lease + stale-snapshot rejection.
  * A crashed writer leaves a lease; recovery requires operator inspection, never auto-stealing.
  */

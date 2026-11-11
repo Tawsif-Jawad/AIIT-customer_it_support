@@ -28,12 +28,14 @@ import {
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
 import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
-import { EnterpriseDataStore } from './store.ts';
+import { EnterpriseDataStore, type RequestStore } from './store.ts';
 import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
 import {EnterpriseAuthAdapter,JsonAuthenticationRepository,readEnterpriseSettings,cookieValue,sessionDigest,csrfForSession,secureEqual} from './enterprise-auth.ts';
 
-export interface AppInstance {
+import { SessionPersistenceError, type AuthenticationRepository } from './enterprise-auth.ts';
+
+export interface AppInstance<Store extends RequestStore = EnterpriseDataStore> {
   server: http.Server;
   handleRequest: (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void>;
   inject: (options: {
@@ -43,7 +45,7 @@ export interface AppInstance {
     body?: Record<string, unknown>;
     headers?: Record<string, string>;
   }) => Promise<{ status: number; headers: Record<string, string>; data: Record<string, any> }>;
-  store: EnterpriseDataStore;
+  store: Store;
   aiOrchestrator: DeterministicMockAIOrchestrator;
   adAdapter: MockActiveDirectoryAdapter;
   emailTransport: DevelopmentEmailTransport;
@@ -59,9 +61,17 @@ function redactValue(value: unknown): any {
 }
 
 export function createApiServer(customStorePath?: string): AppInstance {
-  if (process.env.MAIL_PROVIDER && process.env.MAIL_PROVIDER !== 'mock') throw new Error('JSON_MODE_REQUIRES_MOCK_MAIL: External delivery requires a transactional outbox.');
-  const store = new EnterpriseDataStore(customStorePath);
-  const authRepository = new JsonAuthenticationRepository(store);
+  return createServer(() => new EnterpriseDataStore(customStorePath));
+}
+
+export function createServer<Store extends RequestStore>(
+  createStore: () => Store,
+  durableAuth?: AuthenticationRepository,
+): AppInstance<Store> {
+  if (process.env.MAIL_PROVIDER && process.env.MAIL_PROVIDER !== 'mock') throw new Error(durableAuth ? 'POSTGRES_REQUIRES_MOCK_MAIL' : 'JSON_MODE_REQUIRES_MOCK_MAIL');
+  const store = createStore();
+  const postgres = !!durableAuth;
+  const authRepository = durableAuth ?? new JsonAuthenticationRepository(store);
   // Configuration is captured per server; a failure never enables dev fallback.
   let enterpriseAuth: EnterpriseAuthAdapter | undefined;
   if(process.env.AUTH_MODE==='oidc') {
@@ -77,7 +87,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
     fromAddress: process.env.MAIL_FROM_ADDRESS || 'noreply-itsupport@local.dev.invalid',
   });
   const mailboxProvisioner = new UnconfiguredMailboxProvisioningAdapter();
-  const queueProcessor = new NotificationQueueProcessor(store, emailTransport);
+  const queueProcessor = new NotificationQueueProcessor(store, emailTransport, !!postgres);
 
   // Simple per-IP rate limiting map
   const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
@@ -323,7 +333,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
       // 1. HEALTH, READINESS & OPENAPI SPECIFICATION
       // ======================================================================
       if (method === 'GET' && pathname === '/api/health') {
-        const dbHealthy = store.isHealthy();
+        const dbHealthy = await store.isHealthy();
         const queueHealth = queueProcessor.getQueueHealth();
         const adHealth = await adAdapter.getHealth();
         const mailHealth = await emailTransport.getHealth();
@@ -334,7 +344,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           service: 'it-support-api',
           version: '1.0.0-milestone1',
           components: {
-            database: dbHealthy ? { status: 'CONNECTED', mode: 'local-json-development-store' } : { status: 'UNAVAILABLE' },
+            database: dbHealthy ? { status: 'CONNECTED', mode: postgres ? 'postgres' : 'local-json-development-store' } : { status: 'UNAVAILABLE' },
             redisQueue: queueHealth,
             keycloakOidc: {
               status: 'UNKNOWN',
@@ -384,6 +394,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
             '/api/assets/{id}/acknowledge': { post: { summary: 'Employee equipment handover/takeover digital acknowledgment' } },
             '/api/kb': { get: { summary: 'Search approved knowledge base articles' } },
             '/api/analytics/summary': { get: { summary: 'Role-scoped dashboard metrics for Employee, IT Admin, and CTO' } },
+            '/api/notifications/{id}/read': { post: { summary: 'Mark a notification read as its recipient' } },
             '/api/audit-logs': { get: { summary: 'View immutable security and administrative audit logs (IT_ADMIN / CTO)' } },
           },
         });
@@ -410,7 +421,12 @@ export function createApiServer(customStorePath?: string): AppInstance {
         let result;
         try {
           result=await enterpriseAuth.finish(new URL(rawUrl,enterpriseAuth.publicUrl).href,cookieValue(req.headers.cookie,'aiit_oidc_flow'),authRepository);
-        }catch {res.setHeader('Set-Cookie',enterpriseAuth.flowCookie('',0));sendError(res,400,'OIDC_AUTHENTICATION_FAILED','Enterprise sign-in failed. Restart sign-in.');return;}
+        } catch (error) {
+          if (error instanceof SessionPersistenceError) throw error;
+          res.setHeader('Set-Cookie', enterpriseAuth.flowCookie('', 0));
+          sendError(res, 400, 'OIDC_AUTHENTICATION_FAILED', 'Enterprise sign-in failed. Restart sign-in.');
+          return;
+        }
         // Audit and persistence failures must roll back the established session,
         // not become a client error that could commit a partial success.
         recordAudit({actor:result.user,action:'AUTH_ENTERPRISE_LOGIN_SUCCESS',resource:'Auth',resourceId:result.user.id,ipAddress:clientIp});
@@ -636,6 +652,7 @@ export function createApiServer(customStorePath?: string): AppInstance {
           state.knowledgeArticles, aiOrchestrator, ticketNumberFor(category.slug, sequence, now), now,
         );
         const { ticket, events, approvals, aiLog, aiDecision, auditDetails, notification } = workflow;
+        if (postgres) ticket.description = redactSensitiveData(ticket.description);
         state.ticketNumberHighWatermark = sequence;
         state.tickets.unshift(ticket);
         state.ticketEvents.push(...events);
@@ -804,15 +821,15 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
           const requester = state.users.find((u) => u.id === ticket.requesterId);
           if (requester) {
-            await queueProcessor
-              .enqueueNotification({
-                ticketId: ticket.id,
-                recipientId: requester.id,
-                recipientEmail: requester.email,
-                subject: `[${ticket.ticketNumber}] Status Updated to ${ticket.status}`,
-                body: `Ticket ${ticket.ticketNumber} transitioned from ${previousStatus} to ${ticket.status} by ${currentUser.displayName}.\nNotes: ${notes || 'None'}`,
-              })
-              .catch(() => {});
+            const enqueue = queueProcessor.enqueueNotification({
+              ticketId: ticket.id,
+              recipientId: requester.id,
+              recipientEmail: requester.email,
+              subject: `[${ticket.ticketNumber}] Status Updated to ${ticket.status}`,
+              body: `Ticket ${ticket.ticketNumber} transitioned from ${previousStatus} to ${ticket.status} by ${currentUser.displayName}.\nNotes: ${notes || 'None'}`,
+            });
+            if (postgres) await enqueue;
+            else await enqueue.catch(() => {});
           }
 
           sendJson(res, 200, { ticket });
@@ -1028,8 +1045,24 @@ export function createApiServer(customStorePath?: string): AppInstance {
             : state.notifications.filter((n) => n.recipientId === currentUser.id);
         sendJson(res, 200, {
           items,
-          deliveredTransportCount: emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
+          deliveredTransportCount: postgres
+            ? state.notifications.filter(n => n.status === 'SENT' && n.channel === 'EMAIL_AND_IN_APP' && (['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || n.recipientId === currentUser.id)).length
+            : emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
         });
+        return;
+      }
+
+      const notificationRead = pathname.match(/^\/api\/notifications\/([^/]+)\/read$/);
+      if (method === 'POST' && notificationRead) {
+        const id = decodeURIComponent(notificationRead[1]);
+        const notification = store.getState().notifications.find(row => row.id === id && row.recipientId === currentUser.id);
+        if (!notification) {
+          sendError(res, 404, 'NOTIFICATION_NOT_FOUND', 'Notification not found.');
+          return;
+        }
+        notification.readAt ??= new Date().toISOString();
+        store.persist();
+        sendJson(res, 200, { notification });
         return;
       }
 
@@ -1083,18 +1116,32 @@ export function createApiServer(customStorePath?: string): AppInstance {
 
       sendError(res, 404, 'ROUTE_NOT_FOUND', `No endpoint matches ${method} ${pathname}`);
     } catch (err) {
+      if (err instanceof SessionPersistenceError) {
+        sendError(res, 503, 'PERSISTENCE_FAILURE', 'Session could not be established. Restart sign-in.');
+        return;
+      }
       if (err instanceof ValidationError) {
         sendError(res, 400, 'VALIDATION_ERROR', err.message, err.details);
         return;
       }
-      logStructured('ERROR', 'UNHANDLED_API_ERROR', { error: String(err), path: pathname });
+      logStructured('ERROR', 'UNHANDLED_API_ERROR', { requestId: requestIds.get(req) });
       sendError(res, 500, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred while processing the request.');
     }
   };
 
   // Attach body listeners before waiting for the local serial queue.
+  const requestIds = new WeakMap<http.IncomingMessage, string>();
   let tail: Promise<void> = Promise.resolve();
   const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const requestId = crypto.randomUUID();
+    requestIds.set(req, requestId);
+    res.setHeader('X-Request-Id', requestId);
+    const method = req.method || 'GET';
+    const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+    if (method === 'GET' && pathname === '/api/live') {
+      sendJson(res, 200, { status: 'ALIVE', storageMode: postgres ? 'postgres' : 'json', environment: process.env.NODE_ENV || 'unset' });
+      return;
+    }
     const body = consumeBody(req);
     body.catch(() => {});
     bodies.set(req, body);
@@ -1111,17 +1158,29 @@ export function createApiServer(customStorePath?: string): AppInstance {
       end(chunk = '') { output += chunk; },
     } as unknown as http.ServerResponse;
     try {
-      await store.transaction(async () => {
+      if (method === 'GET' && pathname === '/api/ready') {
+        const ready = await store.isHealthy();
+        sendJson(res, ready ? 200 : 503, { status: ready ? 'READY' : 'UNAVAILABLE', storageMode: postgres ? 'postgres' : 'json' });
+        return;
+      }
+      const operation = async () => {
         try { await body; } catch (err) {
           sendError(buffered, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.'); return false;
         }
         await runRequest(req, buffered);
         // Denials may contain a security audit event; only server failures roll back.
         return code < 500;
-      });
+      };
+      if (postgres && method === 'GET' && ['/api/health', '/api/openapi.json', '/api/auth/config', '/api/auth/oidc/login'].includes(pathname)) await operation();
+      else {
+        const token = postgres && isDevelopmentAuthEnabled() ? extractSessionToken(req) : null;
+        await store.transaction(operation, { pathname, method, developmentSessionDigest: token ? sessionDigest(token) : undefined });
+      }
       res.writeHead(code, headers); res.end(output);
     } catch (err) {
-      sendError(res, /PERSISTENCE_BUSY|PERSISTENCE_CONFLICT/.test(String(err)) ? 409 : 503,
+      const conflict = /PERSISTENCE_BUSY|PERSISTENCE_CONFLICT/.test(String(err));
+      logStructured('WARN', conflict ? 'PERSISTENCE_CONFLICT' : 'PERSISTENCE_FAILURE', { requestId, storageMode: postgres ? 'postgres' : 'json' });
+      sendError(res, conflict ? 409 : 503,
         'PERSISTENCE_FAILURE', 'Operation was not committed. Retry after recovery or contention clears.');
     } finally { bodies.delete(req); done(); }
   };

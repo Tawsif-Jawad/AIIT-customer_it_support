@@ -2,11 +2,29 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import net from "node:net";
-import { createApiServer } from "../../apps/api/src/app.ts";
+import { createApiServer, type AppInstance } from "../../apps/api/src/app.ts";
 import { createWebServer } from "../../apps/web/src/server.ts";
 import { EnterpriseDataStore } from "../../apps/api/src/store.ts";
+import type { PrismaClient } from "@prisma/client";
+import type { PostgresRequestStore } from "../../apps/api/src/postgres-store.ts";
+import { createPostgresApiServer } from "../../apps/api/src/postgres-runtime.ts";
+import { importJsonSnapshot } from "../../scripts/json-import.ts";
+import { runtimeFixture } from "./disposable-postgres.ts";
 import { startTestIssuer } from "./oidc-issuer.ts";
-export async function startOidcApplication() {
+interface OidcFixture<Store extends EnterpriseDataStore | PostgresRequestStore> {
+  issuer: Awaited<ReturnType<typeof startTestIssuer>>;
+  app: AppInstance<Store>;
+  web: ReturnType<typeof createWebServer>;
+  publicUrl: string;
+  file: string;
+  chooseRole(role: string): ReturnType<EnterpriseDataStore["getState"]>["users"][number];
+  expireSessions(): Promise<void>;
+  close(): Promise<void>;
+}
+
+export function startOidcApplication(client: PrismaClient): Promise<OidcFixture<PostgresRequestStore>>;
+export function startOidcApplication(): Promise<OidcFixture<EnterpriseDataStore>>;
+export async function startOidcApplication(client?: PrismaClient): Promise<OidcFixture<EnterpriseDataStore | PostgresRequestStore>> {
   const issuer = await startTestIssuer();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aiit-oidc-"));
   const keys = [
@@ -40,12 +58,14 @@ export async function startOidcApplication() {
   });
   delete process.env.OIDC_CLIENT_SECRET;
   const file = path.join(dir, "db.json");
-  const store = new EnterpriseDataStore(file);
-  for (const user of store.getState().users) user.oidcIssuer = issuer.issuer;
-  const defaultSubject = store.getState().users[0].oidcSubject;
+  const store = client ? undefined : new EnterpriseDataStore(file);
+  const fixture = store?.getState() ?? runtimeFixture();
+  for (const user of fixture.users) user.oidcIssuer = issuer.issuer;
+  const defaultSubject = fixture.users[0].oidcSubject;
   issuer.setSubject(defaultSubject);
-  store.persist();
-  const app = createApiServer(file);
+  if (client) await importJsonSnapshot(client, fixture);
+  else store?.persist();
+  const app = client ? await createPostgresApiServer(client) : createApiServer(file);
   await new Promise<void>((r) => app.server.listen(0, "127.0.0.1", r));
   const web = createWebServer(
     "http://127.0.0.1:" + (app.server.address() as net.AddressInfo).port,
@@ -58,9 +78,18 @@ export async function startOidcApplication() {
     publicUrl,
     file,
     chooseRole: (role: string) => {
-      const user = app.store.getState().users.find((u) => u.roleName === role)!;
+      const user = fixture.users.find((u) => u.roleName === role)!;
       issuer.setSubject(user.oidcSubject);
       return user;
+    },
+    expireSessions: async () => {
+      if (client) await client.authSession.updateMany({ data: { expiresAt: new Date(Date.now() - 1) } });
+      else if (store) {
+        // The running API owns a separate store instance.
+        const current = new EnterpriseDataStore(file);
+        for (const session of current.getState().authSessions ?? []) session.expiresAt = Date.now() - 1;
+        current.persist();
+      }
     },
     close: async () => {
       await new Promise<void>((r) => web.close(() => r()));
@@ -80,7 +109,7 @@ export const cookieFrom = (response: Response, name: string) =>
     .find((value) => value.startsWith(name + "="))
     ?.split(";")[0] || "";
 export async function oidcLogin(
-  f: Awaited<ReturnType<typeof startOidcApplication>>,
+  f: { publicUrl: string },
   previousCookie = "",
 ) {
   const start = await fetch(f.publicUrl + "/api/auth/oidc/login", {
