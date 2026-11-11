@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { PrismaClient } from '@prisma/client';
 import { test } from 'node:test';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
@@ -333,6 +334,74 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     const job = await client.notificationJob.findFirstOrThrow({ where: { notification: { ticketId: pending.data.ticket.id } } });
     assert.equal(job.state, 'SENT');
     assert.equal(job.attempts, 1);
+  });
+
+  await t.test('SIGKILL after claim leaves a recoverable job for a new worker', async () => {
+    const pending = await app.inject({ method: 'POST', url: '/api/tickets', token: employee, body: input });
+    assert.equal(pending.status, 201);
+    const job = await client.notificationJob.findFirstOrThrow({ where: { notification: { ticketId: pending.data.ticket.id } } });
+    const child = spawn(process.execPath, ['--input-type=module', '-e', `
+      import { connectPostgres } from './apps/api/src/postgres-runtime.ts';
+      import { NotificationWorker } from './apps/worker/src/notification-worker.ts';
+      const client = await connectPostgres();
+      const worker = new NotificationWorker(client, {
+        async sendEmail() {
+          console.log('DELIVERY_STARTED');
+          await new Promise(() => setInterval(() => {}, 1000));
+        },
+      });
+      await worker.runOnce();
+    `], { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString(); });
+    const exit = once(child, 'exit');
+    try {
+      for (let i = 0; i < 100 && !output.includes('DELIVERY_STARTED') && child.exitCode === null; i++) await delay(25);
+      assert.match(output, /DELIVERY_STARTED/);
+    } finally {
+      child.kill('SIGKILL');
+      await exit;
+    }
+    const interrupted = await client.notificationJob.findUniqueOrThrow({ where: { id: job.id } });
+    assert.equal(interrupted.state, 'PROCESSING');
+    assert.equal(interrupted.attempts, 1);
+    await client.notificationJob.update({ where: { id: job.id }, data: { leaseUntil: new Date(0) } });
+    const mock = new DevelopmentEmailTransport({ mode: 'mock', smtpHost: 'localhost', smtpPort: 1025, fromAddress: 'fixture@example.test' });
+    assert.equal(await new NotificationWorker(client, mock).runOnce(), true);
+    const recovered = await client.notificationJob.findUniqueOrThrow({ where: { id: job.id } });
+    assert.equal(recovered.state, 'SENT');
+    assert.equal(recovered.attempts, 2);
+    assert.equal(mock.getDeliveredMessages()[0].deliveryId, job.id);
+  });
+
+  await t.test('backup and restore preserve the exercised HTTP dataset and its relationships', async () => {
+    const restored = await connectPostgres({ ...env, DATABASE_URL: cluster.restoreBackup() });
+    try {
+      const inspect = async (db: PrismaClient) => ({
+        tickets: await db.ticket.findMany({
+          orderBy: { id: 'asc' },
+          select: {
+            id: true, ticketNumber: true, status: true, version: true,
+            requester: { select: { id: true, sbuId: true } },
+            _count: { select: { events: true, comments: true, aiActionLogs: true, approvals: true } },
+          },
+        }),
+        jobs: await db.notificationJob.findMany({
+          orderBy: { id: 'asc' },
+          select: { id: true, state: true, attempts: true, notification: { select: { recipientId: true, ticketId: true, readAt: true } } },
+        }),
+        auditCount: await db.auditLog.count(),
+        sessions: await db.authSession.count(),
+      });
+      const actual = await inspect(restored);
+      assert.deepEqual(actual, await inspect(client));
+      t.diagnostic('DAY5_RUNTIME_RESTORE ' + JSON.stringify({
+        ticketCount: actual.tickets.length, jobCount: actual.jobs.length,
+        auditCount: actual.auditCount, sessionCount: actual.sessions, relationshipsMatched: true,
+      }));
+    } finally {
+      await restored.$disconnect();
+    }
   });
 });
 

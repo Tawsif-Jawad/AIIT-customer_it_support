@@ -46,7 +46,17 @@ export async function disposablePostgres() {
     execFileSync('node_modules/.bin/prisma', ['migrate', 'deploy', '--schema', 'apps/api/prisma/schema.prisma'], {
       env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe',
     });
-    return { url, dir, start, stop, close, version: pg('postgres', ['--version']).trim() };
+    const restoreBackup = () => {
+      const connection = ['-h', '127.0.0.1', '-p', String(port), '-U', 'aiit_test'];
+      const dump = path.join(dir, 'runtime.dump');
+      pg('pg_dump', [...connection, '--format=custom', '--no-owner', '--file', dump, 'aiit_test']);
+      pg('createdb', [...connection, 'aiit_test_runtime_restore']);
+      pg('pg_restore', [...connection, '--exit-on-error', '--no-owner', '--dbname', 'aiit_test_runtime_restore', dump]);
+      const restored = new URL(url);
+      restored.pathname = '/aiit_test_runtime_restore';
+      return restored.href;
+    };
+    return { url, dir, start, stop, close, restoreBackup, version: pg('postgres', ['--version']).trim() };
   } catch (error) {
     close();
     throw error;
