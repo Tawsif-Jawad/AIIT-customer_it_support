@@ -1,0 +1,60 @@
+{
+  "milestone": "Day 6 Security and PostgreSQL Performance",
+  "date": "2026-11-11",
+  "baseCommit": "9f57dd0c136d60c648380cdac3ec999d85964762",
+  "verifiedSource": "80cac9b0bff9b6243f36056a74cb7eb0ce2bd7e7",
+  "branch": "codex/day6-ingress-oidc-abuse-postgres-performance",
+  "baseBranch": "codex/day5-postgres-runtime-integration",
+  "draftPr": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/8",
+  "verdict": "LOCAL ENGINEERING PASS",
+  "findings": {
+    "DEF-007": "verified in isolated trusted ingress topology",
+    "DEF-008": "verified shared initiation and callback protection"
+  },
+  "baselinePassed": {
+    "native": 162,
+    "security": 46,
+    "database": 51,
+    "defaultBrowser": 22,
+    "postgresBrowser": 15
+  },
+  "finalPassed": {
+    "native": 167,
+    "security": 49,
+    "database": 53,
+    "defaultBrowser": 22,
+    "postgresBrowser": 15
+  },
+  "mandatoryCommands": {
+    "passed": 10,
+    "total": 10,
+    "failed": 0,
+    "skippedTests": 0,
+    "evidence": "evidence/mandatory-commands.json"
+  },
+  "additional": [
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e:postgres",
+      "exitCode": 0,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "evidence/postgres-browser.txt"
+    },
+    {
+      "command": "node scripts/benchmark-postgres.ts",
+      "exitCode": 0,
+      "seededTickets": [
+        1000,
+        10000,
+        50000
+      ],
+      "evidence": "evidence/benchmark.json"
+    }
+  ],
+  "independentReview": "pending",
+  "hostedCi": "tracked on draft PR",
+  "protectedFiles": "evidence/preservation.json",
+  "implementationFiles": "evidence/implementation-files.txt",
+  "productionExposure": false
+}

@@ -1,0 +1,12 @@
+{
+  ".env": {
+    "beforeSha256": "a86d4d9858351a451523313d21a61f39a2fa788babfcf35768cbee496b88f02c",
+    "afterSha256": "a86d4d9858351a451523313d21a61f39a2fa788babfcf35768cbee496b88f02c",
+    "match": true
+  },
+  ".data/enterprise-db.json": {
+    "beforeSha256": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+    "afterSha256": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+    "match": true
+  }
+}
