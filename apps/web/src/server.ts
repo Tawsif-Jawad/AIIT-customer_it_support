@@ -606,6 +606,9 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
     }
 
     async function inspectTicket(ticketId) {
+      if (selectedTicketId !== ticketId) {
+        document.getElementById('ticket-detail-container').textContent = 'Loading ticket…';
+      }
       selectedTicketId = ticketId;
       renderTicketList();
       const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId));
@@ -734,6 +737,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         document.getElementById('ticket-description').value = '';
         renderServiceFields('ticket');
         selectedTicketId = res.ticket.id;
+        document.getElementById('ticket-detail-container').textContent = 'Loading ticket…';
         showFeedback('Created ' + res.ticket.ticketNumber + ' -> Status: ' + res.ticket.status);
         switchTab('tickets');
         await refreshAllData();

@@ -58,7 +58,9 @@ test('portal CSP blocks an injected inline script while the application signs in
 
 test('browser employee full lifecycle, comments, assets, KB, notifications and signout',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await signIn(page);
- const ticket=await create(page,'Browser audit Outlook lifecycle');await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');
+ const ticket=await create(page,'Browser audit Outlook lifecycle');
+ await expect(page.locator('#ticket-detail-container')).toContainText(ticket.ticketNumber);
+ await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');
  await page.fill('#ticket-comment','Browser audit synthetic comment');await page.locator('#ticket-comment-form button').click();await expect(page.locator('#ticket-detail-container')).toContainText('Browser audit synthetic comment');
  await page.click('#btn-confirm-close');await expect(page.getByTestId('detail-ticket-status')).toHaveText('CLOSED');
  await page.reload();await expect(page.locator('#workspace-section')).toBeVisible();await tab(page,'tickets');await page.fill('#filter-search',ticket.ticketNumber);await page.click('#refresh-tickets-btn');
