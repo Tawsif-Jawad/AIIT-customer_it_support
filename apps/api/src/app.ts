@@ -768,7 +768,10 @@ export function createServer<Store extends RequestStore>(
             },
             events: canSeeInternal ? events : events.map(event =>
               event.eventType === 'TICKET_REASSIGNED' ? { ...event, metadata: {} } : event),
-            ...(canSeeInternal ? { assigneeName: assignee?.displayName ?? null } : {}),
+            ...(canSeeInternal ? {
+              assigneeName: assignee?.displayName ?? null,
+              assigneeIsActive: assignee?.isActive ?? null,
+            } : {}),
             ...(canAssign ? {
               assignment: {
                 revision: events.length,

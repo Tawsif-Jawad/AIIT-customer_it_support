@@ -29,7 +29,10 @@ function assignmentFixture() {
     { ...admin, id: disabled, email: 'day7-disabled-it@example.test', displayName: 'Disabled IT',
       oidcSubject: disabled, isActive: false },
   );
-  fixture.tickets.find(ticket => ticket.id === 'ticket-seed-1001')!.status = 'ASSIGNED_TO_IT';
+  const inactiveTicket = fixture.tickets.find(ticket => ticket.id === 'ticket-seed-1001')!;
+  inactiveTicket.status = 'ASSIGNED_TO_IT';
+  inactiveTicket.assigneeId = disabled;
+  fixture.tickets.push({ ...inactiveTicket, id: 'ticket-day7-unowned', ticketNumber: 'REQ-2026-1004', assigneeId: null });
   return fixture;
 }
 
@@ -114,6 +117,9 @@ async function verifyAssignment(api: Api, inspect: () => Promise<{
   const requesterDetail = await api.inject({ method: 'GET', url: detailUrl, token: owner });
   assert.equal(requesterDetail.status, 200);
   assert.equal(requesterDetail.data.assignment, undefined);
+  assert.equal(requesterDetail.data.assigneeName, undefined);
+  assert.equal(requesterDetail.data.assigneeIsActive, undefined);
+  assert.equal(requesterDetail.data.ticket.assigneeId, second, 'preserve the existing ticket contract');
   assert.deepEqual(requesterDetail.data.events.find((event: { eventType: string }) =>
     event.eventType === 'TICKET_REASSIGNED').metadata, {});
   assert.doesNotMatch(JSON.stringify([after, success, raced, requesterDetail]), /SYNTHETIC|redaction probe/);
@@ -146,13 +152,31 @@ async function verifyAssignment(api: Api, inspect: () => Promise<{
   assert.equal(escalated.status, 409);
   assert.equal(escalated.data.error.code, 'ASSIGNMENT_STATE_CONFLICT');
 
-  const unownedUrl = '/api/tickets/ticket-seed-1001';
-  const unowned = await api.inject({ method: 'GET', url: unownedUrl, token: admin });
-  assert.equal(unowned.data.ticket.assigneeId, null);
-  const assigned = await api.inject({ method: 'POST', url: unownedUrl + '/assign', token: admin,
-    body: { ...command, expectedAssigneeId: null, expectedRevision: unowned.data.assignment.revision } });
+  const inactiveUrl = '/api/tickets/ticket-seed-1001';
+  const inactive = await api.inject({ method: 'GET', url: inactiveUrl, token: admin });
+  assert.equal(inactive.data.ticket.assigneeId, disabled);
+  assert.equal(inactive.data.assigneeName, 'Disabled IT');
+  assert.equal(inactive.data.assigneeIsActive, false);
+  assert.ok(!inactive.data.assignment.candidates.some((user: { id: string }) => user.id === disabled));
+  const self = await api.inject({ method: 'POST', url: inactiveUrl + '/assign', token: admin,
+    body: { ...command, assigneeId: disabled, expectedAssigneeId: disabled, expectedRevision: inactive.data.assignment.revision } });
+  assert.equal(self.status, 400);
+  const assigned = await api.inject({ method: 'POST', url: inactiveUrl + '/assign', token: admin,
+    body: { ...command, expectedAssigneeId: disabled, expectedRevision: inactive.data.assignment.revision } });
   assert.equal(assigned.status, 200);
   assert.equal(assigned.data.ticket.assigneeId, second);
+  const changed = await api.inject({ method: 'GET', url: inactiveUrl, token: admin });
+  assert.equal(changed.data.assigneeIsActive, true);
+  assert.deepEqual(changed.data.events.slice(0, inactive.data.events.length), inactive.data.events);
+  assert.equal(changed.data.events.at(-1).metadata.previousAssigneeId, disabled);
+
+  const unownedUrl = '/api/tickets/ticket-day7-unowned';
+  const unowned = await api.inject({ method: 'GET', url: unownedUrl, token: admin });
+  assert.equal(unowned.data.ticket.assigneeId, null);
+  const firstAssignment = await api.inject({ method: 'POST', url: unownedUrl + '/assign', token: admin,
+    body: { ...command, expectedAssigneeId: null, expectedRevision: unowned.data.assignment.revision } });
+  assert.equal(firstAssignment.status, 200);
+  assert.equal(firstAssignment.data.ticket.assigneeId, second);
 }
 
 test('Day 7 JSON assignment: role, active assignee, audit, intent and stale-write checks', async () => {

@@ -13,7 +13,9 @@ const employee = postgres ? fixtureIdentities[0].email : 'tawsif.zawad@upstra.co
 const customer = postgres ? fixtureIdentities[2].email : 'rahim.chowdhury@client.upstra.local';
 const admin = postgres ? fixtureIdentities[3].email : 'kamal.hossain@upstra.local';
 const cto = postgres ? fixtureIdentities[4].email : 'farhana.ahmed@upstra.local';
-const test=baseTest.extend({baseURL:async({},use)=>{
+const test=baseTest.extend<{ inactiveAssignee: boolean }>({
+ inactiveAssignee: [false, { option: true }],
+ baseURL:async({inactiveAssignee},use)=>{
  process.env.NODE_ENV='test';process.env.AUTH_MODE='dev_oidc';process.env.MAIL_PROVIDER='mock';
  const webFactory=process.env.AIIT_AUDIT_BASELINE_WEB?(await import(process.env.AIIT_AUDIT_BASELINE_WEB)).createWebServer:createWebServer;
  const cluster = postgres ? await disposablePostgres() : undefined;
@@ -23,6 +25,11 @@ const test=baseTest.extend({baseURL:async({},use)=>{
  const baseAdmin = fixture.users.find(user => user.id === 'user-it-kamal')!;
  fixture.users.push({ ...baseAdmin, id: 'browser-second-admin', oidcSubject: 'browser-second-admin',
    email: 'browser-second-admin@example.test', displayName: 'Browser Second Admin' });
+ fixture.users.push({ ...baseAdmin, id: 'browser-inactive-admin', oidcSubject: 'browser-inactive-admin',
+   email: 'browser-inactive-admin@example.test', displayName: 'Browser Inactive Admin', isActive: false });
+ if (inactiveAssignee) {
+   fixture.tickets.find(ticket => ticket.id === 'ticket-seed-1002')!.assigneeId = 'browser-inactive-admin';
+ }
  if (client) await importJsonSnapshot(client, fixture);
  else fs.writeFileSync(path.join(dir, 'db.json'), JSON.stringify(fixture));
  const app = client ? await createPostgresApiServer(client) : createApiServer(path.join(dir,'db.json'));
@@ -198,4 +205,24 @@ test('IT can reassign, refresh a stale assignment and see the recipient update',
   await page.click('#refresh-notifications');
   await expect(page.locator('#notifications-list')).toContainText('IT Assignment');
   await expect(page.locator('#notifications-list')).not.toContainText(reason);
+});
+
+
+test.describe('inactive assignment', () => {
+ test.use({ inactiveAssignee: true });
+ test('IT sees an inactive assignee and can replace them with an active administrator', async ({ page }) => {
+  await signIn(page, admin);
+  await tab(page, 'tickets');
+  await page.locator('[data-ticket-id="ticket-seed-1002"]').click();
+  const detail = page.locator('#ticket-detail-container');
+  await expect(detail).toContainText('Assigned to Browser Inactive Admin (inactive)');
+  const select = detail.getByLabel('Assign to IT administrator');
+  await expect(select.locator('option[value="browser-inactive-admin"]')).toHaveCount(0);
+  await select.selectOption('browser-second-admin');
+  await detail.getByLabel('Assignment reason').fill('Transfer from inactive administrator');
+  await detail.getByRole('button', { name: 'Save assignment' }).click();
+  await expect(detail).toContainText('Assigned to Browser Second Admin');
+  await expect(detail).toContainText('TICKET_REASSIGNED');
+  await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
+});
 });

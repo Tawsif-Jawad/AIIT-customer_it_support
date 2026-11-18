@@ -668,7 +668,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         (t.escalationReason ? '<div class="alert-error"><strong>Escalation / Routing Reason:</strong> ' + escapeHtml(t.escalationReason) + '</div>' : '') +
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0;">' + actionsHtml + '</div>' +
         (detail.assigneeName !== undefined ? '<p>Assigned to ' +
-          escapeHtml(detail.assigneeName || (t.assigneeId ? 'Unavailable administrator' : 'No administrator')) + '</p>' : '') +
+          escapeHtml(detail.assigneeName || (t.assigneeId ? 'Unavailable administrator' : 'No administrator')) +
+          (detail.assigneeIsActive === false ? ' (inactive)' : '') + '</p>' : '') +
         assignmentForm +
         '<h3 style="font-size:0.95rem;margin-top:1.25rem;margin-bottom:0.5rem;">Ticket History</h3>' +
         '<div>' + detail.events.map(ev =>
