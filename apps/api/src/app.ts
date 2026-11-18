@@ -657,7 +657,6 @@ export function createServer<Store extends RequestStore>(
           state.knowledgeArticles, aiOrchestrator, ticketNumberFor(category.slug, sequence, now), now,
         );
         const { ticket, events, approvals, aiLog, aiDecision, auditDetails, notification } = workflow;
-        if (postgres) ticket.description = redactSensitiveData(ticket.description);
         state.ticketNumberHighWatermark = sequence;
         state.tickets.unshift(ticket);
         state.ticketEvents.push(...events);

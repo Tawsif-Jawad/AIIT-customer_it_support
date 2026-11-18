@@ -240,7 +240,6 @@ export class PostgresRepository implements TicketRepository {
       const ticket = await tx.ticket.create({
         data: {
           ...workflow.ticket,
-          description: redactSensitiveData(workflow.ticket.description),
           customFormPayload: workflow.ticket.customFormPayload as Prisma.InputJsonObject,
         },
       });

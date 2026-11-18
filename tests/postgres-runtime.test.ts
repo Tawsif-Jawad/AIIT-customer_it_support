@@ -162,18 +162,23 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     t.diagnostic('DAY5_HTTP_PARITY ' + JSON.stringify(actual));
   });
 
-  await t.test('PostgreSQL search sees redacted descriptions and preserves the JSON privacy difference', async () => {
+  await t.test('Both stores redact new descriptions from persistence, responses, and search', async () => {
     const file = path.join(cluster.dir, 'privacy.json');
     fs.writeFileSync(file, JSON.stringify(source));
     const secret = 'synthetic-example-value-6';
     const request = { ...input, description: 'Synthetic note password=' + secret + ' for Outlook configuration.' };
-    for (const [api, expected] of [[createApiServer(file), 1], [app, 0]] as const) {
+    for (const api of [createApiServer(file), app]) {
       const token = await signIn(api, 0);
       const created = await api.inject({ method: 'POST', url: '/api/tickets', token, body: request });
       assert.equal(created.status, 201);
       const result = await api.inject({ method: 'GET', url: '/api/tickets?search=' + secret, token });
-      assert.equal(result.data.pagination.total, expected);
-      if (!expected) assert.match((await client.ticket.findUniqueOrThrow({ where: { id: created.data.ticket.id } })).description, /\[REDACTED_SECRET\]/);
+      assert.equal(result.data.pagination.total, 0);
+      assert.match(created.data.ticket.description, /\[REDACTED_SECRET\]/);
+      const stored = api === app
+        ? await client.ticket.findUniqueOrThrow({ where: { id: created.data.ticket.id } })
+        : JSON.parse(fs.readFileSync(file, 'utf8')).tickets.find((ticket: { id: string }) => ticket.id === created.data.ticket.id);
+      assert.match(stored.description, /\[REDACTED_SECRET\]/);
+      assert.doesNotMatch(JSON.stringify(created.data), new RegExp(secret));
     }
   });
 

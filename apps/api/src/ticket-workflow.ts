@@ -272,6 +272,7 @@ export function planTicketCreation(
       `Hello ${currentUser.displayName},\n\nYour ticket (${ticket.ticketNumber}) is currently in status: ${ticket.status}.\n\n${ticket.aiSuggestedFix || ""}`,
     ),
   };
+  ticket.description = redactSensitiveData(ticket.description);
   return {
     ticket,
     events,
