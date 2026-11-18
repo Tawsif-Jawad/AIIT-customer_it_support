@@ -267,7 +267,7 @@ export async function exerciseM1Parity(
         assert.match(action.provider, /mock/);
         assert.ok(!action.redactedPrompt.includes("TEST_M1_ONLY"));
         assert.ok(!pg.description.includes("TEST_M1_ONLY"));
-        assert.equal(ticket.description, body.description);
+        assert.equal(ticket.description, pg.description);
         const history = (
           rows: {
             eventType: string;
