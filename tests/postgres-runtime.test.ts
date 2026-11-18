@@ -162,22 +162,41 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     t.diagnostic('DAY5_HTTP_PARITY ' + JSON.stringify(actual));
   });
 
-  await t.test('Both stores redact new descriptions from persistence, responses, and search', async () => {
+  await t.test('Both stores redact new ticket prose across persistence, search, approvals and notifications', async () => {
     const file = path.join(cluster.dir, 'privacy.json');
     fs.writeFileSync(file, JSON.stringify(source));
     const secret = 'synthetic-example-value-6';
-    const request = { ...input, description: 'Synthetic note password=' + secret + ' for Outlook configuration.' };
+    const request = {
+      ...input,
+      title: 'Synthetic access request password=' + secret,
+      description: 'Synthetic note password=' + secret + ' for an access request.',
+      serviceCategoryId: 'cat-ad-account',
+      customFormPayload: {
+        targetAdGroup: 'Synthetic Readers',
+        businessJustification: 'Required for testing api_key=' + secret,
+      },
+    };
     for (const api of [createApiServer(file), app]) {
       const token = await signIn(api, 0);
       const created = await api.inject({ method: 'POST', url: '/api/tickets', token, body: request });
       assert.equal(created.status, 201);
       const result = await api.inject({ method: 'GET', url: '/api/tickets?search=' + secret, token });
       assert.equal(result.data.pagination.total, 0);
+      assert.match(created.data.ticket.title, /\[REDACTED_SECRET\]/);
       assert.match(created.data.ticket.description, /\[REDACTED_SECRET\]/);
-      const stored = api === app
-        ? await client.ticket.findUniqueOrThrow({ where: { id: created.data.ticket.id } })
-        : JSON.parse(fs.readFileSync(file, 'utf8')).tickets.find((ticket: { id: string }) => ticket.id === created.data.ticket.id);
-      assert.match(stored.description, /\[REDACTED_SECRET\]/);
+      assert.equal(created.data.ticket.customFormPayload.targetAdGroup, 'Synthetic Readers');
+      assert.match(created.data.ticket.customFormPayload.businessJustification, /\[REDACTED_SECRET\]/);
+      const ticketId = created.data.ticket.id;
+      const persisted = api === app
+        ? await Promise.all([
+          client.ticket.findUniqueOrThrow({ where: { id: ticketId } }),
+          client.notification.findMany({ where: { ticketId } }),
+          client.approval.findMany({ where: { ticketId } }),
+          client.aIActionLog.findMany({ where: { ticketId } }),
+          client.auditLog.findMany({ where: { resourceId: ticketId } }),
+        ])
+        : JSON.parse(fs.readFileSync(file, 'utf8'));
+      assert.doesNotMatch(JSON.stringify(persisted), new RegExp(secret));
       assert.doesNotMatch(JSON.stringify(created.data), new RegExp(secret));
     }
   });

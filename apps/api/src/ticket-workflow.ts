@@ -49,6 +49,13 @@ export function planTicketCreation(
   const slaDue = new Date(
     now.getTime() + category.slaResolutionMinutes * 60_000,
   ).toISOString();
+  const customFormPayload = validateServicePayload(category.formSchema, validInput.customFormPayload);
+  for (const field of category.formSchema) {
+    const value = customFormPayload[field.key];
+    if (field.type === "textarea" && typeof value === "string") {
+      customFormPayload[field.key] = redactSensitiveData(value);
+    }
+  }
   // Create initial ticket in NEW status
   const ticket: Ticket = {
     id: `ticket-${crypto.randomUUID()}`,
@@ -61,10 +68,7 @@ export function planTicketCreation(
     requesterId: currentUser.id,
     assigneeId: null,
     serviceCategoryId: category.id,
-    customFormPayload: validateServicePayload(
-      category.formSchema,
-      validInput.customFormPayload,
-    ),
+    customFormPayload,
     aiSummary: null,
     aiSuggestedFix: null,
     aiConfidence: null,
@@ -124,6 +128,9 @@ export function planTicketCreation(
     sbuCode: currentUser.sbuCode,
     knowledgeBase: knowledgeArticles,
   });
+
+  ticket.title = redactSensitiveData(ticket.title);
+  ticket.description = redactSensitiveData(ticket.description);
 
   if (category.requiresApprovalRole && aiDecision.canAutoResolve) {
     aiDecision.canAutoResolve = false;
@@ -272,7 +279,6 @@ export function planTicketCreation(
       `Hello ${currentUser.displayName},\n\nYour ticket (${ticket.ticketNumber}) is currently in status: ${ticket.status}.\n\n${ticket.aiSuggestedFix || ""}`,
     ),
   };
-  ticket.description = redactSensitiveData(ticket.description);
   return {
     ticket,
     events,
