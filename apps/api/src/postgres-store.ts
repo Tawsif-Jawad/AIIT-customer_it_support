@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { isDeepStrictEqual } from 'node:util';
 import { ticketAccessScope, type User } from '../../../packages/shared/src/index.ts';
 import type { DatabaseState, RequestScope, RequestStore, TicketPageFilters } from './store.ts';
@@ -150,21 +151,24 @@ class RollbackResponse extends Error {}
 /** Request-scoped relational projection. Writes use targeted DML in the same
  * serializable transaction as the route, including its audit and outbox intent. */
 export class PostgresRequestStore implements RequestStore {
-  private state?: DatabaseState;
-  private tx?: Tx;
+  // Isolate each in-flight request's transaction and projected state.
+  // A singleton transaction field would leak one request into another.
+  private readonly requestContext = new AsyncLocalStorage<{ tx: Tx; state: DatabaseState }>();
 
   private readonly client: PrismaClient;
 
   constructor(client: PrismaClient) { this.client = client; }
 
   get transactionClient() {
-    if (!this.tx) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.tx;
+    const tx = this.requestContext.getStore()?.tx;
+    if (!tx) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return tx;
   }
 
   getState() {
-    if (!this.state) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.state;
+    const state = this.requestContext.getStore()?.state;
+    if (!state) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return state;
   }
 
   persist() { void this.transactionClient; }
@@ -234,16 +238,12 @@ export class PostgresRequestStore implements RequestStore {
   async transaction(operation: () => Promise<boolean>, scope: RequestScope = { pathname: '/', method: 'GET' }) {
     try {
       await this.client.$transaction(async tx => {
-        this.tx = tx;
-        try {
-          const before = await readState(tx, scope);
-          this.state = structuredClone(before);
+        const before = await readState(tx, scope);
+        const context = { tx, state: structuredClone(before) };
+        await this.requestContext.run(context, async () => {
           if (!await operation()) throw new RollbackResponse();
-          await commitChanges(tx, before, this.state);
-        } finally {
-          this.state = undefined;
-          this.tx = undefined;
-        }
+          await commitChanges(tx, before, context.state);
+        });
       }, { isolationLevel: 'Serializable', timeout: 15000 });
     } catch (error) {
       if (error instanceof RollbackResponse) return;
