@@ -1,0 +1,27 @@
+{
+  "verifiedCodeRevision": "28d3bb2fb2544bec84d295d448f34ff20426ec76",
+  "baseRevision": "f0fd3a1fb682e7eec17b0345280a19207678f02a",
+  "results": [
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e:postgres",
+      "exitCode": 0,
+      "counts": {
+        "pass": 16,
+        "fail": 0,
+        "skipped": 0
+      },
+      "log": "postgres-browser.log"
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm audit --prod --audit-level=moderate",
+      "exitCode": 0,
+      "log": "audit-production.log"
+    },
+    {
+      "command": "DB_REQUIRED=true node --test --test-name-pattern='PostgreSQL HTTP runtime|paired JSON|privacy difference|blocked, failing' tests/postgres-runtime.test.ts",
+      "exitCode": 1,
+      "expectedFailure": "unrelated requests must finish before the blocked write",
+      "log": "concurrency-red.log"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+> **Day 1–6 remediation update.** Day 1–6 verification covers controlled-issuer OIDC, scoped ticket workflows and approval decisions, and the opt-in PostgreSQL runtime. FR-D2-07 remains partial and live privileged execution remains disabled. Treat proposed scope, privacy and retention rules as pending owner decisions. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/01_EXECUTIVE_SUMMARY.md)
+
 # Software Requirements Specification (SRS)
 **Project:** Enterprise Multi-SBU AI-Powered IT Support System  
 **Status:** Approved Baseline — Milestone 1 Implemented  

@@ -1,0 +1,12 @@
+✔ ingress canonicalizes mapped IPv4 and IPv6 and stops at the first untrusted hop (5.489375ms)
+✔ web ingress strips client forwarding headers and configured origin defeats authority spoofing (60.099125ms)
+✔ OIDC discovery timeout leaves the API available and establishes no session (5093.448291ms)
+✔ production web requires configured TLS ingress and the TLS edge owns HSTS (812.387541ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6191.351042

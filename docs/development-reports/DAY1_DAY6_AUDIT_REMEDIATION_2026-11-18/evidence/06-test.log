@@ -1,0 +1,219 @@
+
+> it-support-system@1.0.0 test <checkout>
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/*.test.ts
+
+✔ AU01 retired/unassigned assets cannot be resurrected through acknowledgement (80.6875ms)
+✔ AU02 repeated custody acknowledgement does not duplicate custody or audit history (63.067ms)
+✔ AU03 read-only health/catalog/ticket requests never replace the persisted dataset (74.952416ms)
+✔ AU04 unsupported Mailpit transport cannot claim delivery or expose a ready state (0.371083ms)
+✔ AU05 local mock processing retries a failed notification after recovery (113.536292ms)
+✔ AU06 invalid pagination is rejected instead of returning null metadata (31.907958ms)
+✔ API inventory: public routes, authentication errors, protected resources and missing routes (137.644459ms)
+✔ API inventory: category/KB filtering and authorized mock AD lookup (39.959125ms)
+✔ API inventory: ticket creation rejects malformed fields and uses trusted actor scope (28.966625ms)
+✔ API inventory: search/filter/page boundaries return only authorized records (40.778958ms)
+✔ API inventory: requester/IT/CTO lifecycle, comments, immutable approvals and restart (192.108292ms)
+✔ API inventory: supported exceptional states enforce state graph and persist events (94.010375ms)
+✔ AU10 malformed cookie logout clears safely instead of generating server error (16.978292ms)
+✔ API rate limiter rejects excess requests and recovers after its window (266.488291ms)
+✔ AU11 requester notification metrics never expose another user mock-delivery count (166.371916ms)
+✔ API mutation negatives reject missing fields, bad notes and unauthorized ownership (48.169083ms)
+✔ approval cannot enable real AD/mail writes and unsafe transport mode stays rejected (7.38425ms)
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid (11.046042ms)
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (16.507167ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (10.034583ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (5.305ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (48.919167ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (73.086667ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (23.539792ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (16.477541ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (8.146292ms)
+  ✔ Day3 independent client restart reloads committed records (6.294458ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (17.766625ms)
+  ✔ remediation valid IT escalation is CRITICAL, redacted and atomic (13.909375ms)
+  ✔ remediation valid CTO escalation is CRITICAL, redacted and atomic (15.25775ms)
+  ✔ remediation escalation accepts exactly five trimmed reason characters (6.707ms)
+  ✔ remediation escalation rejects missing reason without writes (7.783584ms)
+  ✔ remediation escalation rejects blank reason without writes (11.181ms)
+  ✔ remediation escalation rejects short reason without writes (13.638792ms)
+  ✔ remediation escalation rejects trimmed short reason without writes (16.461041ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (29.79125ms)
+  ✔ remediation concurrent escalations preserve one complete version and intent (15.76675ms)
+  ✔ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (15.171792ms)
+  ✔ remediation CTO APPROVED audit names the Approval and preserves rationale (15.361709ms)
+  ✔ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (16.704958ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (24.333584ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (9.394292ms)
+  ✔ remediation opposing approvals produce exactly one correctly attributed audit (10.602666ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (22.432375ms)
+  ✔ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (1110.737333ms)
+  ✔ M1 storage parity — low-risk Outlook proposal (24.003167ms)
+  ✔ M1 storage parity — standard hardware incident and boolean false (28.899917ms)
+  ✔ M1 storage parity — explicit high-severity Outlook (24.03775ms)
+  ✔ M1 storage parity — classifier severity floor on outage (40.10775ms)
+  ✔ M1 storage parity — privileged AD (21.635292ms)
+  ✔ M1 storage parity — privileged mailbox (18.660292ms)
+  ✔ M1 storage parity — catalog approval gate overrides low-risk AI proposal (43.813584ms)
+  ✔ M1 storage parity — restricted prompt refusal (24.927042ms)
+  ✔ M1 storage parity — mock AI outage fallback (44.847875ms)
+  ✔ M1 storage parity — invalid submissions leave no business records or sequence changes (31.416042ms)
+  ✔ M1 storage parity — CTO intent, SBU authorization, disabled, missing and ambiguous recipients (217.670917ms)
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.3 -> 8.0.0-rc.34                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (9849.756708ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":9,"sourceManifest":{"sbus":{"count":3,"checksum":"32b0d6b2ce2636203539e2494245a92885861d4b43c33b5296c548ecb298dbfa"},"roles":{"count":5,"checksum":"b4505929d06fa86051543b0cdb12853e35994817c33ba89810f251a34abf340e"},"users":{"count":5,"checksum":"23044ee5cf8c31961eadf5e0457721ca0d015d623bd981e8a981b7638df27759"},"serviceCategories":{"count":6,"checksum":"0c85a8621e2eaa7ec5886904521b63faa15779fbc38a194d50678fe13fd2523d"},"tickets":{"count":3,"checksum":"436c844fb8719faf5ea317c39e4fb082ce9aaf50b776569bb1cb720c3937fbdc"},"ticketEvents":{"count":4,"checksum":"99e4ea0e2e4fb05c772cbb8105edd5029bfa9eb9d1179b29be97676dc4746042"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"a2f331028e3666f358eeec59db7cb75bb9b4b21ecf6f862869fe10423f100c75"},"approvals":{"count":2,"checksum":"edee902dba26a0351eedfce038dc2a6381c39382b5ec7e956098599ce8e7f673"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"80ca8bd4b5940fb9d85f4cc60050f44c885a3a3a8ec68367713540206e21ee5c"},"auditLogs":{"count":1,"checksum":"43e74468abe7a587040d98992806c488a5bb19f2e774672afd054e24cd8a850b"},"knowledgeArticles":{"count":3,"checksum":"cb62950ca2b834ede9c1d06d62593e37ea54f7f6b8d0fff0dabfec05047905cc"},"authSessions":{"count":2,"checksum":"f805afaf3d7af485aabbc2bfea636b7a789ab4407b1116a45e1929d55a24bf25"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+✔ F01 stale independent writer cannot overwrite a committed record (76.703459ms)
+✔ F14 invalid collections and duplicate IDs fail closed (24.862292ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.150833ms)
+✔ F04 approvals require rationale and cannot be replayed (76.28925ms)
+✔ F03 logout invalidates bearer session (65.364959ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (217.265083ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (44.7ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (154.834208ms)
+✔ opposing approval decisions serialize to one immutable decision (32.681ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (26.641791ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (12.341625ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (113.03725ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (35.805292ms)
+✔ read-only migration dry run preserves source bytes and reports counts (182.241125ms)
+✔ F05 employee/customer cannot advance reopened ticket into IT-controlled work (0.09325ms)
+✔ F10 requested LOW cannot downgrade critical infrastructure classification (47.674791ms)
+✔ F10 user-reported HIGH priority is preserved and cannot auto-resolve (61.414959ms)
+✔ F05 API denies employee IT-controlled work while allowing IT to resume it (171.6095ms)
+✔ independent API instances preserve concurrent updates through explicit contention retry (48.749875ms)
+✔ Day3 remediation JSON dedicated escalation retains reason, severity and governance behavior (236.57025ms)
+✔ Day3 remediation JSON requester escalation remains forbidden and CTO review remains required (133.270542ms)
+✔ Day3 remediation JSON decisions retain Approval audit attribution and redacted rationale (83.450459ms)
+✔ Day3 parity transition IT_ADMIN escalation includes critical severity and governance (79.68975ms)
+✔ Day3 parity transition CTO escalation includes critical severity and governance (46.923083ms)
+✔ Day3 parity transition rejects invalid reasons and preserves exact state (60.154042ms)
+✔ Day3 parity transition denies requesters and CTO-review bypass (127.531875ms)
+✔ Day3 parity transition notification failure rolls back all business changes (40.637917ms)
+✔ Day3 parity escalate-cto IT_ADMIN escalation includes critical severity and governance (44.492416ms)
+✔ Day3 parity escalate-cto CTO escalation includes critical severity and governance (31.641042ms)
+✔ Day3 parity escalate-cto rejects invalid reasons and preserves exact state (40.792042ms)
+✔ Day3 parity escalate-cto denies requesters and CTO-review bypass (53.337417ms)
+✔ Day3 parity escalate-cto notification failure rolls back all business changes (22.310541ms)
+✔ ingress canonicalizes mapped IPv4 and IPv6 and stops at the first untrusted hop (5.679917ms)
+✔ web ingress strips client forwarding headers and configured origin defeats authority spoofing (152.331375ms)
+✔ OIDC discovery timeout leaves the API available and establishes no session (5109.6325ms)
+✔ production web requires configured TLS ingress and the TLS edge owns HSTS (201.539042ms)
+▶ Milestone 1 Full-Stack Acceptance & Integration Suite
+  ✔ 1. Verifies system health, readiness, and web portal rendering (3.898542ms)
+  ✔ 2. Authenticates development OIDC identities across roles and SBUs (75.922417ms)
+  ✔ 3. Employee submits an eligible low-risk Outlook ticket; Mock AI classifies, suggests resolution, and records AIActionLog (21.662666ms)
+  ✔ 4. Enforces strict SBU & resource RBAC: unauthorized employee cannot view another user restricted ticket (18.11625ms)
+  ✔ 5. Routes unresolved or approval-gated tickets to IT Administrator queue (11.354ms)
+  ✔ 6. IT Administrator manages ticket, transitions to IN_PROGRESS, and escalates to CTO (54.58875ms)
+  ✔ 7. CTO reviews escalated tickets, decides approvals, and resolves escalated case (44.883292ms)
+  ✔ 8. Verifies Audit Events and Development Email Notification Queue processing (24.014625ms)
+  ✔ 9. Verifies integration unavailability fails safely without losing tickets (26.809875ms)
+✔ Milestone 1 Full-Stack Acceptance & Integration Suite (303.769209ms)
+✔ partial temporary write preserves original bytes and recovers memory (45.106459ms)
+✔ killed transaction leaves source intact and fails closed until controlled recovery (150.682834ms)
+✔ complete record types, duplicate natural keys and historical references are validated (2.744583ms)
+✔ backup restoration preserves all collection counts, references and exact source checksum (168.336959ms)
+install --frozen-lockfile --ignore-scripts: exit -2
+db:generate: exit -2
+typecheck: exit -2
+lint: exit -2
+build: exit -2
+test: exit -2
+test:security: exit -2
+test:db: exit -2
+test:e2e: exit -2
+audit --audit-level=moderate: exit -2
+Evidence: /var/folders/bd/p77sctyn4jz59hnrw42l3qmw0000gn/T/aiit-verifier-fault-K4PPre/results
+✔ local verifier reports child startup failures and never overwrites existing evidence (52.809167ms)
+✔ M1 disabled CTO blocks escalation atomically (55.708209ms)
+✔ M1 direct AD request requires its catalog fields (25.273708ms)
+✔ M1 numbering advances past sparse historical numbers and survives deletion and restart (66.220875ms)
+✔ M1 UTC calendar boundary preserves the prefix and global sequence (0.093166ms)
+✔ M1 empty history starts at 1001 and rolls back allocation on an intent failure (87.520625ms)
+✔ M1 escalation rolls back when JSON notification intent cannot be created (22.552208ms)
+✔ OIDC code PKCE nonce and trusted JWKS establish an opaque session without upstream tokens (187.274417ms)
+✔ OIDC rejects wrong-issuer without establishing a session or success audit (105.972792ms)
+✔ OIDC rejects wrong-audience without establishing a session or success audit (187.914416ms)
+✔ OIDC rejects wrong-nonce without establishing a session or success audit (169.889292ms)
+✔ OIDC rejects bad-signature without establishing a session or success audit (155.494209ms)
+✔ OIDC rejects wrong-alg without establishing a session or success audit (172.073208ms)
+✔ OIDC rejects expired without establishing a session or success audit (107.466125ms)
+✔ OIDC rejects future-nbf without establishing a session or success audit (134.380625ms)
+✔ OIDC rejects future-iat without establishing a session or success audit (123.613333ms)
+✔ OIDC rejects no-id-token without establishing a session or success audit (187.024667ms)
+✔ OIDC fails closed for bad-discovery with no development fallback (114.221666ms)
+✔ OIDC fails closed for unsafe-endpoint with no development fallback (66.018625ms)
+✔ OIDC fails closed for unavailable with no development fallback (111.993291ms)
+✔ OIDC callback is bound to browser cookie, state, PKCE, one-time consumption and expiry (124.492584ms)
+✔ OIDC refuses unknown disabled service and conflicting identity associations without email provisioning (104.176958ms)
+✔ OIDC sessions persist across API reload, expire, revoke and immediately observe role/SBU changes (204.800833ms)
+✔ OIDC rotating login prevents fixation, allows independent sessions, and rejects modified cookies (145.513708ms)
+✔ OIDC production requires HTTPS, complete configuration and secure cookies (1.430083ms)
+✔ OIDC requester scope and trusted application role/SBU defeat body and issuer role escalation (661.468708ms)
+✔ OIDC preserves organization IT grant and CTO-only review; disabled or rebound identity loses access (429.490458ms)
+✔ OIDC callback persistence failure never releases a cookie or partial success audit (114.942458ms)
+✔ shared PostgreSQL budgets and one-time OIDC state across independent API processes (5417.812958ms)
+✔ PostgreSQL explicit startup rejects missing, unavailable, production and unsupported mail configuration (1429.525125ms)
+▶ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery
+  ✔ paired JSON and PostgreSQL HTTP journeys (536.939417ms)
+  ✔ Both stores redact new descriptions from persistence, responses, and search (94.442791ms)
+  ✔ a blocked, failing write neither queues a read nor exposes an uncommitted ticket (43.956958ms)
+  ✔ API process restart restores and then enforces revocation of a development session (601.242375ms)
+  ✔ zero or multiple eligible CTOs block without creating an intent (20.141916ms)
+  ✔ two same-process ticket creates commit without a numbering retry (13.522916ms)
+  ✔ two API instances allocate unique numbers with retryable conflicts and bounded pagination (156.525208ms)
+  ✔ parallel decisions, escalations and sessions preserve single-winner and isolation rules (32.214042ms)
+  ✔ connection loss inside business write rolls back ticket, history, audit and outbox (1394.06625ms)
+  ✔ worker claims exclusively, recovers expired leases, retries and persists mock results (1412.094542ms)
+  ✔ SIGKILL after claim leaves a recoverable job for a new worker (178.215042ms)
+  ✔ backup and restore preserve the exercised HTTP dataset and its relationships (259.754208ms)
+✔ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery (7388.296833ms)
+ℹ DAY5_HTTP_PARITY {"live":[200,["environment","status","storageMode"],null],"ready":[200,["status","storageMode"],null],"health":[200,["components","service","status","timestamp","version"],null],"openapi.json":[200,["info","openapi","paths"],null],"auth/config":[200,["loginUrl","mode","ready"],null],"auth/identities":[200,["authMode","identities","keycloakRealm"],null],"dev mode OIDC login":[503,["error"],"OIDC_NOT_CONFIGURED"],"dev mode OIDC callback":[503,["error"],"OIDC_NOT_CONFIGURED"],"login invalid":[401,["error"],"INVALID_IDENTITY"],"session profile":[200,["permissions","sbu","user"],null],"unauthenticated":[401,["error"],"UNAUTHORIZED"],"catalog":[200,["categories","sbus"],null],"KB search":[200,["items"],null],"invalid category fields":[400,["error"],"VALIDATION_ERROR"],"ticket creation":[201,["aiDecision","ticket"],null],"triage":["RESOLVED_PENDING_CONFIRMATION","LOW","ALLOWED_LOW_RISK",{"osPlatform":"macOS"}],"filtered pagination":[200,["items","pagination"],null],"pagination":{"page":1,"pageSize":1,"total":1,"totalPages":1},"invalid pagination":[400,["error"],"VALIDATION_ERROR"],"category filter":[200,["items","pagination"],null],"invalid enum filter":[200,["items","pagination"],null],"literal substring filter":[200,["items","pagination"],null],"safe deep pagination":[200,["items","pagination"],null],"cross-SBU deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer approvals deny":[403,["error"],"FORBIDDEN"],"invalid comment":[400,["error"],"VALIDATION_ERROR"],"internal note":[201,["comment"],null],"ticket detail by number":[200,["aiLogs","approvals","comments","events","ticket"],null],"history":["AI_HANDLING_STARTED","AI_PROPOSED_RESOLUTION","INTERNAL_NOTE_ADDED","TICKET_CREATED","TICKET_TRIAGED"],"resolution confirmation":[200,["ticket"],null],"reopen":[200,["ticket"],null],"create approval":[201,["aiDecision","ticket"],null],"approval list":[200,["items"],null],"approval decision":[200,["approval"],null],"approval replay":[409,["error"],"APPROVAL_ALREADY_DECIDED"],"IT transition":[200,["ticket"],null],"CTO escalation":[200,["ticket"],null],"notifications":[200,["deliveredTransportCount","items"],null],"escalation":["cto@example.test","EMAIL_AND_IN_APP"],"notification recipient restriction":[404,["error"],"NOTIFICATION_NOT_FOUND"],"mark notification read":[200,["notification"],null],"mark notification replay":[200,["notification"],null],"assets":[200,["items"],null],"custody scope":[403,["error"],"FORBIDDEN"],"custody acknowledgement":[200,["asset"],null],"custody replay":[200,["asset"],null],"analytics":[200,["aiResolvedPendingConfirmation","assignedToIT","bySbu","byStatus","escalatedToCTO","pendingApprovals","totalAccessibleTickets"],null],"analyticsCounts":{"totalAccessibleTickets":3,"aiResolvedPendingConfirmation":1,"assignedToIT":0,"escalatedToCTO":1,"pendingApprovals":0,"byStatus":{"RESOLVED_PENDING_CONFIRMATION":1,"ESCALATED_TO_CTO":1,"REOPENED":1},"bySbu":{"SBU-TECH":3}},"audit":[200,["items"],null],"audit deny":[403,["error"],"FORBIDDEN"],"mock directory lookup":[200,["groups","provider","record"],null],"directory deny":[403,["error"],"FORBIDDEN"],"logout":[200,["loggedOut"],null],"revoked profile":[401,["error"],"UNAUTHORIZED"]}
+ℹ DAY5_PERFORMANCE {"connectionsObserved":8,"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","node":"v26.8.1","platform":"darwin","arch":"arm64","ticketCount":17,"createEightMs":47.320708000000195,"conflicts":4,"listMs":{"median":1.5180840000002718,"p95":2.493749999999636},"sessionMs":{"median":1.3028750000003129,"p95":4.0987080000004426}}
+ℹ DAY5_WORKER {"processed":18,"durationMs":31.50579199999993}
+ℹ DAY5_RUNTIME_RESTORE {"ticketCount":20,"jobCount":22,"auditCount":41,"sessionCount":7,"relationshipsMatched":true}
+✔ PostgreSQL OIDC persists digest sessions, revokes and rolls back login audit failures (1695.40275ms)
+✔ generated browser JavaScript parses, AIIT renders without JS, requests have a deadline (1.193291ms)
+✔ production rejects development identity enumeration and email-only sign-in (35.855125ms)
+✔ corrupted persistence fails without replacing existing records with demo data (0.6965ms)
+✔ development tokens validate issuer/audience/expiry and are rejected in production (0.81875ms)
+✔ cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer (52.032375ms)
+✔ expired signed tokens and expired stored sessions fail closed across restart (46.49425ms)
+✔ role revocation and service conversion apply to existing sessions immediately (75.07025ms)
+✔ customer ownership and employee asset SBU boundaries do not change global IT grant (79.084666ms)
+✔ all role/state pairs obey requester, CTO-review, closure and service boundaries (0.393125ms)
+✔ JSON arrays/null and oversized bodies fail without changing ticket state (21.198875ms)
+✔ public presentation, application and allowlisted assets are served separately (40.435458ms)
+✔ browser scripts and landing markup maintain original signature and safe demo labels (0.602083ms)
+✔ a response from an earlier session cannot populate the next user workspace (4.776916ms)
+✔ footer renderer honors reduced motion, suspends offscreen, and cleans up lifecycle observers (8.627041ms)
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (0.666625ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.074791ms)
+✔ Ticket Workflow State Machine & Role Guards (1.29075ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.070167ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.132583ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.387416ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.172792ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.119792ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.177708ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (0.998459ms)
+ℹ tests 171
+ℹ suites 4
+ℹ pass 171
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11819.408916

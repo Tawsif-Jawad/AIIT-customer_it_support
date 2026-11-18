@@ -1,0 +1,349 @@
+{
+  "postgres": "postgres (PostgreSQL) 18.6 (Homebrew)",
+  "results": [
+    {
+      "syntheticRows": 1000,
+      "name": "administrator",
+      "queryCount": 10,
+      "returned": 50,
+      "deliveredTransportCount": 1000,
+      "plans": [
+        {
+          "Plan": {
+            "Node Type": "Sort",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 83.83,
+            "Total Cost": 86.33,
+            "Plan Rows": 1000,
+            "Plan Width": 216,
+            "Actual Startup Time": 0.436,
+            "Actual Total Time": 0.455,
+            "Actual Rows": 1000,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Sort Key": [
+              "\"createdAt\" DESC",
+              "id DESC"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 157,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 19,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "Notification",
+                "Alias": "Notification",
+                "Startup Cost": 0,
+                "Total Cost": 34,
+                "Plan Rows": 1000,
+                "Plan Width": 216,
+                "Actual Startup Time": 0.003,
+                "Actual Total Time": 0.098,
+                "Actual Rows": 1000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 19,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.022,
+          "Triggers": [],
+          "Execution Time": 0.479
+        }
+      ]
+    },
+    {
+      "syntheticRows": 1000,
+      "name": "employee",
+      "queryCount": 10,
+      "returned": 50,
+      "deliveredTransportCount": 50,
+      "plans": [
+        {
+          "Plan": {
+            "Node Type": "Sort",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 83.83,
+            "Total Cost": 86.33,
+            "Plan Rows": 1000,
+            "Plan Width": 216,
+            "Actual Startup Time": 0.431,
+            "Actual Total Time": 0.451,
+            "Actual Rows": 1000,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Sort Key": [
+              "\"createdAt\" DESC",
+              "id DESC"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 157,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 19,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "Notification",
+                "Alias": "Notification",
+                "Startup Cost": 0,
+                "Total Cost": 34,
+                "Plan Rows": 1000,
+                "Plan Width": 216,
+                "Actual Startup Time": 0.004,
+                "Actual Total Time": 0.102,
+                "Actual Rows": 1000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 19,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.017,
+          "Triggers": [],
+          "Execution Time": 0.473
+        }
+      ]
+    },
+    {
+      "syntheticRows": 10000,
+      "name": "administrator",
+      "queryCount": 10,
+      "returned": 50,
+      "deliveredTransportCount": 10000,
+      "plans": [
+        {
+          "Plan": {
+            "Node Type": "Sort",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 996.39,
+            "Total Cost": 1021.39,
+            "Plan Rows": 10000,
+            "Plan Width": 217,
+            "Actual Startup Time": 5.371,
+            "Actual Total Time": 5.563,
+            "Actual Rows": 10000,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Sort Key": [
+              "\"createdAt\" DESC",
+              "id DESC"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 1713,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 182,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "Notification",
+                "Alias": "Notification",
+                "Startup Cost": 0,
+                "Total Cost": 332,
+                "Plan Rows": 10000,
+                "Plan Width": 217,
+                "Actual Startup Time": 0.006,
+                "Actual Total Time": 0.934,
+                "Actual Rows": 10000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 182,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.033,
+          "Triggers": [],
+          "Execution Time": 5.744
+        }
+      ]
+    },
+    {
+      "syntheticRows": 10000,
+      "name": "employee",
+      "queryCount": 10,
+      "returned": 500,
+      "deliveredTransportCount": 500,
+      "plans": [
+        {
+          "Plan": {
+            "Node Type": "Sort",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 996.39,
+            "Total Cost": 1021.39,
+            "Plan Rows": 10000,
+            "Plan Width": 217,
+            "Actual Startup Time": 5.5,
+            "Actual Total Time": 5.689,
+            "Actual Rows": 10000,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Sort Key": [
+              "\"createdAt\" DESC",
+              "id DESC"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 1713,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 182,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "Notification",
+                "Alias": "Notification",
+                "Startup Cost": 0,
+                "Total Cost": 332,
+                "Plan Rows": 10000,
+                "Plan Width": 217,
+                "Actual Startup Time": 0.006,
+                "Actual Total Time": 0.958,
+                "Actual Rows": 10000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 182,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.038,
+          "Triggers": [],
+          "Execution Time": 5.872
+        }
+      ]
+    }
+  ]
+}

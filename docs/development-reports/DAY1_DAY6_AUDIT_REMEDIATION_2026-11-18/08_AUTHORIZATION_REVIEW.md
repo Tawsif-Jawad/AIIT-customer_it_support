@@ -1,0 +1,7 @@
+# Authorization and exact action approval
+
+Paired HTTP and browser workflows verify customer/employee restrictions, cross-SBU ticket and asset boundaries, IT and CTO capabilities, internal-note visibility, decision immutability, closure and reopening. OIDC tests exercise disabled and service identities and current role/session enforcement. Approval and escalation races produce one winner and one conflict.
+
+FR-D2-07 remains PARTIAL. Approval stores a ticket link, action type, required role, requester, approving actor, outcome and decision timestamp. Custom form payload is contextual ticket data. Approval has no immutable binding to a normalized resource identifier and complete parameters, expiry, segregation-of-duties check or execution state. Exact-action execution remains disabled.
+
+Proposed design for owner review: validate and normalize action and target against a server-owned tool schema, then write an immutable versioned action snapshot and digest. Include requester, scope and expiry. Evaluate eligibility and separation-of-duties at decision and again before taking a lease for execution. Bind worker idempotency to approval and digest, reject expired, revoked, changed or previously executed intents, and record an append-only attempt and independently verified outcome. Existing decisions would remain historical records without execution eligibility. Owner approval is needed for identity equivalence, duration, eligible approvers and reapproval rules before implementing a live path.

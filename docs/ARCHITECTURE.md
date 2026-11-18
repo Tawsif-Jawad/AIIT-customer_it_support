@@ -1,3 +1,5 @@
+> **Day 1–6 remediation update.** The implemented runtime uses native Node HTTP for the portal and API, shared TypeScript workflows, JSON by default, and opt-in development/test Prisma PostgreSQL with request-local serializable transactions and a durable notification worker. OIDC uses Code+PKCE, issuer/JWKS validation and opaque server-side sessions. The TLS edge and corporate identity/delivery topology remain deployment gates. Earlier milestone notes below describe the state at their recorded dates. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/01_EXECUTIVE_SUMMARY.md)
+
 > Day 6 adds authenticated ingress and shared PostgreSQL admission. PostgreSQL now handles scoped ticket pagination and analytics aggregation. JSON remains the default. [Day 6 acceptance](development-reports/DAY6_SECURITY_PERFORMANCE_2026-11-11/13_FINAL_ACCEPTANCE.md)
 
 > Day 4 local update (implemented 2026-11-10 for the 2026-11-11 milestone): optional enterprise Code+PKCE authentication now uses validated discovery/JWKS and opaque sessions; controlled-issuer HTTP/browser tests pass. Real Keycloak/AD and hosted acceptance remain pending. JSON stays the default store. See [authentication contract](security/ENTERPRISE_AUTHENTICATION.md) and [Day 4 report](development-reports/DAY4_DEVELOPMENT_REPORT_2026-11-11.md). Older implementation statements below are historical.
@@ -15,9 +17,9 @@ The platform is organized as a modular TypeScript monorepo (`pnpm` workspaces) a
 ```
 Cutomer_IT_Support_System/
 ├── apps/
-│   ├── web/          # Enterprise Portal UI (Next.js App Router + Accessible Web Server & API Proxy)
+│   ├── web/          # Enterprise Portal HTML/CSS/JS and native HTTP proxy
 │   ├── api/          # Modular REST API, RBAC Guard, State Machine, OpenAPI 3.1, Prisma Schema
-│   └── worker/       # Background Notification & SLA Queue Processor (BullMQ / Resilient Local Queue)
+│   └── worker/       # PostgreSQL notification outbox worker (mock transport)
 ├── packages/
 │   ├── shared/       # Domain Models, RBAC Policies, Ticket State Machine, Schema Validators, Redactor
 │   └── connectors/   # AD Adapter, Self-Hosted Mail & Mailbox Provisioning Adapters, AI Policy Engine
@@ -41,7 +43,7 @@ Cutomer_IT_Support_System/
 4. **Resilience & Graceful Degradation**:
    - If the AI provider, Redis broker, or SMTP server is unreachable, ticket creation and state transitions still succeed transactionally; notifications remain safely `QUEUED` for retry.
 
-## Day 2 authoritative runtime update (2026-11-09)
+## Historical Day 2 runtime update (2026-11-09)
 
 Earlier descriptions of live Keycloak, resilient retry and production transactional persistence remain target requirements. Implemented runtime:
 

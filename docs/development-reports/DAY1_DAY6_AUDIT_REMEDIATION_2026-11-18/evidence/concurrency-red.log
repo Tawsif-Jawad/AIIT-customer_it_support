@@ -1,0 +1,42 @@
+▶ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery
+  ✔ paired JSON and PostgreSQL HTTP journeys (268.50175ms)
+  ✔ PostgreSQL search sees redacted descriptions and preserves the JSON privacy difference (21.657375ms)
+  ✖ a blocked, failing write neither queues a read nor exposes an uncommitted ticket (1545.799ms)
+  ✔ API process restart restores and then enforces revocation of a development session (529.268666ms)
+  ✔ zero or multiple eligible CTOs block without creating an intent (15.12675ms)
+  ✔ two API instances allocate unique numbers with retryable conflicts and bounded pagination (107.710667ms)
+  ✔ connection loss inside business write rolls back ticket, history, audit and outbox (467.728791ms)
+  ✔ worker claims exclusively, recovers expired leases, retries and persists mock results (1372.880666ms)
+  ✔ SIGKILL after claim leaves a recoverable job for a new worker (173.729375ms)
+  ✔ backup and restore preserve the exercised HTTP dataset and its relationships (614.1735ms)
+✖ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery (7004.732417ms)
+ℹ DAY5_HTTP_PARITY {"live":[200,["environment","status","storageMode"],null],"ready":[200,["status","storageMode"],null],"health":[200,["components","service","status","timestamp","version"],null],"openapi.json":[200,["info","openapi","paths"],null],"auth/config":[200,["loginUrl","mode","ready"],null],"auth/identities":[200,["authMode","identities","keycloakRealm"],null],"dev mode OIDC login":[503,["error"],"OIDC_NOT_CONFIGURED"],"dev mode OIDC callback":[503,["error"],"OIDC_NOT_CONFIGURED"],"login invalid":[401,["error"],"INVALID_IDENTITY"],"session profile":[200,["permissions","sbu","user"],null],"unauthenticated":[401,["error"],"UNAUTHORIZED"],"catalog":[200,["categories","sbus"],null],"KB search":[200,["items"],null],"invalid category fields":[400,["error"],"VALIDATION_ERROR"],"ticket creation":[201,["aiDecision","ticket"],null],"triage":["RESOLVED_PENDING_CONFIRMATION","LOW","ALLOWED_LOW_RISK",{"osPlatform":"macOS"}],"filtered pagination":[200,["items","pagination"],null],"pagination":{"page":1,"pageSize":1,"total":1,"totalPages":1},"invalid pagination":[400,["error"],"VALIDATION_ERROR"],"category filter":[200,["items","pagination"],null],"invalid enum filter":[200,["items","pagination"],null],"literal substring filter":[200,["items","pagination"],null],"safe deep pagination":[200,["items","pagination"],null],"cross-SBU deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer approvals deny":[403,["error"],"FORBIDDEN"],"invalid comment":[400,["error"],"VALIDATION_ERROR"],"internal note":[201,["comment"],null],"ticket detail by number":[200,["aiLogs","approvals","comments","events","ticket"],null],"history":["AI_HANDLING_STARTED","AI_PROPOSED_RESOLUTION","INTERNAL_NOTE_ADDED","TICKET_CREATED","TICKET_TRIAGED"],"resolution confirmation":[200,["ticket"],null],"reopen":[200,["ticket"],null],"create approval":[201,["aiDecision","ticket"],null],"approval list":[200,["items"],null],"approval decision":[200,["approval"],null],"approval replay":[409,["error"],"APPROVAL_ALREADY_DECIDED"],"IT transition":[200,["ticket"],null],"CTO escalation":[200,["ticket"],null],"notifications":[200,["deliveredTransportCount","items"],null],"escalation":["cto@example.test","EMAIL_AND_IN_APP"],"notification recipient restriction":[404,["error"],"NOTIFICATION_NOT_FOUND"],"mark notification read":[200,["notification"],null],"mark notification replay":[200,["notification"],null],"assets":[200,["items"],null],"custody scope":[403,["error"],"FORBIDDEN"],"custody acknowledgement":[200,["asset"],null],"custody replay":[200,["asset"],null],"analytics":[200,["aiResolvedPendingConfirmation","assignedToIT","bySbu","byStatus","escalatedToCTO","pendingApprovals","totalAccessibleTickets"],null],"analyticsCounts":{"totalAccessibleTickets":3,"aiResolvedPendingConfirmation":1,"assignedToIT":0,"escalatedToCTO":1,"pendingApprovals":0,"byStatus":{"RESOLVED_PENDING_CONFIRMATION":1,"ESCALATED_TO_CTO":1,"REOPENED":1},"bySbu":{"SBU-TECH":3}},"audit":[200,["items"],null],"audit deny":[403,["error"],"FORBIDDEN"],"mock directory lookup":[200,["groups","provider","record"],null],"directory deny":[403,["error"],"FORBIDDEN"],"logout":[200,["loggedOut"],null],"revoked profile":[401,["error"],"UNAUTHORIZED"]}
+ℹ DAY5_PERFORMANCE {"connectionsObserved":8,"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","node":"v26.8.1","platform":"darwin","arch":"arm64","ticketCount":15,"createEightMs":33.577666000000136,"conflicts":4,"listMs":{"median":1.3051250000007713,"p95":2.1547920000002705},"sessionMs":{"median":1.183083999999326,"p95":1.3531670000002123}}
+ℹ DAY5_WORKER {"processed":14,"durationMs":27.11316699999952}
+ℹ DAY5_RUNTIME_RESTORE {"ticketCount":17,"jobCount":18,"auditCount":34,"sessionCount":6,"relationshipsMatched":true}
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7204.29075
+
+✖ failing tests:
+
+test at tests/postgres-runtime.test.ts:185:11
+✖ a blocked, failing write neither queues a read nor exposes an uncommitted ticket (1545.799ms)
+  AssertionError [ERR_ASSERTION]: unrelated requests must finish before the blocked write
+      at TestContext.<anonymous> (file://<checkout>/tests/postgres-runtime.test.ts:219:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file://<checkout>/tests/postgres-runtime.test.ts:185:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
