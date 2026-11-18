@@ -45,6 +45,17 @@ async function create(page:Page,title:string,category='cat-outlook-config'){
  const response=page.waitForResponse(r=>r.url().endsWith('/api/tickets')&&r.request().method()==='POST');await page.click('#submit-ticket-btn');const result=await response;expect(result.status()).toBe(201);return (await result.json()).ticket;
 }
 
+test('portal CSP blocks an injected inline script while the application signs in', async ({ page }) => {
+  await signIn(page);
+  const executed = await page.evaluate(() => {
+    const script = document.createElement('script');
+    script.textContent = "document.body.dataset.untrustedScript = 'executed'";
+    document.body.append(script);
+    return document.body.dataset.untrustedScript;
+  });
+  expect(executed).toBeUndefined();
+});
+
 test('browser employee full lifecycle, comments, assets, KB, notifications and signout',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await signIn(page);
  const ticket=await create(page,'Browser audit Outlook lifecycle');await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');

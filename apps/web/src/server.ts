@@ -3,23 +3,25 @@
  * Serves the responsive, accessible Enterprise Portal UI and proxies /api/* to the Backend API.
  */
 
+import { randomBytes } from 'node:crypto';
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
-import { authenticatedForwarders, proxyTokenHeader, validateProxyToken } from '../../../packages/shared/src/ingress.ts';
+import { authenticatedForwarders, configuredOrigin, proxyTokenHeader, validateProxyToken } from '../../../packages/shared/src/ingress.ts';
 import { getLandingHtml } from './landing.ts';
 
 const WEB_PORT = Number(process.env.WEB_PORT || 3000);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
 
-export function getPortalHtml(apiBaseUrl = ''): string {
+export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
+  const nonceAttribute = nonce ? ` nonce="${nonce}"` : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIIT — AI-Powered Enterprise IT Support & Management System</title>
-  <style>
+  <style${nonceAttribute}>
     :root {
       --bg-primary: #0b0f19;
       --bg-card: #131b2e;
@@ -367,7 +369,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
   </main>
   <noscript>AIIT requires JavaScript. Enable JavaScript to sign in and access support.</noscript>
 
-  <script>
+  <script${nonceAttribute}>
     const API_BASE = '${apiBaseUrl}';
     localStorage.removeItem('itsupport_token'); // Remove historical persisted bearer tokens.
     let authToken = '';
@@ -874,10 +876,29 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 </html>`;
 }
 
+function htmlSecurityHeaders(nonce?: string) {
+  const nonceSource = nonce ? ` 'nonce-${nonce}'` : '';
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': [
+      "default-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'",
+      "form-action 'self'", "connect-src 'self'", "img-src 'self' data:",
+      "script-src 'self'" + nonceSource, "style-src 'self'" + nonceSource, "style-src-attr 'unsafe-inline'",
+    ].join('; '),
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+  };
+}
+
 export function createWebServer(apiTargetUrl = API_URL): http.Server {
   const target = new URL(apiTargetUrl);
   const upstream = authenticatedForwarders(process.env.WEB_TRUSTED_PROXY_IPS, process.env.WEB_PROXY_TOKEN);
   const apiProxyToken = validateProxyToken(process.env.WEB_API_PROXY_TOKEN);
+  if (process.env.NODE_ENV === 'production') {
+    const origin = configuredOrigin(process.env.APP_PUBLIC_URL);
+    if (!origin?.startsWith('https://') || !upstream.enabled) throw new Error('PRODUCTION_REQUIRES_HTTPS_INGRESS');
+  }
   if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Unsupported API proxy protocol');
   if (apiProxyToken && target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) {
     throw new Error('INGRESS_TOKEN_REQUIRES_HTTPS_OR_LOOPBACK');
@@ -901,12 +922,12 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
       return;
     }
     if (pathname === '/') {
-      res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff'});
+      res.writeHead(200, htmlSecurityHeaders());
       res.end(getLandingHtml());
       return;
     }
     if (!pathname.startsWith('/api/') && pathname !== '/app') {
-      res.writeHead(404, {'Content-Type':'text/html; charset=utf-8'});
+      res.writeHead(404, htmlSecurityHeaders());
       res.end('<h1>Page not found</h1><a href="/">Return to AIIT</a>');
       return;
     }
@@ -947,12 +968,9 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
       return;
     }
 
-    res.writeHead(200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'X-Frame-Options': 'DENY',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(getPortalHtml(''));
+    const nonce = randomBytes(18).toString('base64');
+    res.writeHead(200, { ...htmlSecurityHeaders(nonce), 'Cache-Control': 'no-store' });
+    res.end(getPortalHtml('', nonce));
   });
 }
 
