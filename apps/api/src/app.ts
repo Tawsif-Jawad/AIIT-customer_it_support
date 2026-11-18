@@ -898,6 +898,10 @@ export function createServer<Store extends RequestStore>(
           sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators and the CTO can view approval queues.');
           return;
         }
+        if (store.approvalItems) {
+          sendJson(res, 200, { items: await store.approvalItems() });
+          return;
+        }
         const state = store.getState();
         const items = state.approvals.map((a) => {
           const t = state.tickets.find((tk) => tk.id === a.ticketId);
@@ -985,6 +989,10 @@ export function createServer<Store extends RequestStore>(
       // 6. IT ASSET INVENTORY & HANDOVER/TAKEOVER ACKNOWLEDGMENT
       // ======================================================================
       if (method === 'GET' && pathname === '/api/assets') {
+        if (store.assetItems) {
+          sendJson(res, 200, { items: await store.assetItems(currentUser) });
+          return;
+        }
         const state = store.getState();
         const items =
           currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO'
@@ -1043,6 +1051,10 @@ export function createServer<Store extends RequestStore>(
       // 7. NOTIFICATIONS, ANALYTICS DASHBOARD & AUDIT LOGS
       // ======================================================================
       if (method === 'GET' && pathname === '/api/notifications') {
+        if (store.notificationFeed) {
+          sendJson(res, 200, await store.notificationFeed(currentUser));
+          return;
+        }
         const state = store.getState();
         const items =
           currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO'
@@ -1050,9 +1062,7 @@ export function createServer<Store extends RequestStore>(
             : state.notifications.filter((n) => n.recipientId === currentUser.id);
         sendJson(res, 200, {
           items,
-          deliveredTransportCount: postgres
-            ? state.notifications.filter(n => n.status === 'SENT' && n.channel === 'EMAIL_AND_IN_APP' && (['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || n.recipientId === currentUser.id)).length
-            : emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
+          deliveredTransportCount: emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
         });
         return;
       }

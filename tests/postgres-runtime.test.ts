@@ -329,7 +329,17 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
   });
 
   await t.test('parallel decisions, escalations and sessions preserve single-winner and isolation rules', async () => {
-    const [one, two] = await Promise.all([signIn(app, 0), signIn(app, 1)]);
+    const login = async (index: number) => {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const response = await app.inject({ method: 'POST', url: '/api/auth/login',
+          body: { email: fixtureIdentities[index].email } });
+        if (response.status === 409) continue;
+        assert.equal(response.status, 200);
+        return response.data.token as string;
+      }
+      throw new Error('Concurrent session creation exceeded its retry budget');
+    };
+    const [one, two] = await Promise.all([login(0), login(1)]);
     const created = await app.inject({ method: 'POST', url: '/api/tickets', token: one, body: {
       ...input, serviceCategoryId: 'cat-ad-account',
       customFormPayload: { targetAdGroup: 'Synthetic', businessJustification: 'Synthetic approval' },

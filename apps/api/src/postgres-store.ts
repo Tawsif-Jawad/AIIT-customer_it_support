@@ -44,8 +44,15 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   let ticketKey: string | undefined;
   try { if (ticketDetail) ticketKey = decodeURIComponent(ticketDetail[1]); } catch { /* HTTP validation handles malformed input */ }
   const ticketWhere = ticketKey ? { OR: [{ id: ticketKey }, { ticketNumber: ticketKey }] } : undefined;
-  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary'].includes(pathname);
-  const listing = pathname.startsWith('/api/approvals');
+  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary', '/api/approvals', '/api/assets', '/api/notifications', '/api/kb'].includes(pathname);
+  const approvalDecision = method === 'POST' && /^\/api\/approvals\/([^/]+)\/decide$/.exec(pathname);
+  const assetAck = method === 'POST' && /^\/api\/assets\/([^/]+)\/acknowledge$/.exec(pathname);
+  let approvalId: string | undefined;
+  let assetId: string | undefined;
+  try {
+    if (approvalDecision) approvalId = decodeURIComponent(approvalDecision[1]);
+    if (assetAck) assetId = decodeURIComponent(assetAck[1]);
+  } catch { /* HTTP validation handles malformed input */ }
   const creating = method === 'POST' && pathname === '/api/tickets';
   const detail = !!ticketKey && method === 'GET' && !ticketDetail?.[2];
   const ticketFilter = ticketKey ? { ticket: ticketWhere } : undefined;
@@ -61,17 +68,17 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     scopedRead ? [] : tx.sBU.findMany({ orderBy: [...oldest] }),
     pathname === '/api/auth/me' ? tx.role.findMany() : [],
     creating || detail || pathname === '/api/catalog' ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
-    (listing && !creating) || ticketWhere ? tx.ticket.findMany({ where: ticketWhere, orderBy: [...newest] }) : [],
+    ticketWhere || approvalId ? tx.ticket.findMany({
+      where: ticketWhere ?? { approvals: { some: { id: approvalId } } }, orderBy: [...newest],
+    }) : [],
     detail ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
-    pathname.startsWith('/api/assets') ? tx.asset.findMany({ orderBy: [...oldest] }) : [],
-    detail || pathname.startsWith('/api/approvals')
-      ? tx.approval.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
-    pathname === '/api/notifications' || notificationId
-      ? tx.notification.findMany({ where: notificationId ? { id: notificationId } : undefined, orderBy: [...newest] }) : [],
+    assetId ? tx.asset.findMany({ where: { id: assetId } }) : [],
+    detail || approvalId ? tx.approval.findMany({ where: ticketFilter ?? { id: approvalId }, orderBy: [...newest] }) : [],
+    notificationId ? tx.notification.findMany({ where: { id: notificationId } }) : [],
     detail ? tx.aIActionLog.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
     pathname === '/api/audit-logs' ? tx.auditLog.findMany({ orderBy: [...newest], take: 100 }) : [],
-    creating || pathname === '/api/kb' ? tx.knowledgeArticle.findMany({ orderBy: [...oldest] }) : [],
+    creating || pathname === '/api/kb' ? tx.knowledgeArticle.findMany({ where: { isApproved: true }, orderBy: [...oldest] }) : [],
     developmentSessionDigest
       ? tx.authSession.findMany({ where: { id: developmentSessionDigest, kind: null } }) : [],
     creating ? tx.ticketCounter.findUniqueOrThrow({ where: { id: 'tickets' } }) : null,
@@ -195,6 +202,36 @@ export class PostgresRequestStore implements RequestStore {
       JOIN "ServiceCategory" c ON c.id = t."serviceCategoryId"
       ORDER BY t."createdAt" DESC, t.id DESC`;
     return { items: items.map(({ version, ...item }) => { void version; return item; }), total };
+  }
+
+  async approvalItems() {
+    const rows = await this.transactionClient.approval.findMany({
+      include: { ticket: { select: { ticketNumber: true, title: true } } },
+      orderBy: [...newest],
+    });
+    return project<unknown[]>(unversion(rows).map(({ ticket, ...approval }) => ({
+      ...approval, ticketNumber: ticket.ticketNumber, ticketTitle: ticket.title,
+    })));
+  }
+
+  async assetItems(user: User) {
+    const global = user.roleName === 'IT_ADMIN' || user.roleName === 'CTO';
+    const rows = await this.transactionClient.asset.findMany({
+      where: global ? undefined : { assignedUserId: user.id, sbuId: user.sbuId },
+      orderBy: [...oldest],
+    });
+    return project<unknown[]>(unversion(rows));
+  }
+
+  async notificationFeed(user: User) {
+    const global = user.roleName === 'IT_ADMIN' || user.roleName === 'CTO';
+    const where = global ? {} : { recipientId: user.id };
+    const tx = this.transactionClient;
+    const [rows, deliveredTransportCount] = await Promise.all([
+      tx.notification.findMany({ where, orderBy: [...newest], take: global ? 50 : undefined }),
+      tx.notification.count({ where: { ...where, status: 'SENT', channel: 'EMAIL_AND_IN_APP' } }),
+    ]);
+    return { items: project<unknown[]>(rows), deliveredTransportCount };
   }
 
   async ticketAnalytics(user: User) {

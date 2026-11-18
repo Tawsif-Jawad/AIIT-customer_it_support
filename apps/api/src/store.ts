@@ -1,6 +1,6 @@
 /**
  * Enterprise Repository & Persistence Store
- * Provides development-only atomic JSON-file persistence. PostgreSQL is not connected.
+ * Defines the request store contract and development JSON persistence.
  */
 
 import fs from 'node:fs';
@@ -70,6 +70,9 @@ export interface TicketAnalytics {
 
 export interface RequestStore {
   ticketPage?(user: User, filters: TicketPageFilters): Promise<{ items: unknown[]; total: number }>;
+  approvalItems?(): Promise<unknown[]>;
+  assetItems?(user: User): Promise<unknown[]>;
+  notificationFeed?(user: User): Promise<{ items: unknown[]; deliveredTransportCount: number }>;
   ticketAnalytics?(user: User): Promise<TicketAnalytics>;
   getState(): DatabaseState;
   persist(): void;
