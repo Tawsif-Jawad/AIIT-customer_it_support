@@ -12,7 +12,7 @@ async function fixture(fn:(app:ReturnType<typeof createApiServer>)=>Promise<void
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-security-'));
  try { await fn(createApiServer(path.join(dir,'db.json'))); } finally {fs.rmSync(dir,{recursive:true,force:true});}
 }
-const login=async(app:ReturnType<typeof createApiServer>,email='tawsif.zawad@upstra.com')=>app.inject({method:'POST',url:'/api/auth/login',body:{email,role:'CTO',sbuId:'sbu-fin-002'}});
+const login=async(app:ReturnType<typeof createApiServer>,email='employee@example.test')=>app.inject({method:'POST',url:'/api/auth/login',body:{email,role:'CTO',sbuId:'sbu-fin-002'}});
 
 test('cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer',()=>fixture(async app=>{
  const auth=await login(app);const cookie=auth.headers['set-cookie'].split(';')[0];
@@ -32,8 +32,8 @@ test('expired signed tokens and expired stored sessions fail closed across resta
  assert.equal((await app.inject({method:'GET',url:'/api/auth/me',token})).status,401);
 }));
 test('role revocation and service conversion apply to existing sessions immediately',()=>fixture(async app=>{
- const auth=await login(app,'kamal.hossain@upstra.local');
- const user=app.store.getState().users.find(u=>u.email==='kamal.hossain@upstra.local')!;
+ const auth=await login(app,'it@example.test');
+ const user=app.store.getState().users.find(u=>u.email==='it@example.test')!;
  user.roleId='role-employee';user.roleName='EMPLOYEE';app.store.persist();
  assert.equal((await app.inject({method:'GET',url:'/api/approvals',token:auth.data.token})).status,403);
  const service=app.store.getState().users.find(u=>u.id===user.id)!;service.roleId='role-system';service.roleName='SYSTEM_SERVICE';app.store.persist();
@@ -41,9 +41,9 @@ test('role revocation and service conversion apply to existing sessions immediat
  assert.equal((await login(app,user.email)).status,401);
 }));
 test('customer ownership and employee asset SBU boundaries do not change global IT grant',()=>fixture(async app=>{
- const customer=(await login(app,'rahim.chowdhury@client.upstra.local')).data.token;
+ const customer=(await login(app,'customer@example.test')).data.token;
  const employee=(await login(app)).data.token;
- const it=(await login(app,'kamal.hossain@upstra.local')).data.token;
+ const it=(await login(app,'it@example.test')).data.token;
  const ticket=app.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
  assert.equal((await app.inject({method:'GET',url:`/api/tickets/${ticket.id}`,token:customer})).status,403);
  assert.equal((await app.inject({method:'GET',url:`/api/tickets/${ticket.id}`,token:it})).status,200);

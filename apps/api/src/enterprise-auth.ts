@@ -1,6 +1,7 @@
 /** OIDC Code+PKCE adapter. No token verification is implemented locally. */
 import crypto from "node:crypto";
 import * as oidc from "openid-client";
+import { isLoopbackDestination } from "../../../packages/shared/src/isolation.ts";
 import type { User } from "../../../packages/shared/src/index.ts";
 import type { RequestStore } from "./store.ts";
 
@@ -78,13 +79,10 @@ export function cookieValue(header: string | undefined, name: string) {
 export interface EnterpriseAuthSettings {
   issuer: string;
   clientId: string;
-  clientSecret?: string;
   publicUrl: string;
   allowLoopbackHttp: boolean;
   sessionSeconds: number;
 }
-const loopback = (url: URL) =>
-  ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
 export function readEnterpriseSettings(
   env: NodeJS.ProcessEnv = process.env,
 ): EnterpriseAuthSettings {
@@ -97,6 +95,10 @@ export function readEnterpriseSettings(
     throw new Error("OIDC_NOT_CONFIGURED");
   const issuer = new URL(env.OIDC_ISSUER_URL),
     publicUrl = new URL(env.APP_PUBLIC_URL);
+  if (!isLoopbackDestination(issuer) || !isLoopbackDestination(publicUrl)) {
+    throw new Error("OIDC_DESTINATION_DENIED");
+  }
+  if (env.OIDC_CLIENT_SECRET) throw new Error("OIDC_TEST_CLIENT_SECRET_DENIED");
   const allow =
     ["development", "test"].includes(env.NODE_ENV || "") &&
     env.OIDC_ALLOW_INSECURE_LOOPBACK === "true";
@@ -107,7 +109,7 @@ export function readEnterpriseSettings(
       url.search ||
       url.hash ||
       (url.protocol !== "https:" &&
-        !(allow && url.protocol === "http:" && loopback(url)))
+        !(allow && url.protocol === "http:"))
     )
       throw new Error("OIDC_UNSAFE_URL");
   if (publicUrl.pathname !== "/" || issuer.pathname.includes("/.well-known/"))
@@ -122,7 +124,6 @@ export function readEnterpriseSettings(
   return {
     issuer: env.OIDC_ISSUER_URL,
     clientId: env.OIDC_CLIENT_ID,
-    clientSecret: env.OIDC_CLIENT_SECRET,
     publicUrl: publicUrl.origin,
     allowLoopbackHttp: allow,
     sessionSeconds,
@@ -175,6 +176,13 @@ export class EnterpriseAuthAdapter {
   }
   private async discover() {
     const issuer = new URL(this.settings.issuer);
+    if (!isLoopbackDestination(issuer) || !isLoopbackDestination(new URL(this.settings.publicUrl))) {
+      throw new Error("OIDC_DESTINATION_DENIED");
+    }
+    if (process.env.NODE_USE_ENV_PROXY === "1" || process.execArgv.includes("--use-env-proxy") ||
+        /--use-env-proxy/.test(process.env.NODE_OPTIONS ?? "")) {
+      throw new Error("OIDC_ENV_PROXY_DENIED");
+    }
     const guardedFetch: oidc.CustomFetch = async (url, options) => {
       const target = new URL(url);
       if (target.origin !== issuer.origin || target.username || target.password)
@@ -184,15 +192,8 @@ export class EnterpriseAuthAdapter {
     const configuration = await oidc.discovery(
       issuer,
       this.settings.clientId,
-      {
-        id_token_signed_response_alg: "RS256",
-        ...(this.settings.clientSecret
-          ? { client_secret: this.settings.clientSecret }
-          : {}),
-      },
-      this.settings.clientSecret
-        ? oidc.ClientSecretPost(this.settings.clientSecret)
-        : oidc.None(),
+      { id_token_signed_response_alg: "RS256" },
+      oidc.None(),
       {
         timeout: 5,
         [oidc.customFetch]: guardedFetch,

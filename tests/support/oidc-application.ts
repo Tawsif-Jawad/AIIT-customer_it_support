@@ -109,7 +109,7 @@ export const cookieFrom = (response: Response, name: string) =>
     .find((value) => value.startsWith(name + "="))
     ?.split(";")[0] || "";
 export async function oidcLogin(
-  f: { publicUrl: string },
+  f: { publicUrl: string; issuer: { issuer: string } },
   previousCookie = "",
 ) {
   const start = await fetch(f.publicUrl + "/api/auth/oidc/login", {
@@ -118,10 +118,14 @@ export async function oidcLogin(
   });
   const flow = cookieFrom(start, "aiit_oidc_flow");
   const authorization = start.headers.get("location");
-  if (!authorization) throw new Error("Fixture login initiation failed");
+  if (!authorization || new URL(authorization).origin !== new URL(f.issuer.issuer).origin) {
+    throw new Error("Fixture login initiation failed or changed origin");
+  }
   const approved = await fetch(authorization, { redirect: "manual" });
   const callback = approved.headers.get("location");
-  if (!callback) throw new Error("Fixture authorization failed");
+  if (!callback || new URL(callback).origin !== new URL(f.publicUrl).origin) {
+    throw new Error("Fixture authorization failed or changed origin");
+  }
   const response = await fetch(callback, {
     redirect: "manual",
     headers: { cookie: flow },

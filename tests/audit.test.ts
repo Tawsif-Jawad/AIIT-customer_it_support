@@ -10,10 +10,10 @@ async function fixture(fn:(app:ReturnType<typeof createApiServer>,file:string)=>
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-audit-'));const file=path.join(dir,'db.json');
  try{await fn(createApiServer(file),file);}finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
-const login=async(app:ReturnType<typeof createApiServer>,email='tawsif.zawad@upstra.com')=>(await app.inject({method:'POST',url:'/api/auth/login',body:{email}})).data.token;
+const login=async(app:ReturnType<typeof createApiServer>,email='employee@example.test')=>(await app.inject({method:'POST',url:'/api/auth/login',body:{email}})).data.token;
 
 test('AU01 retired/unassigned assets cannot be resurrected through acknowledgement',()=>fixture(async app=>{
- const token=await login(app,'kamal.hossain@upstra.local');const asset=app.store.getState().assets[0];
+ const token=await login(app,'it@example.test');const asset=app.store.getState().assets[0];
  asset.status='RETIRED';asset.assignedUserId=null;asset.handoverAckStatus='RETURN_REQUESTED';app.store.persist();
  const result=await app.inject({method:'POST',url:`/api/assets/${asset.id}/acknowledge`,token});
  assert.equal(result.status,409);assert.equal(app.store.getState().assets[0].status,'RETIRED');
@@ -60,12 +60,12 @@ test('API inventory: public routes, authentication errors, protected resources a
  assert.equal((await app.inject({method:'GET',url:'/api/auth/me',token})).status,401);
 }));
 test('API inventory: category/KB filtering and authorized mock AD lookup',()=>fixture(async app=>{
- const token=await login(app);const it=await login(app,'kamal.hossain@upstra.local');
+ const token=await login(app);const it=await login(app,'it@example.test');
  assert.equal((await app.inject({method:'GET',url:'/api/catalog',token})).data.categories.length,6);
  const article=app.store.getState().knowledgeArticles[0];article.isApproved=false;app.store.persist();
  const kb=await app.inject({method:'GET',url:'/api/kb?q=outlook',token});assert.ok(!kb.data.items.some((a:{id:string})=>a.id===article.id));
  assert.equal((await app.inject({method:'GET',url:'/api/connectors/ad/lookup?email=fixture@example.test',token})).status,403);
- const ad=await app.inject({method:'GET',url:'/api/connectors/ad/lookup?email=kamal.hossain%40upstra.local',token:it});assert.equal(ad.status,200);assert.match(ad.data.provider,/mock/);assert.ok(ad.data.record);assert.ok(ad.data.groups.length);
+ const ad=await app.inject({method:'GET',url:'/api/connectors/ad/lookup?email=it%40example.test',token:it});assert.equal(ad.status,200);assert.match(ad.data.provider,/mock/);assert.ok(ad.data.record);assert.ok(ad.data.groups.length);
  assert.equal((await app.inject({method:'GET',url:'/api/connectors/ad/lookup?email=absent%40example.test',token:it})).data.record,null);
 }));
 test('API inventory: ticket creation rejects malformed fields and uses trusted actor scope',()=>fixture(async app=>{
@@ -87,7 +87,7 @@ test('API inventory: search/filter/page boundaries return only authorized record
  assert.equal((await app.inject({method:'GET',url:'/api/tickets?sbuId=sbu-fin-002',token})).data.items.length,0);
 }));
 test('API inventory: requester/IT/CTO lifecycle, comments, immutable approvals and restart',()=>fixture(async(app,file)=>{
- const employee=await login(app),it=await login(app,'kamal.hossain@upstra.local'),cto=await login(app,'farhana.ahmed@upstra.local');
+ const employee=await login(app),it=await login(app,'it@example.test'),cto=await login(app,'cto@example.test');
  const created=await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Audit AD privilege request',description:'Synthetic request requiring human IT administrator review',serviceCategoryId:'cat-ad-account', customFormPayload: { targetAdGroup: 'Synthetic readers', businessJustification: 'Synthetic review access' }}});const id=created.data.ticket.id;
  const action=(token:string,sub:string,body:Record<string,unknown>)=>app.inject({method:'POST',url:`/api/tickets/${id}/${sub}`,token,body});
  assert.equal(created.data.ticket.status,'ASSIGNED_TO_IT');assert.equal(created.data.ticket.assigneeId,'user-it-kamal');
@@ -108,7 +108,7 @@ test('API inventory: requester/IT/CTO lifecycle, comments, immutable approvals a
  assert.equal((await app.inject({method:'POST',url:'/api/assets/missing/acknowledge',token:employee})).status,404);
 }));
 test('API inventory: supported exceptional states enforce state graph and persist events',()=>fixture(async app=>{
- const token=await login(app,'kamal.hossain@upstra.local');const id=app.store.getState().tickets[0].id;
+ const token=await login(app,'it@example.test');const id=app.store.getState().tickets[0].id;
  for(const [from,to] of [['IN_PROGRESS','AWAITING_USER'],['AWAITING_USER','IN_PROGRESS'],['IN_PROGRESS','AWAITING_APPROVAL'],['AWAITING_APPROVAL','IN_PROGRESS'],['IN_PROGRESS','FAILED_RETRY'],['FAILED_RETRY','ASSIGNED_TO_IT']] as const){
   app.store.getState().tickets.find(t=>t.id===id)!.status=from;app.store.persist();
   const result=await app.inject({method:'POST',url:`/api/tickets/${id}/transition`,token,body:{status:to,notes:'Synthetic graph verification'}});assert.equal(result.status,200);assert.equal(result.data.ticket.status,to);assert.ok(app.store.getState().ticketEvents.some(e=>e.ticketId===id&&e.fromStatus===from&&e.toStatus===to));
@@ -125,12 +125,12 @@ test('API rate limiter rejects excess requests and recovers after its window',()
  const now=Date.now;Date.now=()=>now()+61000;try{assert.equal((await app.inject({method:'GET',url:'/api/health'})).status,200);}finally{Date.now=now;}
 }));
 test('AU11 requester notification metrics never expose another user mock-delivery count',()=>fixture(async app=>{
- const employee=await login(app),customer=await login(app,'rahim.chowdhury@client.upstra.local');
+ const employee=await login(app),customer=await login(app,'customer@example.test');
  assert.equal((await app.inject({method:'POST',url:'/api/tickets',token:employee,body:{title:'Outlook private notification audit',description:'Synthetic Outlook TLS request creates one mock notification',serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' }}})).status,201);
  const own=await app.inject({method:'GET',url:'/api/notifications',token:customer});assert.equal(own.data.items.length,0);assert.equal(own.data.deliveredTransportCount,0);
 }));
 test('API mutation negatives reject missing fields, bad notes and unauthorized ownership',()=>fixture(async app=>{
- const employee=await login(app),other=await login(app,'nadia.islam@upstra.local'),it=await login(app,'kamal.hossain@upstra.local');const ticket=app.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
+ const employee=await login(app),other=await login(app,'second-employee@example.test'),it=await login(app,'it@example.test');const ticket=app.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
  const post=(token:string,sub:string,body:Record<string,unknown>)=>app.inject({method:'POST',url:`/api/tickets/${ticket.id}/${sub}`,token,body});
  assert.equal((await post(employee,'transition',{})).status,400);assert.equal((await post(employee,'transition',{status:'UNKNOWN'})).status,403);
  assert.equal((await post(employee,'comments',{body:''})).status,400);assert.equal((await post(employee,'comments',{body:'x'.repeat(2001)})).status,400);assert.equal((await post(other,'comments',{body:'Forbidden foreign update'})).status,403);

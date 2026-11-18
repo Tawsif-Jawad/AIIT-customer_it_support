@@ -1,3 +1,4 @@
+import { disposablePostgresUrl } from '../packages/shared/src/isolation.ts';
 /** Explicit non-destructive source -> isolated database import. No default target. */
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -76,7 +77,7 @@ if(import.meta.url===new URL(process.argv[1]||'', 'file:').href) {
  const [source,target]=process.argv.slice(2);
  if(!source||!target||process.env.AIIT_IMPORT_DISPOSABLE!=='true') throw new Error('Explicit SOURCE TARGET_URL and AIIT_IMPORT_DISPOSABLE=true required; never use operational targets');
  const url=new URL(target);
- if(!['127.0.0.1','localhost'].includes(url.hostname)||!url.pathname.startsWith('/aiit_test')) throw new Error('Importer CLI only accepts loopback aiit_test databases');
+ if(!disposablePostgresUrl(url)) throw new Error('IMPORT_DESTINATION_DENIED');
  const raw=fs.readFileSync(source);const client=new PrismaClient({datasources:{db:{url:target}}});
  try {console.log(JSON.stringify({counts:await importJsonSnapshot(client,JSON.parse(raw.toString())),sourceSha256:crypto.createHash('sha256').update(raw).digest('hex')}));} finally {await client.$disconnect();}
 }

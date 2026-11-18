@@ -29,7 +29,7 @@ test('F05 requester cannot close unresolved escalation or approval', () => {
 });
 test('F04 approvals require rationale and cannot be replayed', () => fixture(async file => {
   const app = createApiServer(file);
-  const login = await app.inject({method:'POST',url:'/api/auth/login',body:{email:'farhana.ahmed@upstra.local'}});
+  const login = await app.inject({method:'POST',url:'/api/auth/login',body:{email:'cto@example.test'}});
   const token = login.data.token;
   const id = app.store.getState().approvals.find(a => a.status === 'PENDING')!.id;
   const decide = (body: Record<string,unknown>) => app.inject({method:'POST',url:`/api/approvals/${id}/decide`,token,body});
@@ -39,7 +39,7 @@ test('F04 approvals require rationale and cannot be replayed', () => fixture(asy
 }));
 test('F03 logout invalidates bearer session', () => fixture(async file => {
   const app = createApiServer(file);
-  const login = await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}});
+  const login = await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}});
   const token = login.data.token;
   assert.equal((await app.inject({method:'POST',url:'/api/auth/logout',token})).status,200);
   assert.equal((await app.inject({method:'GET',url:'/api/auth/me',token})).status,401);
@@ -47,7 +47,7 @@ test('F03 logout invalidates bearer session', () => fixture(async file => {
 
 test('parallel ticket requests preserve tickets, audit and unique numbers after restart', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com',role:'CTO',sbuId:'untrusted'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test',role:'CTO',sbuId:'untrusted'}})).data.token;
   const before = app.store.getState().tickets.length;
   const results = await Promise.all(Array.from({length:12}, (_, i) => app.inject({method:'POST',url:'/api/tickets',token,body:{serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },title:`Configure Outlook profile number ${i}`,description:'Help configuring Outlook with secure TLS settings on my laptop',severity:'LOW'}})));
   assert.ok(results.every(r => r.status === 201));
@@ -62,7 +62,7 @@ test('parallel ticket requests preserve tickets, audit and unique numbers after 
 }));
 test('failed replacement returns failure, rolls back memory and preserves exact file', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
   const before = fs.readFileSync(file,'utf8');
   const rename = fs.renameSync;
   fs.renameSync = () => { throw new Error('synthetic interrupted replacement'); };
@@ -92,7 +92,7 @@ test('cross-process transaction lease blocks a second writer without losing firs
 }));
 test('opposing approval decisions serialize to one immutable decision', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'farhana.ahmed@upstra.local'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'cto@example.test'}})).data.token;
   const id = app.store.getState().approvals.find(a => a.status === 'PENDING')!.id;
   const results = await Promise.all(['APPROVED','REJECTED'].map(decision => app.inject({method:'POST',url:`/api/approvals/${id}/decide`,token,body:{decision,decisionNotes:'Reviewed simulated action'}})));
   assert.deepEqual(results.map(r => r.status).sort(),[200,409]);
@@ -119,7 +119,7 @@ test('reset is disabled and service identity cannot bypass ticket ownership', ()
 test('object authorization, approval roles, CTO state and sensitive notes are enforced', () => fixture(async file => {
   const app = createApiServer(file);
   const login = async (email: string) => (await app.inject({method:'POST',url:'/api/auth/login',body:{email}})).data.token;
-  const employee = await login('tawsif.zawad@upstra.com'), other = await login('nadia.islam@upstra.local'), it = await login('kamal.hossain@upstra.local'), cto = await login('farhana.ahmed@upstra.local');
+  const employee = await login('employee@example.test'), other = await login('second-employee@example.test'), it = await login('it@example.test'), cto = await login('cto@example.test');
   const ticket = app.store.getState().tickets.find(t => t.requesterId === 'user-emp-tawsif')!;
   ticket.status = 'ESCALATED_TO_CTO'; app.store.persist();
   const request = (token: string, method: string, url: string, body?: Record<string,unknown>) => app.inject({token,method,url,body});
@@ -136,13 +136,13 @@ test('object authorization, approval roles, CTO state and sensitive notes are en
 }));
 test('missing development opt-in fails closed and disabled accounts lose existing access', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
   app.store.getState().users[0].isActive = false; app.store.persist();
   assert.equal((await app.inject({method:'GET',url:'/api/auth/me',token})).status,401);
   const previous = process.env.AUTH_MODE;
   try {
     delete process.env.AUTH_MODE;
-    assert.equal((await app.inject({method:'POST',url:'/api/auth/login',body:{email:'farhana.ahmed@upstra.local'}})).status,503);
+    assert.equal((await app.inject({method:'POST',url:'/api/auth/login',body:{email:'cto@example.test'}})).status,503);
   } finally { if (previous !== undefined) process.env.AUTH_MODE = previous; }
 }));
 test('read-only migration dry run preserves source bytes and reports counts', () => fixture(async file => {
@@ -167,7 +167,7 @@ test('F05 employee/customer cannot advance reopened ticket into IT-controlled wo
 
 test('F10 requested LOW cannot downgrade critical infrastructure classification', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
   const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
     serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },
     title:'Entire SBU production outage',
@@ -182,7 +182,7 @@ test('F10 requested LOW cannot downgrade critical infrastructure classification'
 
 test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () => fixture(async file => {
   const app = createApiServer(file);
-  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+  const token = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
   const result = await app.inject({method:'POST',url:'/api/tickets',token,body:{
     serviceCategoryId:'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },
     title:'High-priority Outlook connectivity issue',
@@ -200,8 +200,8 @@ test('F10 user-reported HIGH priority is preserved and cannot auto-resolve', () 
 
 test('F05 API denies employee IT-controlled work while allowing IT to resume it', () => fixture(async file => {
   const app = createApiServer(file);
-  const employee = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
-  const it = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'kamal.hossain@upstra.local'}})).data.token;
+  const employee = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
+  const it = (await app.inject({method:'POST',url:'/api/auth/login',body:{email:'it@example.test'}})).data.token;
   const ticket = app.store.getState().tickets.find(t => t.requesterId === 'user-emp-tawsif')!;
   ticket.status = 'REOPENED';
   app.store.persist();
@@ -216,7 +216,7 @@ test('F05 API denies employee IT-controlled work while allowing IT to resume it'
 
 test('independent API instances preserve concurrent updates through explicit contention retry',()=>fixture(async file=>{
  const a=createApiServer(file),b=createApiServer(file);
- const token=(await a.inject({method:'POST',url:'/api/auth/login',body:{email:'tawsif.zawad@upstra.com'}})).data.token;
+ const token=(await a.inject({method:'POST',url:'/api/auth/login',body:{email:'employee@example.test'}})).data.token;
  const ticket=a.store.getState().tickets.find(t=>t.requesterId==='user-emp-tawsif')!;
  const write=(app:ReturnType<typeof createApiServer>,text:string)=>app.inject({method:'POST',url:`/api/tickets/${ticket.id}/comments`,token,body:{body:text,isInternal:false}});
  const results=await Promise.all([write(a,'First concurrent synthetic comment'),write(b,'Second concurrent synthetic comment')]);

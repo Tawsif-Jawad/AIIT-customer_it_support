@@ -37,3 +37,7 @@ Counts overlap. Both advisories checks reported no known vulnerabilities. The na
 ## Acceptance gates
 
 Independent GitHub approval, exact-head hosted checks, prerequisite dispositions and integration in order, and main-branch verification remain separate decisions. Days 1–7 remain open. Target staging and owner release approval also remain open. Day 8 starts from the verified Day 7 engineering source and prepares a controlled staging rehearsal.
+
+## Office-isolation follow-up
+
+The subsequent Day 8 branch applies the [office infrastructure isolation policy](../security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md) and reruns the Day 7 assignment and OIDC workflows against synthetic fixture accounts. F-01 remains fixed at the existing PR #10 head. S-01 still requires the documented owner compatibility decision. The isolation changes and fresh evidence are stacked in draft PR #11.

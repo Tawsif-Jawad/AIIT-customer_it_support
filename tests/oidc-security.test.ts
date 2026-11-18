@@ -325,16 +325,16 @@ test("OIDC production requires HTTPS, complete configuration and secure cookies"
   assert.equal(
     readEnterpriseSettings({
       ...settings,
-      OIDC_ISSUER_URL: "https://issuer.example.test/realm/",
-      APP_PUBLIC_URL: "https://app.example.test",
+      OIDC_ISSUER_URL: "https://127.0.0.1:8443/realm/",
+      APP_PUBLIC_URL: "https://127.0.0.1:3000",
     }).issuer,
-    "https://issuer.example.test/realm/",
+    "https://127.0.0.1:8443/realm/",
   );
   const adapter = new EnterpriseAuthAdapter(
     readEnterpriseSettings({
       ...settings,
-      OIDC_ISSUER_URL: "https://issuer.example.test/realm",
-      APP_PUBLIC_URL: "https://app.example.test",
+      OIDC_ISSUER_URL: "https://127.0.0.1:8443/realm",
+      APP_PUBLIC_URL: "https://127.0.0.1:3000",
     }),
   );
   assert.match(

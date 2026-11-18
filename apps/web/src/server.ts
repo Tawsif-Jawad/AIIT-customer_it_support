@@ -5,6 +5,7 @@
 
 import { randomBytes } from 'node:crypto';
 import http from 'node:http';
+import { isLoopbackDestination } from '../../../packages/shared/src/isolation.ts';
 import https from 'node:https';
 import fs from 'node:fs';
 import { authenticatedForwarders, configuredOrigin, proxyTokenHeader, validateProxyToken } from '../../../packages/shared/src/ingress.ts';
@@ -238,10 +239,10 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       </div>
       <div class="form-group">
         <label for="login-email-input">Corporate Email Address</label>
-        <input type="email" id="login-email-input" placeholder="e.g., tawsif.zawad@upstra.com" />
+        <input type="email" id="login-email-input" placeholder="e.g., employee@example.test" />
       </div>
       <a id="enterprise-login-btn" class="btn-primary" href="/api/auth/oidc/login" style="display:none">Sign in with enterprise identity ↗</a>
-      <button id="login-submit-btn" class="btn-primary" type="button">Sign in to development environment ↗</button>
+      <button id="login-submit-btn" class="btn-primary" type="button" disabled>Sign in to development environment ↗</button>
     </section>
 
     <!-- AUTHENTICATED WORKSPACE -->
@@ -452,7 +453,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       const development = config.mode === 'development';
       const enterpriseButton = document.getElementById('enterprise-login-btn');
       enterpriseButton.style.display = config.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
-      document.getElementById('login-submit-btn').style.display = development ? 'inline-block' : 'none';
+      const developmentButton = document.getElementById('login-submit-btn');
+      developmentButton.style.display = development ? 'inline-block' : 'none';
       document.getElementById('login-email-input').parentElement.style.display = development ? 'block' : 'none';
       document.getElementById('login-identity-select').parentElement.style.display = development ? 'block' : 'none';
       document.getElementById('auth-mode-notice').textContent = development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
@@ -461,8 +463,9 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       select.innerHTML = idData.identities.map(u =>
         '<option value="' + escapeHtml(u.email) + '">' + escapeHtml(u.displayName) + ' [' + escapeHtml(u.roleName) + ' | ' + escapeHtml(u.sbuCode) + ']</option>'
       ).join('');
-      if (idData.identities.length > 0) {
-        document.getElementById('login-email-input').value = idData.identities[0].email;
+      const emailInput = document.getElementById('login-email-input');
+      if (idData.identities.length > 0 && !emailInput.value.trim()) {
+        emailInput.value = idData.identities[0].email;
       }
       select.onchange = () => {
         document.getElementById('login-email-input').value = select.value;
@@ -478,6 +481,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         } catch {
           localStorage.removeItem('itsupport_token');
           authToken = '';
+        } finally {
+          developmentButton.disabled = !development;
         }
       }
       if (typeof resetPrivateViews === 'function') resetPrivateViews();
@@ -968,8 +973,8 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
     if (!origin?.startsWith('https://') || !upstream.enabled) throw new Error('PRODUCTION_REQUIRES_HTTPS_INGRESS');
   }
   if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Unsupported API proxy protocol');
-  if (apiProxyToken && target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) {
-    throw new Error('INGRESS_TOKEN_REQUIRES_HTTPS_OR_LOOPBACK');
+  if (!isLoopbackDestination(target) || target.pathname !== '/' || target.search || target.hash) {
+    throw new Error('WEB_API_DESTINATION_DENIED');
   }
 
   return http.createServer((req, res) => {
@@ -1016,10 +1021,11 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
       if (apiProxyToken) headers[proxyTokenHeader] = apiProxyToken;
       const proxyReq = (target.protocol === 'https:' ? https : http).request(
         {
-          hostname: target.hostname,
+          hostname: target.hostname === '[::1]' ? '::1' : target.hostname,
           port: target.port,
           path: url,
           method: req.method,
+          agent: false,
           headers,
         },
         (proxyRes) => {
