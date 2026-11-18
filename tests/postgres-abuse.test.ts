@@ -6,6 +6,7 @@ import { importJsonSnapshot } from '../scripts/json-import.ts';
 import { disposablePostgres, postgresBinaries, runtimeFixture } from './support/disposable-postgres.ts';
 import { startApiProcess } from './support/api-process.ts';
 import { startTestIssuer } from './support/oidc-issuer.ts';
+import { budgetBucket, loginNetwork } from '../apps/api/src/abuse-control.ts';
 import { cookieFrom } from './support/oidc-application.ts';
 
 const skip = process.env.DB_REQUIRED !== 'true' && !postgresBinaries() ? 'Disposable PostgreSQL binaries unavailable' : false;
@@ -22,7 +23,7 @@ test('shared PostgreSQL budgets and one-time OIDC state across independent API p
     AUTH_MODE: 'oidc', OIDC_CLIENT_SECRET: '', OIDC_ALLOW_INSECURE_LOOPBACK: 'true',
     OIDC_ISSUER_URL: issuer.issuer, OIDC_CLIENT_ID: 'aiit-fixture', APP_PUBLIC_URL: publicUrl,
     API_TRUSTED_PROXY_IPS: '127.0.0.1', API_PROXY_TOKEN: proxyToken, API_PUBLIC_ORIGIN: publicUrl, API_RATE_LIMIT: '16',
-    OIDC_LOGIN_RATE_LIMIT: '2', OIDC_GLOBAL_LOGIN_RATE_LIMIT: '5', OIDC_CALLBACK_RATE_LIMIT: '4',
+    OIDC_LOGIN_RATE_LIMIT: '2', OIDC_GLOBAL_LOGIN_RATE_LIMIT: '24', OIDC_CALLBACK_RATE_LIMIT: '4',
   };
   const client = await connectPostgres(env);
   const processes: Awaited<ReturnType<typeof startApiProcess>>[] = [];
@@ -61,9 +62,24 @@ test('shared PostgreSQL budgets and one-time OIDC state across independent API p
 
   const attempts = await Promise.all([request(0, login, '192.0.2.10'), request(1, login, '192.0.2.10')]);
   assert.deepEqual(attempts.map(response => response.status).sort(), [302, 429]);
-  for (const ip of ['192.0.2.11', '192.0.2.12', '192.0.2.13']) assert.equal((await request(1, login, ip)).status, 302);
-  assert.equal((await request(0, login, '192.0.2.14')).status, 429);
-  assert.equal(await client.oidcLoginFlow.count(), 4);
+  assert.equal((await request(1, login, '192.0.2.11')).status, 302);
+  for (const ip of ['192.0.2.12', '192.0.2.13', '192.0.2.14']) {
+    assert.equal((await request(0, login, ip)).status, 429);
+  }
+  const { secret } = await client.abuseKey.findUniqueOrThrow({ where: { id: 'ingress' } });
+  const group = (ip: string) => parseInt(budgetBucket(secret, loginNetwork(ip)), 16) % 8;
+  const unaffected = Array.from({ length: 254 }, (_, i) => `2001:db8:${(i + 1).toString(16)}::10`)
+    .find(ip => group(ip) !== group('192.0.2.10'))!;
+  const duringAttack = await Promise.all([
+    request(0, login, '192.0.2.20'),
+    request(1, login, unaffected),
+  ]);
+  assert.deepEqual(duringAttack.map(response => response.status), [429, 302]);
+  const auth = await fetch(duringAttack[1].headers.get('location')!, { redirect: 'manual' });
+  const otherCallback = new URL(auth.headers.get('location')!);
+  assert.equal((await request(0, otherCallback.pathname + otherCallback.search, unaffected,
+    cookieFrom(duringAttack[1], 'aiit_oidc_flow'))).status, 303);
+  assert.equal(await client.oidcLoginFlow.count(), 2);
 
   for (let i = 0; i < 5; i++) {
     const invalid = await request(i, '/api/auth/oidc/callback?code=invalid', '203.0.113.88');
@@ -71,7 +87,7 @@ test('shared PostgreSQL budgets and one-time OIDC state across independent API p
     assert.equal(cookieFrom(invalid, 'itsupport_session'), '');
   }
   const keys = await client.abuseBucket.findMany({ select: { key: true } });
-  assert.ok(keys.every(({ key }) => /^(api|login|callback):[0-9a-f]{5}$|^login:global$/.test(key)));
+  assert.ok(keys.every(({ key }) => /^(api|login|callback):[0-9a-f]{5}$|^login:group:[0-7]$/.test(key)));
   await client.abuseBucket.updateMany({ data: { expiresAt: new Date(0) } });
   await client.oidcLoginFlow.updateMany({ data: { expiresAt: new Date(0) } });
   assert.equal((await request(1, login, '192.0.2.14')).status, 302);

@@ -1140,7 +1140,8 @@ export function createServer<Store extends RequestStore>(
 
   // Attach body listeners before waiting for the local serial queue.
   const requestIds = new WeakMap<http.IncomingMessage, string>();
-  let providerOperations = 0;
+  let loginOperations = 0;
+  let callbackOperations = 0;
   let exclusiveProbe = false;
   let tail: Promise<void> = Promise.resolve();
   const handleAdmittedRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -1185,12 +1186,13 @@ export function createServer<Store extends RequestStore>(
     const exchangeOidc = method === 'GET' && pathname === '/api/auth/oidc/callback' && (!req.headers.origin || req.headers.origin === enterpriseAuth?.publicUrl)
       ? enterpriseAuth : undefined;
     if (beginOidc || exchangeOidc) {
-      if (providerOperations >= 4) {
+      if ((beginOidc ? loginOperations : callbackOperations) >= 4) {
         res.setHeader('Retry-After', '2');
         sendError(res, 429, 'OIDC_BUSY', 'Sign-in is busy. Please retry shortly.');
         return;
       }
-      providerOperations++;
+      if (beginOidc) loginOperations++;
+      else callbackOperations++;
       try {
         if (beginOidc) {
           await runRequest(req, res, clientIp);
@@ -1201,7 +1203,10 @@ export function createServer<Store extends RequestStore>(
             cookieValue(req.headers.cookie, 'aiit_oidc_flow'));
         }
       } catch { /* The callback emits a generic failure without provider data. */ }
-      finally { providerOperations--; }
+      finally {
+        if (beginOidc) loginOperations--;
+        else callbackOperations--;
+      }
     }
     bodies.set(req, body);
     let done: (() => void) | undefined;
