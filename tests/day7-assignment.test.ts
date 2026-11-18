@@ -92,6 +92,15 @@ test('Day 7 JSON assignment: role, active assignee, audit, intent and stale-writ
     const file = path.join(directory, 'database.json');
     fs.writeFileSync(file, JSON.stringify(state));
     const app = createApiServer(file);
+    const adminToken = await signIn(app, 'it@example.test');
+    const preserved = structuredClone(app.store.getState());
+    const enqueue = app.queueProcessor.enqueueNotification.bind(app.queueProcessor);
+    app.queueProcessor.enqueueNotification = async () => { throw new Error('synthetic outbox failure'); };
+    const failed = await app.inject({ method: 'POST', url, token: adminToken,
+      body: { assigneeId: second, expectedAssigneeId: original, reason: 'Synthetic atomicity failure' } });
+    assert.equal(failed.status, 500);
+    assert.deepEqual(app.store.getState(), preserved, 'JSON notification failure rolls back all writes');
+    app.queueProcessor.enqueueNotification = enqueue;
     await verifyAssignment(app, async () => {
       const state = app.store.getState();
       return { ticket: state.tickets.find(row => row.id === ticketId)!,
@@ -117,6 +126,25 @@ test('Day 7 PostgreSQL assignment has durable state, audit and outbox parity',
       id: second, email: 'day7-second-it@example.test', displayName: 'Day 7 Second IT', oidcSubject: '' });
     await importJsonSnapshot(client, fixture);
     const app = await createPostgresApiServer(client);
+    const adminToken = await signIn(app, 'it@example.test');
+    const before = await Promise.all([
+      client.ticket.findUniqueOrThrow({ where: { id: ticketId } }),
+      client.ticketEvent.count({ where: { ticketId } }),
+      client.auditLog.count({ where: { resourceId: ticketId } }),
+      client.notificationJob.count({ where: { notification: { ticketId } } }),
+    ]);
+    const enqueue = app.queueProcessor.enqueueNotification.bind(app.queueProcessor);
+    app.queueProcessor.enqueueNotification = async () => { throw new Error('synthetic outbox failure'); };
+    const failed = await app.inject({ method: 'POST', url, token: adminToken,
+      body: { assigneeId: second, expectedAssigneeId: original, reason: 'Synthetic atomicity failure' } });
+    assert.equal(failed.status, 500);
+    assert.deepEqual(await Promise.all([
+      client.ticket.findUniqueOrThrow({ where: { id: ticketId } }),
+      client.ticketEvent.count({ where: { ticketId } }),
+      client.auditLog.count({ where: { resourceId: ticketId } }),
+      client.notificationJob.count({ where: { notification: { ticketId } } }),
+    ]), before, 'PostgreSQL outbox failure rolls back ownership, event, audit and job');
+    app.queueProcessor.enqueueNotification = enqueue;
     await verifyAssignment(app, async () => ({
       ticket: await client.ticket.findUniqueOrThrow({ where: { id: ticketId } }),
       events: (await client.ticketEvent.findMany({ where: { ticketId } })).map(e => ({
