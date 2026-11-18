@@ -1,0 +1,2 @@
+> it-support-system@1.0.0 lint <checkout>
+> eslint apps packages scripts tests playwright.config.ts

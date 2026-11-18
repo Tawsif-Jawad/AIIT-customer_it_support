@@ -1,3 +1,7 @@
+# Day 1–6 acceptance record
+
+See the [current gate reverification](17_GATE_REVERIFICATION.md) for the Picomatch resolution, restored Actions execution and independent reviewer package. This file preserves the historical exit report for the original remediation submission.
+
 # Final acceptance
 
 | Gate | Verdict and evidence |

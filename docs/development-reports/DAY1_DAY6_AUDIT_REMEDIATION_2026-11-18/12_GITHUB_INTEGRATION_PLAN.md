@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # GitHub integration plan
 
 Live GitHub API confirmed the seven prerequisites are open. The order is #2 → #3 → #4 → #5 → #6 → #7 → #8 → remediation.

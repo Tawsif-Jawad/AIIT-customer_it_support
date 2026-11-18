@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # Independent replay for Claude or Antigravity
 
 1. Check the requested baseline SHA and clone the draft head into an isolated checkout with no operational dotenv. Verify timestamped reports, migration order, both source SHAs and working tree cleanliness. Use Node 26.8.1, pnpm 9.15.0, OpenSSL and disposable PostgreSQL binaries. The original Claude report was unavailable to this run. Compare its complete findings when available.

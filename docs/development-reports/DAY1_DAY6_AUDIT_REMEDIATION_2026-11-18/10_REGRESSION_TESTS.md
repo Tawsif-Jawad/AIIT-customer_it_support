@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # Regression verification
 
 Every pnpm command below used `npm exec --yes --package=pnpm@9.15.0 -- pnpm`. The pinned verifier sets `NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock DB_REQUIRED=true` with a non-operational database URL. Fixtures create and destroy local clusters and mock issuer/worker integrations.

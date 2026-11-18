@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # Release blockers and feature status
 
 | Capability | Development status | Production gate |

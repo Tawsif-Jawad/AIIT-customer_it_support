@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # PostgreSQL performance comparison
 
 Day 6 SHA `f0fd3a1fb682e7eec17b0345280a19207678f02a` and remediation code SHA `28d3bb2fb2544bec84d295d448f34ff20426ec76` used the same benchmark harness, Node 26.8.1, PostgreSQL 18.6, a disposable cluster, and a mock worker during the read phase. One- and two-process runs use eight concurrent clients and 120 observations per route and size. Dataset sizes were 1,000, 10,000 and 50,000 seeded tickets. The legacy unpaginated approval feed was sampled up to 10,000 tickets after an exploratory 50,000-ticket run was stopped for duration. All four comparable runs exited 0. These are single local trials.

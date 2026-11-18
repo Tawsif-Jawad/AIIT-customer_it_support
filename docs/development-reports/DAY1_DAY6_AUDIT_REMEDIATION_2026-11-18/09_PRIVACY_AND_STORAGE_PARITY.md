@@ -1,3 +1,5 @@
+> Follow-up evidence and current gate state are in [gate reverification](17_GATE_REVERIFICATION.md). This report records the original remediation submission.
+
 # Privacy and storage parity
 
 Previously JSON stored and searched raw new descriptions while PostgreSQL persisted the existing secret-redacted description. The existing baseline fixture found a synthetic password in JSON search. Redaction now lives in the common ticket plan before persistence and response serialization, so both backends omit the synthetic secret from newly created records and search. Mock AI already runs its own redaction, audit detail passes the existing structured redactor, and queued workflow notifications use its existing redactor. No historical backfill took place. Searches over previously stored descriptions continue to query their stored representation. The database and HTTP parity suites cover new writes.

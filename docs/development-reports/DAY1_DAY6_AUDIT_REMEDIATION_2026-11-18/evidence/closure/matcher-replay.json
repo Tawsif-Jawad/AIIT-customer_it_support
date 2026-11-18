@@ -1,0 +1,14 @@
+[
+  {
+    "folder": "picomatch-4.0.7",
+    "exitCode": null,
+    "signal": "SIGTERM",
+    "error": "ETIMEDOUT"
+  },
+  {
+    "folder": "ryotsu-picomatch-4.0.7-a",
+    "exitCode": 0,
+    "signal": null,
+    "error": null
+  }
+]
