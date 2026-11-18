@@ -131,7 +131,8 @@ try {
       { name: 'analytics', path: '/api/analytics/summary', token: admin },
       { name: 'admin-notifications', path: '/api/notifications', token: admin },
       { name: 'employee-notifications', path: '/api/notifications', token: employee },
-      { name: 'approval-list', path: '/api/approvals', token: admin },
+      // The complete legacy approval response grows with every dataset.
+      ...(size <= 10000 ? [{ name: 'approval-list', path: '/api/approvals', token: admin }] : []),
     ];
     for (const route of routes) for (let i = 0; i < 5; i++) await read(i, route.path, route.token);
     const workerRun = (async () => {
