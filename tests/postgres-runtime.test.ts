@@ -294,6 +294,19 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     assert.equal((await client.ticket.findUniqueOrThrow({ where: { id } })).status, 'ASSIGNED_TO_IT');
   });
 
+  await t.test('two same-process ticket creates commit without a numbering retry', async () => {
+    const results = await Promise.all([1, 2].map(index => app.inject({
+      method: 'POST', url: '/api/tickets', token: employee, body: { ...input, title: input.title + index },
+    })));
+    assert.deepEqual(results.map(r => r.status), [201, 201]);
+    const tickets = results.map(r => r.data.ticket);
+    assert.notEqual(tickets[0].ticketNumber, tickets[1].ticketNumber);
+    for (const { id } of tickets) {
+      assert.equal(await client.auditLog.count({ where: { resourceId: id, action: 'TICKET_CREATED' } }), 1);
+      assert.equal(await client.notificationJob.count({ where: { notification: { ticketId: id } } }), 1);
+    }
+  });
+
   await t.test('two API instances allocate unique numbers with retryable conflicts and bounded pagination', async () => {
     const independentClient = await connectPostgres(env);
     const independentApp = await createPostgresApiServer(independentClient);

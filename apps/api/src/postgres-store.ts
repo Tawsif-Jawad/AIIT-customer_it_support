@@ -159,6 +159,7 @@ class RollbackResponse extends Error {}
  * serializable transaction as the route, including its audit and outbox intent. */
 export class PostgresRequestStore implements RequestStore {
   private readonly context = new AsyncLocalStorage<{ tx: Tx; state: DatabaseState }>();
+  private ticketCreationTail: Promise<void> = Promise.resolve();
 
   private readonly client: PrismaClient;
 
@@ -271,6 +272,14 @@ export class PostgresRequestStore implements RequestStore {
   }
 
   async transaction(operation: () => Promise<boolean>, scope: RequestScope = { pathname: '/', method: 'GET' }) {
+    // Ticket numbering uses one shared counter. Wait before taking a database
+    // snapshot so same-process creates do not take stale snapshots of that row.
+    let release: (() => void) | undefined;
+    if (scope.method === 'POST' && scope.pathname === '/api/tickets') {
+      const previous = this.ticketCreationTail;
+      this.ticketCreationTail = new Promise<void>(resolve => { release = resolve; });
+      await previous;
+    }
     try {
       await this.client.$transaction(async tx => {
         const before = await readState(tx, scope);
@@ -289,6 +298,8 @@ export class PostgresRequestStore implements RequestStore {
         }
       }
       throw new Error('POSTGRES_TRANSACTION_FAILED');
+    } finally {
+      release?.();
     }
   }
 }
