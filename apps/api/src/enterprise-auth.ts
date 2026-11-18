@@ -179,13 +179,13 @@ export class EnterpriseAuthAdapter {
     if (!isLoopbackDestination(issuer) || !isLoopbackDestination(new URL(this.settings.publicUrl))) {
       throw new Error("OIDC_DESTINATION_DENIED");
     }
-    if (process.env.NODE_USE_ENV_PROXY === "1" || process.execArgv.includes("--use-env-proxy") ||
-        /--use-env-proxy/.test(process.env.NODE_OPTIONS ?? "")) {
+    if (process.env.NODE_USE_ENV_PROXY === "1" || process.execArgv.some(value => /^--use[-_]env[-_]proxy$/.test(value)) ||
+        /(?:^|\s)--use[-_]env[-_]proxy(?:\s|$)/.test(process.env.NODE_OPTIONS ?? "")) {
       throw new Error("OIDC_ENV_PROXY_DENIED");
     }
     const guardedFetch: oidc.CustomFetch = async (url, options) => {
       const target = new URL(url);
-      if (target.origin !== issuer.origin || target.username || target.password)
+      if (target.origin !== issuer.origin || target.protocol !== issuer.protocol || !isLoopbackDestination(target))
         throw new Error("OIDC_ENDPOINT_ORIGIN_DENIED");
       return fetch(url, { ...options, redirect: "error" });
     };
@@ -213,7 +213,7 @@ export class EnterpriseAuthAdapter {
     ]) {
       if (!endpoint) throw new Error("OIDC_REQUIRED_METADATA_MISSING");
       const target = new URL(endpoint);
-      if (target.origin !== issuer.origin || target.username || target.password)
+      if (target.origin !== issuer.origin || target.protocol !== issuer.protocol || !isLoopbackDestination(target))
         throw new Error("OIDC_ENDPOINT_ORIGIN_DENIED");
     }
     if (

@@ -12,7 +12,8 @@ import {fileURLToPath} from 'node:url';
 
 export const VERIFICATION_COMMANDS:readonly (readonly string[])[]=[
  ['install','--frozen-lockfile','--ignore-scripts'],['db:generate'],['typecheck'],['lint'],['build'],
- ['test'],['test:security'],['test:db'],['test:e2e'],['audit','--audit-level=moderate'],
+ ['test'],['test:security'],['test:db'],['test:e2e'],['test:e2e:postgres'],['test:staging'],
+ ['audit','--audit-level=moderate'],['audit','--prod','--audit-level=moderate'],
 ];
 export function parseTestCounts(output:string):Record<string,number> {
  const counts:Record<string,number>={};
@@ -36,7 +37,7 @@ export async function runVerification(outputDirectory?:string):Promise<{exitCode
  if(pnpmVersion!=='pnpm@9.15.0')throw new Error('Verification requires reviewed pnpm@9.15.0');
  const expectedNode=fs.readFileSync(path.join(root,'.node-version'),'utf8').trim();
  if(process.versions.node!==expectedNode)throw new Error(`Use Node ${expectedNode}; found ${process.versions.node}`);
- const allowed=['PATH','HOME','TMPDIR','TMP','TEMP','LANG','LC_ALL','PG_BINDIR','PLAYWRIGHT_BROWSERS_PATH'];
+ const allowed=['PATH','HOME','TMPDIR','TMP','TEMP','LANG','LC_ALL','PG_BINDIR','PLAYWRIGHT_BROWSERS_PATH','AIIT_E2E_PORT'];
  const env={
   ...Object.fromEntries(allowed.map(key=>[key,process.env[key]])),
   NODE_ENV:'test',AUTH_MODE:'dev_oidc',MAIL_PROVIDER:'mock',DB_REQUIRED:'true',

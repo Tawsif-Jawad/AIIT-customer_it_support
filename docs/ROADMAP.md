@@ -52,3 +52,7 @@ Production directory/mail writes require explicit approval and verified infrastr
 ## UI redesign update
 
 Public landing, original interactive dot footer, responsive role-aware shell, API-backed assistant requests, catalog, notifications, comments, filters and pagination are implemented. See `UI_REDESIGN.md` for evidence and limits. Remaining production foundations above are unchanged.
+
+## Day 9 release-gate update
+
+For the 10 December 2026 planning target, sequence independent review and the prerequisite stack, Day 10 decisions on capacity and notification recovery, an authorized noncorporate staging rehearsal, then integrated-main verification and stakeholder acceptance. Office infrastructure remains off-limits under the [isolation policy](security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md). See the [Day 9 readiness register](development-reports/DAY9_RELIABILITY_PERFORMANCE_2026-11-19.md).

@@ -307,5 +307,50 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   assert.equal(await worker.runOnce(), false);
   assert.equal(smtp.rejectedCount(), 3);
   assert.equal(smtp.received.length, 1);
-  t.diagnostic('Verified hostname, CA, encryption, authentication-required failure, recovery and bounded SMTP retries.');
+  await client.notification.create({ data: {
+    recipientId: employee.id, recipientEmail: employee.email, subject: 'Synthetic acceptance boundary',
+    body: 'Synthetic acceptance boundary', job: { create: { id: 'day9-smtp-after-acceptance' } },
+  } });
+  const crashing = spawn(process.execPath, ['--input-type=module', '-e', `
+    import { connectPostgres } from './apps/api/src/postgres-runtime.ts';
+    import { NotificationWorker } from './apps/worker/src/notification-worker.ts';
+    import { createRehearsalSmtp } from './apps/worker/src/rehearsal-smtp.ts';
+    const client = await connectPostgres();
+    const smtp = createRehearsalSmtp();
+    await new NotificationWorker(client, {
+      async sendEmail(message) {
+        const result = await smtp.sendEmail(message);
+        if (!result.delivered) throw new Error('Fixture SMTP failed');
+        console.log('SINK_ACCEPTED');
+        await new Promise(() => setInterval(() => {}, 1000));
+        return result;
+      },
+    }).runOnce();
+  `], { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let crashOutput = '';
+  crashing.stdout.on('data', (chunk: Buffer) => { crashOutput += chunk.toString(); });
+  crashing.stderr.resume();
+  const exited = once(crashing, 'exit');
+  try {
+    for (let i = 0; i < 200 && !crashOutput.includes('SINK_ACCEPTED') && crashing.exitCode === null; i++) await delay(25);
+    assert.match(crashOutput, /SINK_ACCEPTED/);
+  } finally {
+    crashing.kill('SIGKILL');
+    await exited;
+  }
+  const uncertain = await client.notificationJob.findUniqueOrThrow({ where: { id: 'day9-smtp-after-acceptance' } });
+  assert.equal(uncertain.state, 'PROCESSING');
+  assert.equal(uncertain.attempts, 1);
+  assert.equal(smtp.received.length, 2);
+  await client.notificationJob.update({ where: { id: uncertain.id }, data: { leaseUntil: new Date(0) } });
+  assert.equal(await worker.runOnce(), true);
+  const recovered = await client.notificationJob.findUniqueOrThrow({ where: { id: uncertain.id } });
+  assert.equal(recovered.state, 'SENT');
+  assert.equal(recovered.attempts, 2);
+  assert.equal(smtp.received.length, 3);
+  for (const message of smtp.received.slice(1)) {
+    assert.match(message.data, /Message-ID: <day9-smtp-after-acceptance@example[.]test>/);
+  }
+  t.diagnostic('SMTP crash boundary reproduced: one durable job, two sink acceptances, stable Message-ID.');
+    t.diagnostic('Verified hostname, CA, encryption, authentication-required failure, recovery and bounded SMTP retries.');
 });

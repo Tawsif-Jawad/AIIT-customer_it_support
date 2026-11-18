@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { PrismaClient } from '@prisma/client';
 import { connectPostgres } from '../apps/api/src/postgres-runtime.ts';
 import { DevelopmentEmailTransport } from '../packages/connectors/src/index.ts';
@@ -13,7 +14,11 @@ import { importJsonSnapshot } from './json-import.ts';
 const samples = 120;
 const apiProcesses = Number(process.env.AIIT_BENCH_API_PROCESSES ?? 2);
 if (![1, 2].includes(apiProcesses)) throw new Error('Use one or two API processes');
-const datasets = [1000, 10000, 50000];
+const datasets = (process.env.AIIT_BENCH_DATASETS ?? '1000,10000,50000').split(',').map(Number);
+if (datasets.length < 2 || datasets.length > 3 || datasets.some((size, index) =>
+  !Number.isInteger(size) || size < 1000 || size > 50000 || (index > 0 && size <= datasets[index - 1]))) {
+  throw new Error('Provide two or three increasing fixture sizes between 1000 and 50000');
+}
 const source = runtimeFixture();
 
 function summarize(values: number[]) {
@@ -95,6 +100,12 @@ try {
   const db = client = await connectPostgres(env);
   await importJsonSnapshot(db, source);
   const role = source.users[0].roleId;
+  const secondAdmin = 'benchmark-it-second';
+  const adminFixture = source.users[3];
+  await db.user.create({ data: {
+    id: secondAdmin, email: 'benchmark-it-second@example.test', displayName: 'Synthetic Benchmark IT',
+    roleId: adminFixture.roleId, sbuId: adminFixture.sbuId,
+  } });
   await db.$executeRaw`
     INSERT INTO "User" (id, email, "displayName", "sbuId", "roleId")
     SELECT 'day6-user-' || n, 'rehearsal-' || n || '@example.test', 'Synthetic employee ' || n,
@@ -126,6 +137,8 @@ try {
       mode: 'mock', smtpHost: 'localhost', smtpPort: 1025, fromAddress: 'fixture@example.test', retainMockMessages: false,
     }));
     const routes = [
+      { name: 'ticket-detail-history', path: '/api/tickets/day6-ticket-' + size, token: admin },
+      { name: 'audit-feed', path: '/api/audit-logs', token: admin },
       { name: 'latest-page', path: '/api/tickets?pageSize=25', token: admin },
       { name: 'owned-category-search', path: '/api/tickets?pageSize=25&category=' + source.serviceCategories[0].slug + '&search=outlook', token: employee },
       { name: 'analytics', path: '/api/analytics/summary', token: admin },
@@ -152,8 +165,10 @@ try {
     const workerMetrics = await workerRun;
     const createStart = performance.now();
     let conflicts = 0;
+    const createLatencies: number[] = [];
     const created = await Promise.all(Array.from({ length: 20 }, async (_, i) => {
       for (let attempt = 0; attempt < 20; attempt++) {
+        const began = performance.now();
         const response = await fetch(apps[i % apiProcesses].url + '/api/tickets', {
           method: 'POST', headers: { authorization: 'Bearer ' + employee, 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -162,14 +177,55 @@ try {
             serviceCategoryId: 'cat-outlook-config', customFormPayload: { osPlatform: 'macOS' },
           }),
         });
-        if (response.status === 409) { conflicts++; await response.text(); continue; }
+        const result = await response.json();
+        createLatencies.push(performance.now() - began);
+        if (response.status === 409) { conflicts++; continue; }
         assert.equal(response.status, 201);
-        return (await response.json()).ticket.ticketNumber as string;
+        return result.ticket.ticketNumber as string;
       }
       throw new Error('Concurrent creation exceeded its retry budget');
     }));
     assert.equal(new Set(created).size, 20);
     const createMs = performance.now() - createStart;
+    const assignments: number[] = [];
+    let assignmentConflicts = 0;
+    let doubleConflictRounds = 0;
+    const assignmentStarted = performance.now();
+    for (let i = 0; i < 16; i += 4) {
+      await Promise.all(Array.from({ length: 4 }, async (_, slot) => {
+        const ticket = '/api/tickets/day6-ticket-' + (size - (i + slot) * 5);
+        const headers = { authorization: 'Bearer ' + admin, 'content-type': 'application/json' };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const get = await fetch(apps[slot % apiProcesses].url + ticket, { headers });
+          assert.equal(get.status, 200);
+          const detail = await get.json();
+          assert.notEqual(detail.ticket.assigneeId, secondAdmin, 'a retry must never overwrite a committed assignment');
+          const body = JSON.stringify({ assigneeId: secondAdmin, expectedAssigneeId: detail.ticket.assigneeId,
+            expectedRevision: detail.assignment.revision, reason: 'Synthetic benchmark assignment' });
+          const codes = await Promise.all([0, 1].map(async index => {
+            const begin = performance.now();
+            const response = await fetch(apps[index % apiProcesses].url + ticket + '/assign', { headers, body, method: 'POST' });
+            await response.text();
+            assignments.push(performance.now() - begin);
+            return response.status;
+          }));
+          codes.sort();
+          assignmentConflicts += codes.filter(code => code === 409).length;
+          if (codes[0] === 200) {
+            assert.deepEqual(codes, [200, 409]);
+            return;
+          }
+          assert.deepEqual(codes, [409, 409]);
+          doubleConflictRounds++;
+          await delay(10 * (slot + 1) * (attempt + 1));
+        }
+        throw new Error('Assignment race exceeded its bounded refresh budget');
+      }));
+    }
+    const assignmentMs = performance.now() - assignmentStarted;
+    const history = planSummary(await db.$queryRaw<Explain>`
+      EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+      SELECT * FROM "TicketEvent" WHERE "ticketId" = ${'day6-ticket-' + size} ORDER BY "createdAt", id`);
     const latest = planSummary(await db.$queryRaw<Explain>`
       EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
       SELECT t.* FROM "Ticket" t ORDER BY t."createdAt" DESC, t.id DESC LIMIT 25`);
@@ -200,10 +256,13 @@ try {
       seededTickets: size, totalTickets: await db.ticket.count(), users: await db.user.count(),
       events: await db.ticketEvent.count(), approvals: await db.approval.count(),
       audits: await db.auditLog.count(), jobs: await db.notificationJob.count(),
-      latenciesMs: latencies, creates: { count: created.length, conflicts, durationMs: createMs },
+      latenciesMs: latencies, creates: { count: created.length, conflicts, unexpectedErrors: 0, durationMs: createMs,
+        attempts: summarize(createLatencies), commitsPerSecond: created.length * 1000 / createMs, concurrency: 20 },
+      assignmentRaces: { commits: 16, conflicts: assignmentConflicts, doubleConflictRounds, unexpectedErrors: 0, concurrency: 8,
+        attempts: summarize(assignments), attemptsPerSecond: assignments.length * 1000 / assignmentMs },
       worker: { ...workerMetrics, jobsPerSecond: workerMetrics.jobs * 1000 / workerMetrics.durationMs },
       dbConnectionsAfterTraffic: connections.total, apiProcessRssKiBAndCpuTime: processes,
-      plans: { latest, legacyProjection, analytics, scopedSearch, pendingApprovals, suffixScan, counter },
+      plans: { latest, legacyProjection, analytics, scopedSearch, pendingApprovals, suffixScan, counter, history },
     };
     runs.push(data);
     console.error('Completed synthetic rehearsal at ' + size + ' seeded tickets');

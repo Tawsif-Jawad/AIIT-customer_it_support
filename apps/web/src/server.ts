@@ -448,16 +448,17 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
     }
 
     async function initAuth() {
-      void loadHealth();
-      const config = await apiFetch('/api/auth/config').catch(() => ({mode:'unconfigured',ready:false}));
-      const development = config.mode === 'development';
-      const enterpriseButton = document.getElementById('enterprise-login-btn');
-      enterpriseButton.style.display = config.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
       const developmentButton = document.getElementById('login-submit-btn');
+      developmentButton.disabled = true;
+      void loadHealth();
+      const config = await apiFetch('/api/auth/config').catch(() => null);
+      const development = config?.mode === 'development';
+      const enterpriseButton = document.getElementById('enterprise-login-btn');
+      enterpriseButton.style.display = config?.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
       developmentButton.style.display = development ? 'inline-block' : 'none';
       document.getElementById('login-email-input').parentElement.style.display = development ? 'block' : 'none';
       document.getElementById('login-identity-select').parentElement.style.display = development ? 'block' : 'none';
-      document.getElementById('auth-mode-notice').textContent = development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
+      document.getElementById('auth-mode-notice').textContent = !config ? 'Sign-in is temporarily unavailable. Retry after the API reconnects.' : development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
       const idData = development ? await apiFetch('/api/auth/identities').catch(error => { showFeedback(error.message, 'error'); return { identities: [] }; }) : {identities:[]};
       const select = document.getElementById('login-identity-select');
       select.innerHTML = idData.identities.map(u =>
@@ -492,7 +493,14 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       document.getElementById('user-header-controls').innerHTML = '';
     }
 
-    document.getElementById('retry-health').onclick = loadHealth;
+    document.getElementById('retry-health').onclick = async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        if (currentUser) await loadHealth();
+        else await initAuth();
+      } finally { button.disabled = false; }
+    };
     document.getElementById('login-submit-btn').onclick = async () => {
       const button = document.getElementById('login-submit-btn');
       button.disabled = true;

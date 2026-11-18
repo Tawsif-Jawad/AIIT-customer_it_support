@@ -67,7 +67,7 @@ test('local verifier reports child startup failures and never overwrites existin
   const result=await runVerification(evidence);
   assert.equal(result.exitCode,1);
   const summary=JSON.parse(fs.readFileSync(path.join(evidence,'summary.json'),'utf8'));
-  assert.equal(summary.results.length,10);
+  assert.equal(summary.results.length,13);
   assert.ok(summary.results.every((row:{exitCode:number})=>row.exitCode!==0));
   assert.equal(summary.hostedCiPassed,false);assert.equal(summary.preservation.operationalUnchanged,true);
   const original=fs.readFileSync(path.join(evidence,'summary.json'),'utf8');

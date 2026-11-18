@@ -24,7 +24,13 @@ export class PostgresOutbox implements NotificationOutbox {
       // Expired final attempts are retained as FAILED, never reclaimed forever.
       const exhausted = await tx.$queryRaw<
         { notificationId: string }[]
-      >`UPDATE "NotificationJob" SET state='FAILED', "leaseToken"=NULL, "leaseUntil"=NULL, "lastError"='LEASE_EXHAUSTED' WHERE state='PROCESSING' AND "leaseUntil"<=clock_timestamp() AND attempts>="maxAttempts" RETURNING "notificationId"`;
+      >`WITH expired AS (
+        SELECT id FROM "NotificationJob"
+        WHERE state='PROCESSING' AND "leaseUntil"<=statement_timestamp() AND attempts>="maxAttempts"
+        ORDER BY "leaseUntil", id LIMIT 32 FOR UPDATE SKIP LOCKED
+      ) UPDATE "NotificationJob" j
+      SET state='FAILED', "leaseToken"=NULL, "leaseUntil"=NULL, "lastError"='LEASE_EXHAUSTED'
+      FROM expired e WHERE j.id=e.id RETURNING j."notificationId"`;
       if (exhausted.length)
         await tx.notification.updateMany({
           where: { id: { in: exhausted.map((job) => job.notificationId) } },
@@ -32,7 +38,7 @@ export class PostgresOutbox implements NotificationOutbox {
         });
       const jobs = await tx.$queryRaw<NotificationJob[]>`WITH candidate AS (
         SELECT id FROM "NotificationJob" WHERE attempts<"maxAttempts" AND
-        ((state='QUEUED' AND "availableAt"<=clock_timestamp()) OR (state='PROCESSING' AND "leaseUntil"<=clock_timestamp()))
+        ((state='QUEUED' AND "availableAt"<=statement_timestamp()) OR (state='PROCESSING' AND "leaseUntil"<=statement_timestamp()))
         ORDER BY "availableAt", id FOR UPDATE SKIP LOCKED LIMIT 1
       ) UPDATE "NotificationJob" j SET state='PROCESSING', attempts=attempts+1,
       "leaseToken"=${token}, "leaseUntil"=clock_timestamp()+${leaseMilliseconds}*interval '1 millisecond'
