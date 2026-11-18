@@ -547,9 +547,11 @@ export function createServer<Store extends RequestStore>(
       }
 
       if (method === 'GET' && pathname === '/api/kb') {
-        const state = store.getState();
+        const knowledge = store.approvedKnowledgeItems
+          ? await store.approvedKnowledgeItems()
+          : store.getState().knowledgeArticles;
         const q = (parsedUrl.searchParams.get('q') || '').trim().toLowerCase();
-        const articles = state.knowledgeArticles.filter((a) => {
+        const articles = knowledge.filter((a) => {
           if (!a.isApproved) return false;
           if (!q) return true;
           return (

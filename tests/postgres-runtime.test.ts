@@ -59,7 +59,9 @@ async function workflow(app: API) {
   assert.equal(profile.user.roleName, 'EMPLOYEE');
   await check('unauthenticated', 'GET', '/api/tickets', 401);
   await check('catalog', 'GET', '/api/catalog', 200, employee);
-  await check('KB search', 'GET', '/api/kb?search=Outlook', 200, employee);
+  await check('KB requires authentication', 'GET', '/api/kb?q=Outlook', 401);
+  const knowledge = await check('KB search', 'GET', '/api/kb?q=Outlook', 200, employee);
+  assert.deepEqual(knowledge.items.map((item: { id: string }) => item.id), ['kb-001']);
   await check('invalid category fields', 'POST', '/api/tickets', 400, employee, { ...input, customFormPayload: {} });
   const { ticket, aiDecision } = await check('ticket creation', 'POST', '/api/tickets', 201, employee, input);
   assert.equal(ticket.status, 'RESOLVED_PENDING_CONFIRMATION');

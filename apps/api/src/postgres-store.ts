@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { isDeepStrictEqual } from 'node:util';
-import { ticketAccessScope, type User } from '../../../packages/shared/src/index.ts';
+import { ticketAccessScope, type KnowledgeArticle, type User } from '../../../packages/shared/src/index.ts';
 import type { DatabaseState, RequestScope, RequestStore, TicketPageFilters } from './store.ts';
 
 type Tx = Prisma.TransactionClient;
@@ -78,7 +78,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     notificationId ? tx.notification.findMany({ where: { id: notificationId } }) : [],
     detail ? tx.aIActionLog.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
     pathname === '/api/audit-logs' ? tx.auditLog.findMany({ orderBy: [...newest], take: 100 }) : [],
-    creating || pathname === '/api/kb' ? tx.knowledgeArticle.findMany({ where: { isApproved: true }, orderBy: [...oldest] }) : [],
+    creating ? tx.knowledgeArticle.findMany({ where: { isApproved: true }, orderBy: [...oldest] }) : [],
     developmentSessionDigest
       ? tx.authSession.findMany({ where: { id: developmentSessionDigest, kind: null } }) : [],
     creating ? tx.ticketCounter.findUniqueOrThrow({ where: { id: 'tickets' } }) : null,
@@ -203,6 +203,14 @@ export class PostgresRequestStore implements RequestStore {
       JOIN "ServiceCategory" c ON c.id = t."serviceCategoryId"
       ORDER BY t."createdAt" DESC, t.id DESC`;
     return { items: items.map(({ version, ...item }) => { void version; return item; }), total };
+  }
+
+  async approvedKnowledgeItems() {
+    const rows = await this.transactionClient.knowledgeArticle.findMany({
+      where: { isApproved: true },
+      orderBy: [...oldest],
+    });
+    return project<KnowledgeArticle[]>(rows);
   }
 
   async approvalItems() {

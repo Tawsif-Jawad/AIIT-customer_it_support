@@ -70,6 +70,7 @@ export interface TicketAnalytics {
 
 export interface RequestStore {
   ticketPage?(user: User, filters: TicketPageFilters): Promise<{ items: unknown[]; total: number }>;
+  approvedKnowledgeItems?(): Promise<KnowledgeArticle[]>;
   approvalItems?(): Promise<unknown[]>;
   assetItems?(user: User): Promise<unknown[]>;
   notificationFeed?(user: User): Promise<{ items: unknown[]; deliveredTransportCount: number }>;
