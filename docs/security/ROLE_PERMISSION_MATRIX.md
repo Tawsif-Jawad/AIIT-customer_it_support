@@ -27,3 +27,7 @@ Approvals are one-time decisions and require server-side rationale. Exact action
 ## Final Day 2 evidence
 
 The approved existing organization-wide IT/CTO policy is preserved and tested; narrower support assignments and customer-organization membership remain an isolated future business decision. This is not a failure of the current explicitly approved grant. Employee/customer transitions are restricted to confirming a proposed resolution or reopening; they cannot advance unresolved work to IN_PROGRESS. New security tests enumerate all 720 role/state pairs, verify current-role revocation/service exclusion, cookie-origin denial and asset SBU checks. See final acceptance report for executed counts. Exact-action binding/approval expiry/separation-of-duties are still required before enabling any real privileged executor.
+
+### Day 7 manual ticket assignment
+
+An active IT administrator may assign an eligible IT ticket to another active IT administrator within the current organization-wide support grant. CTO escalation and requester ownership/SBU rules retain their existing authority. Only IT administrators get assignment controls and the assigned-to-me filter. Assignment metadata is internal to the IT/CTO ticket view. See the [Day 7 development report](../development-reports/DAY7_MANUAL_ASSIGNMENT_2026-11-18.md) for the API contract, evidence and open acceptance gates.

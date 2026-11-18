@@ -55,6 +55,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   } catch { /* HTTP validation handles malformed input */ }
   const creating = method === 'POST' && pathname === '/api/tickets';
   const detail = !!ticketKey && method === 'GET' && !ticketDetail?.[2];
+  const assigning = !!ticketKey && method === 'POST' && ticketDetail?.[2] === 'assign';
   const ticketFilter = ticketKey ? { ticket: ticketWhere } : undefined;
   const notificationRead = /^\/api\/notifications\/([^/]+)\/read$/.exec(pathname);
   let notificationId: string | undefined;
@@ -71,7 +72,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     ticketWhere || approvalId ? tx.ticket.findMany({
       where: ticketWhere ?? { approvals: { some: { id: approvalId } } }, orderBy: [...newest],
     }) : [],
-    detail ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
+    detail || assigning ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     assetId ? tx.asset.findMany({ where: { id: assetId } }) : [],
     detail || approvalId ? tx.approval.findMany({ where: ticketFilter ?? { id: approvalId }, orderBy: [...newest] }) : [],
@@ -179,11 +180,12 @@ export class PostgresRequestStore implements RequestStore {
 
   persist() { void this.transactionClient; }
 
-  async ticketPage(user: User, { status, severity, sbuId, category, search, page, pageSize }: TicketPageFilters) {
+  async ticketPage(user: User, { status, severity, sbuId, category, assigneeId, search, page, pageSize }: TicketPageFilters) {
     const tx = this.transactionClient;
     const filters = [visibleTicketSql(user)];
     if (status) filters.push(Prisma.sql`t.status::text = ${status}`);
     if (severity) filters.push(Prisma.sql`t.severity::text = ${severity}`);
+    if (assigneeId) filters.push(Prisma.sql`t."assigneeId" = ${assigneeId}`);
     if (sbuId) filters.push(Prisma.sql`t."sbuId" = ${sbuId}`);
     if (category) filters.push(Prisma.sql`t."serviceCategoryId" IN (SELECT id FROM "ServiceCategory" WHERE id = ${category} OR slug = ${category})`);
     if (search) filters.push(Prisma.sql`strpos(lower(t."ticketNumber" || ' ' || t.title || ' ' || t.description), ${search}) > 0`);

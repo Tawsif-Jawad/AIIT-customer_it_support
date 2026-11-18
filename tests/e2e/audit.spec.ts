@@ -2,6 +2,7 @@ import {test as baseTest,expect,type Page} from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {EnterpriseDataStore} from '../../apps/api/src/store.ts';
 import {createApiServer} from '../../apps/api/src/app.ts';
 import {connectPostgres, createPostgresApiServer} from '../../apps/api/src/postgres-runtime.ts';
 import {disposablePostgres, fixtureIdentities, runtimeFixture} from '../support/disposable-postgres.ts';
@@ -18,7 +19,12 @@ const test=baseTest.extend({baseURL:async({},use)=>{
  const cluster = postgres ? await disposablePostgres() : undefined;
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-browser-audit-'));
  const client = cluster ? await connectPostgres({ NODE_ENV: 'test', STORAGE_MODE: 'postgres', DATABASE_URL: cluster.url }) : undefined;
- if (client) await importJsonSnapshot(client, runtimeFixture());
+ const fixture = postgres ? runtimeFixture() : new EnterpriseDataStore(path.join(dir, 'db.json')).getState();
+ const baseAdmin = fixture.users.find(user => user.id === 'user-it-kamal')!;
+ fixture.users.push({ ...baseAdmin, id: 'browser-second-admin', oidcSubject: 'browser-second-admin',
+   email: 'browser-second-admin@example.test', displayName: 'Browser Second Admin' });
+ if (client) await importJsonSnapshot(client, fixture);
+ else fs.writeFileSync(path.join(dir, 'db.json'), JSON.stringify(fixture));
  const app = client ? await createPostgresApiServer(client) : createApiServer(path.join(dir,'db.json'));
  await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));const web=webFactory('http://127.0.0.1:'+(app.server.address() as {port:number}).port);
  await new Promise<void>(r=>web.listen(0,'127.0.0.1',r));
@@ -154,4 +160,42 @@ test('sampled text contrast is measured without assuming whole-app accessibility
   const a=lum(fg),b=lum(bg);return {id:el.id,ratio:(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05),fontSize:style.fontSize,scope:'opaque/inherited background sample only'};
  }));
  if(process.env.AIIT_AUDIT_EVIDENCE_DIR)fs.writeFileSync(path.resolve(process.env.AIIT_AUDIT_EVIDENCE_DIR,'contrast-samples.json'),JSON.stringify(samples,null,2)+'\n');expect(samples.every(s=>Number.isFinite(s.ratio))).toBe(true);
+});
+
+
+test('IT can reassign, refresh a stale assignment and see the recipient update', async ({ page }) => {
+  await signIn(page, admin);
+  await tab(page, 'tickets');
+  await page.getByLabel('Assigned to me').check();
+  const ticket = page.locator('[data-ticket-id="ticket-seed-1002"]');
+  await ticket.click();
+  const reason = 'Browser handoff <img src=x onerror=alert(1)>';
+  const select = page.getByLabel('Assign to IT administrator');
+  const notes = page.getByLabel('Assignment reason');
+  const save = page.getByRole('button', { name: 'Save assignment' });
+  await page.route('**/api/tickets/ticket-seed-1002/assign', route => route.fulfill({
+    status: 409, json: { error: { message: 'Ticket changed. Refresh before assigning.' } },
+  }), { times: 1 });
+  await select.selectOption('browser-second-admin');
+  await notes.fill(reason);
+  await save.click();
+  await expect(page.locator('#global-feedback')).toContainText('Ticket changed');
+  await expect(select).toHaveValue('user-it-kamal');
+  await expect(notes).toHaveValue(reason);
+  await select.selectOption('browser-second-admin');
+  await save.click();
+  await expect(page.locator('#global-feedback')).toContainText('Assignment saved.');
+  await expect(ticket).toHaveCount(0);
+  await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
+  const detail = page.locator('#ticket-detail-container');
+  await expect(detail).toContainText('Assigned to Browser Second Admin');
+  await expect(detail).toContainText(reason);
+  await expect(detail.locator('img')).toHaveCount(0);
+  await page.click('#logout-btn');
+  await expect(page.locator('#login-section')).toBeVisible();
+  await signIn(page, 'browser-second-admin@example.test');
+  await tab(page, 'notifications');
+  await page.click('#refresh-notifications');
+  await expect(page.locator('#notifications-list')).toContainText('IT Assignment');
+  await expect(page.locator('#notifications-list')).not.toContainText(reason);
 });

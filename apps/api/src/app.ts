@@ -30,7 +30,7 @@ import {
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
 import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
-import { validateAssignmentInput } from './assignment.ts';
+import { isAssignableStatus, validateAssignmentInput } from './assignment.ts';
 import { EnterpriseDataStore, type RequestStore } from './store.ts';
 import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
@@ -45,7 +45,7 @@ export interface AppInstance<Store extends RequestStore = EnterpriseDataStore> {
     method: string;
     url: string;
     token?: string;
-    body?: Record<string, unknown>;
+    body?: unknown;
     headers?: Record<string, string>;
   }) => Promise<{ status: number; headers: Record<string, string>; data: Record<string, any> }>;
   store: Store;
@@ -379,6 +379,30 @@ export function createServer<Store extends RequestStore>(
               post: { summary: 'Submit a new ticket and run deterministic AI triage & safety policy engine' },
             },
             '/api/tickets/{id}': { get: { summary: 'Get ticket details, event history, AI logs, and comments' } },
+            '/api/tickets/{id}/assign': {
+              post: {
+                summary: 'Assign an eligible ticket to an active IT administrator',
+                parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+                requestBody: { required: true, content: { 'application/json': { schema: {
+                  type: 'object',
+                  required: ['assigneeId', 'expectedAssigneeId', 'expectedRevision', 'reason'],
+                  properties: {
+                    assigneeId: { type: 'string', minLength: 1, maxLength: 128 },
+                    expectedAssigneeId: { type: ['string', 'null'], minLength: 1, maxLength: 128 },
+                    expectedRevision: { type: 'integer', minimum: 0 },
+                    reason: { type: 'string', minLength: 10, maxLength: 500 },
+                  },
+                } } } },
+                responses: {
+                  200: { description: 'Assignment committed or current owner confirmed' },
+                  400: { description: 'Invalid input or ineligible assignee' },
+                  401: { description: 'Authentication required' },
+                  403: { description: 'Assignment denied' },
+                  409: { description: 'Ticket state, assignment revision or transaction conflict' },
+                  503: { description: 'Persistence unavailable' },
+                },
+              },
+            },
             '/api/tickets/{id}/transition': { post: { summary: 'Transition ticket status with state-machine and RBAC enforcement' } },
             '/api/tickets/{id}/escalate-cto': { post: { summary: 'IT Admin or policy escalation to CTO queue' } },
             '/api/tickets/{id}/comments': { post: { summary: 'Add comment to an authorized ticket' } },
@@ -572,6 +596,11 @@ export function createServer<Store extends RequestStore>(
         const state = store.getState();
         const statusFilter = parsedUrl.searchParams.get('status') as TicketStatus | null;
         const sbuFilter = parsedUrl.searchParams.get('sbuId');
+        const assignedToMe = parsedUrl.searchParams.get('assignedToMe') === 'true';
+        if (assignedToMe && currentUser.roleName !== 'IT_ADMIN') {
+          sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators may filter their assignment queue.');
+          return;
+        }
         const severityFilter = parsedUrl.searchParams.get('severity') as TicketSeverity | null;
         const categoryFilter = parsedUrl.searchParams.get('category');
         const search = (parsedUrl.searchParams.get('search') || '').trim().toLowerCase();
@@ -585,7 +614,7 @@ export function createServer<Store extends RequestStore>(
         if (store.ticketPage) {
           const { items, total } = await store.ticketPage(currentUser, {
             status: statusFilter, severity: severityFilter, sbuId: sbuFilter,
-            category: categoryFilter, search, page, pageSize,
+            category: categoryFilter, assigneeId: assignedToMe ? currentUser.id : undefined, search, page, pageSize,
           });
           sendJson(res, 200, { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 } });
           return;
@@ -594,6 +623,7 @@ export function createServer<Store extends RequestStore>(
         const filtered = accessible.filter((t) => {
           if (statusFilter && t.status !== statusFilter) return false;
           if (sbuFilter && t.sbuId !== sbuFilter) return false;
+          if (assignedToMe && t.assigneeId !== currentUser.id) return false;
           if (severityFilter && t.severity !== severityFilter) return false;
           if (categoryFilter && !state.serviceCategories.some(c => c.id === t.serviceCategoryId &&
             (c.id === categoryFilter || c.slug === categoryFilter))) return false;
@@ -716,9 +746,12 @@ export function createServer<Store extends RequestStore>(
 
         if (method === 'GET' && !subAction) {
           const events = state.ticketEvents.filter((e) => e.ticketId === ticket.id);
+          const canSeeInternal = ['IT_ADMIN', 'CTO'].includes(currentUser.roleName);
+          const canAssign = currentUser.roleName === 'IT_ADMIN' && isAssignableStatus(ticket.status);
+          const assignee = canSeeInternal ? state.users.find(user => user.id === ticket.assigneeId) : undefined;
           const comments = state.ticketComments
             .filter((c) => c.ticketId === ticket.id)
-            .filter((c) => !c.isInternal || ['IT_ADMIN', 'CTO'].includes(currentUser.roleName));
+            .filter((c) => !c.isInternal || canSeeInternal);
           const approvals = state.approvals.filter((a) => a.ticketId === ticket.id);
           const aiLogs = state.aiActionLogs.filter((l) => l.ticketId === ticket.id);
           const requester = state.users.find((u) => u.id === ticket.requesterId);
@@ -733,7 +766,18 @@ export function createServer<Store extends RequestStore>(
               sbuCode: sbu?.code || '',
               categoryName: category?.name || '',
             },
-            events,
+            events: canSeeInternal ? events : events.map(event =>
+              event.eventType === 'TICKET_REASSIGNED' ? { ...event, metadata: {} } : event),
+            ...(canSeeInternal ? { assigneeName: assignee?.displayName ?? null } : {}),
+            ...(canAssign ? {
+              assignment: {
+                revision: events.length,
+                candidates: state.users
+                  .filter(user => user.isActive && user.roleName === 'IT_ADMIN')
+                  .map(user => ({ id: user.id, displayName: user.displayName }))
+                  .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id)),
+              },
+            } : {}),
             comments,
             approvals,
             aiLogs,
@@ -749,12 +793,14 @@ export function createServer<Store extends RequestStore>(
           }
           const body = await readBody(req);
           const input = validateAssignmentInput(body);
-          if (!['ASSIGNED_TO_IT', 'IN_PROGRESS', 'AWAITING_USER'].includes(ticket.status)) {
+          if (!isAssignableStatus(ticket.status)) {
             sendError(res, 409, 'ASSIGNMENT_STATE_CONFLICT', 'Ticket is not in an assignable IT work state.');
             return;
           }
-          if (ticket.assigneeId !== input.expectedAssigneeId) {
-            sendError(res, 409, 'ASSIGNMENT_CONFLICT', 'Ticket owner changed. Refresh before assigning.');
+          // History is append-only in both stores, including automatic routing.
+          const revision = state.ticketEvents.filter(event => event.ticketId === ticket.id).length;
+          if (ticket.assigneeId !== input.expectedAssigneeId || revision !== input.expectedRevision) {
+            sendError(res, 409, 'ASSIGNMENT_CONFLICT', 'Ticket changed. Refresh before assigning.');
             return;
           }
           const target = state.users.find(user => user.id === input.assigneeId);
@@ -793,7 +839,7 @@ export function createServer<Store extends RequestStore>(
             recipientId: target.id,
             recipientEmail: target.email,
             subject: '[' + ticket.ticketNumber + '] IT Assignment',
-            body: 'Ticket ' + ticket.ticketNumber + ' has been assigned to you. Reason: ' + input.reason,
+            body: 'Ticket ' + ticket.ticketNumber + ' has been assigned to you.',
           });
           sendJson(res, 200, { ticket, changed: true });
           return;
@@ -856,7 +902,7 @@ export function createServer<Store extends RequestStore>(
 
           // If employee reopens from RESOLVED_PENDING_CONFIRMATION, immediately assign to IT
           if (previousStatus === 'RESOLVED_PENDING_CONFIRMATION' && targetStatus === 'REOPENED') {
-            const itAdmin = state.users.find((u) => u.roleName === 'IT_ADMIN');
+            const itAdmin = state.users.find((u) => u.roleName === 'IT_ADMIN' && u.isActive);
             ticket.status = 'ASSIGNED_TO_IT';
             ticket.assigneeId = itAdmin?.id || null;
             ticket.escalationReason = notes || 'Employee declined AI resolution; requested human IT support.';

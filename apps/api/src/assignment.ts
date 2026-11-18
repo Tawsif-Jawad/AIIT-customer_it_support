@@ -1,4 +1,4 @@
-import { ValidationError, redactSensitiveData } from '../../../packages/shared/src/index.ts';
+import { ValidationError, redactSensitiveData, type TicketStatus } from '../../../packages/shared/src/index.ts';
 
 /**
  * Day 7 manual IT assignment: explicit compare-and-set, never a status transition.
@@ -7,7 +7,12 @@ import { ValidationError, redactSensitiveData } from '../../../packages/shared/s
 export interface AssignmentInput {
   assigneeId: string;
   expectedAssigneeId: string | null;
+  expectedRevision: number;
   reason: string;
+}
+
+export function isAssignableStatus(status: TicketStatus): boolean {
+  return ['ASSIGNED_TO_IT', 'IN_PROGRESS', 'AWAITING_USER'].includes(status);
 }
 
 export function validateAssignmentInput(value: unknown): AssignmentInput {
@@ -17,6 +22,7 @@ export function validateAssignmentInput(value: unknown): AssignmentInput {
   const fields = value as Record<string, unknown>;
   const id = fields.assigneeId;
   const expected = fields.expectedAssigneeId;
+  const revision = fields.expectedRevision;
   const reason = fields.reason;
 
   const validId = (input: unknown): input is string =>
@@ -29,13 +35,20 @@ export function validateAssignmentInput(value: unknown): AssignmentInput {
       (expected !== null && !validId(expected))) {
     errors.push('expectedAssigneeId must explicitly be null or a valid user identifier.');
   }
-  if (typeof reason !== 'string' || reason.trim().length < 10 || reason.trim().length > 500) {
-    errors.push('reason must be between 10 and 500 characters.');
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) {
+    errors.push('expectedRevision must be the assignment revision from ticket detail.');
+  }
+  if (typeof reason !== 'string' || reason.trim().length < 10 || reason.trim().length > 500 || reason.includes('\0')) {
+    errors.push('reason must be between 10 and 500 characters and contain no null bytes.');
   }
   if (errors.length) throw new ValidationError(errors);
   return {
     assigneeId: id as string,
     expectedAssigneeId: expected as string | null,
-    reason: redactSensitiveData((reason as string).trim()),
+    expectedRevision: revision as number,
+    reason: redactSensitiveData((reason as string).trim().replace(
+      /\b(password|passwd|secret|token|api[_-]?key)["']?\s*[:=]\s*(?:"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$))/gi,
+      '$1=[REDACTED_SECRET]',
+    )),
   };
 }

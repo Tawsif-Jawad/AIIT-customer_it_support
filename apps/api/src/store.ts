@@ -53,6 +53,7 @@ export interface TicketPageFilters {
   severity: string | null;
   sbuId: string | null;
   category: string | null;
+  assigneeId?: string;
   search: string;
   page: number;
   pageSize: number;
