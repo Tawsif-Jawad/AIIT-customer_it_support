@@ -30,6 +30,7 @@ import {
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
 import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
+import { validateAssignmentInput } from './assignment.ts';
 import { EnterpriseDataStore, type RequestStore } from './store.ts';
 import { issueOIDCToken, verifyOIDCToken, isDevelopmentAuthEnabled } from './auth.ts';
 import { NotificationQueueProcessor } from './queue.ts';
@@ -737,6 +738,64 @@ export function createServer<Store extends RequestStore>(
             approvals,
             aiLogs,
           });
+          return;
+        }
+
+        // POST /api/tickets/:id/assign — IT-only compare-and-set ownership update
+        if (method === 'POST' && subAction === 'assign') {
+          if (currentUser.roleName !== 'IT_ADMIN') {
+            sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators may assign an IT ticket.');
+            return;
+          }
+          const body = await readBody(req);
+          const input = validateAssignmentInput(body);
+          if (!['ASSIGNED_TO_IT', 'IN_PROGRESS', 'AWAITING_USER'].includes(ticket.status)) {
+            sendError(res, 409, 'ASSIGNMENT_STATE_CONFLICT', 'Ticket is not in an assignable IT work state.');
+            return;
+          }
+          if (ticket.assigneeId !== input.expectedAssigneeId) {
+            sendError(res, 409, 'ASSIGNMENT_CONFLICT', 'Ticket owner changed. Refresh before assigning.');
+            return;
+          }
+          const target = state.users.find(user => user.id === input.assigneeId);
+          if (!target || !target.isActive || target.roleName !== 'IT_ADMIN') {
+            sendError(res, 400, 'INVALID_ASSIGNEE', 'Selected assignee is not an active IT Administrator.');
+            return;
+          }
+          if (ticket.assigneeId === target.id) {
+            sendJson(res, 200, { ticket, changed: false });
+            return;
+          }
+          const previousAssigneeId = ticket.assigneeId;
+          ticket.assigneeId = target.id;
+          ticket.updatedAt = new Date().toISOString();
+          state.ticketEvents.push({
+            id: crypto.randomUUID(),
+            ticketId: ticket.id,
+            actorId: currentUser.id,
+            actorName: currentUser.displayName,
+            eventType: 'TICKET_REASSIGNED',
+            fromStatus: ticket.status,
+            toStatus: ticket.status,
+            metadata: { previousAssigneeId, assigneeId: target.id, reason: input.reason },
+            createdAt: ticket.updatedAt,
+          });
+          recordAudit({
+            actor: currentUser,
+            action: 'TICKET_REASSIGNED',
+            resource: 'Ticket',
+            resourceId: ticket.id,
+            ipAddress: clientIp,
+            details: { previousAssigneeId, assigneeId: target.id, reason: input.reason },
+          });
+          await queueProcessor.enqueueNotification({
+            ticketId: ticket.id,
+            recipientId: target.id,
+            recipientEmail: target.email,
+            subject: '[' + ticket.ticketNumber + '] IT Assignment',
+            body: 'Ticket ' + ticket.ticketNumber + ' has been assigned to you. Reason: ' + input.reason,
+          });
+          sendJson(res, 200, { ticket, changed: true });
           return;
         }
 
