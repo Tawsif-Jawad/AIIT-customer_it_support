@@ -182,6 +182,55 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
   const restart = await createPostgresApiServer(client);
   assert.equal((await restart.inject({ method: 'GET', url: '/api/auth/me', token: employee })).status, 200);
 
+  await t.test('a blocked, failing write neither queues a read nor exposes an uncommitted ticket', async () => {
+    await client.$executeRawUnsafe(`CREATE FUNCTION audit_block_write() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        PERFORM pg_advisory_xact_lock(317401);
+        RAISE EXCEPTION 'synthetic write failure';
+      END $$`);
+    await client.$executeRawUnsafe('CREATE TRIGGER audit_block_write BEFORE INSERT ON "NotificationJob" FOR EACH ROW EXECUTE FUNCTION audit_block_write()');
+    const before = await client.ticket.count();
+    const title = 'unique-audit-transaction-fixture';
+    let release!: () => void;
+    let locked!: () => void;
+    const ready = new Promise<void>(resolve => { locked = resolve; });
+    const hold = new Promise<void>(resolve => { release = resolve; });
+    const lock = client.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(317401)`;
+      locked();
+      await hold;
+    }, { timeout: 10000 });
+    await Promise.race([ready, lock]);
+    const write = app.inject({ method: 'POST', url: '/api/tickets', token: employee, body: { ...input, title } });
+    try {
+      let waiting = false;
+      for (let i = 0; i < 100 && !waiting; i++) {
+        const [result] = await client.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND objid = 317401 AND NOT granted) AS waiting`;
+        waiting = result.waiting;
+        if (!waiting) await delay(20);
+      }
+      assert.ok(waiting, 'write reached the trigger with its transaction still open');
+      const reads = Promise.all([
+        app.inject({ method: 'GET', url: '/api/tickets?search=' + title, token: employee }),
+        app.inject({ method: 'GET', url: '/api/auth/me', token: admin }),
+      ]);
+      const result = await Promise.race([reads, delay(1500, null, { ref: false })]);
+      assert.ok(result, 'unrelated requests must finish before the blocked write');
+      assert.equal(result[0].status, 200);
+      assert.equal(result[0].data.pagination.total, 0);
+      assert.equal(result[1].status, 200);
+    } finally {
+      release();
+      await lock;
+      const response = await write;
+      await client.$executeRawUnsafe('DROP TRIGGER audit_block_write ON "NotificationJob"');
+      await client.$executeRawUnsafe('DROP FUNCTION audit_block_write()');
+      assert.equal(response.status, 503);
+      assert.equal(await client.ticket.count(), before);
+    }
+  });
+
   await t.test('API process restart restores and then enforces revocation of a development session', async () => {
     async function runProcess(run: (base: string) => Promise<void>) {
       const child = spawn(process.execPath, ['apps/api/src/main.ts'], {
@@ -277,6 +326,36 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
       ticketCount: await client.ticket.count(), createEightMs: elapsed, conflicts,
       listMs: await samples('/api/tickets?pageSize=3'), sessionMs: await samples('/api/auth/me'),
     }));
+  });
+
+  await t.test('parallel decisions, escalations and sessions preserve single-winner and isolation rules', async () => {
+    const [one, two] = await Promise.all([signIn(app, 0), signIn(app, 1)]);
+    const created = await app.inject({ method: 'POST', url: '/api/tickets', token: one, body: {
+      ...input, serviceCategoryId: 'cat-ad-account',
+      customFormPayload: { targetAdGroup: 'Synthetic', businessJustification: 'Synthetic approval' },
+    } });
+    assert.equal(created.status, 201);
+    const ticketId = created.data.ticket.id;
+    const approval = await client.approval.findFirstOrThrow({ where: { ticketId } });
+    const decisions = await Promise.all(['APPROVED', 'REJECTED'].map(decision => app.inject({
+      method: 'POST', url: '/api/approvals/' + approval.id + '/decide', token: admin,
+      body: { decision, decisionNotes: 'Synthetic parallel decision' },
+    })));
+    assert.deepEqual(decisions.map(r => r.status).sort(), [200, 409]);
+    assert.equal(await client.auditLog.count({ where: { resourceId: approval.id } }), 1);
+    const escalations = await Promise.all([1, 2].map(index => app.inject({
+      method: 'POST', url: '/api/tickets/' + ticketId + '/escalate-cto', token: admin,
+      body: { reason: 'Synthetic escalation ' + index },
+    })));
+    assert.deepEqual(escalations.map(r => r.status).sort(), [200, 409]);
+    assert.equal(await client.auditLog.count({ where: { resourceId: ticketId, action: 'TICKET_ESCALATED_TO_CTO' } }), 1);
+    const [logout, profile] = await Promise.all([
+      app.inject({ method: 'POST', url: '/api/auth/logout', token: one }),
+      app.inject({ method: 'GET', url: '/api/auth/me', token: two }),
+    ]);
+    assert.equal(logout.status, 200);
+    assert.equal(profile.data.user.email, fixtureIdentities[1].email);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/auth/me', token: one })).status, 401);
   });
 
   await t.test('connection loss inside business write rolls back ticket, history, audit and outbox', async () => {

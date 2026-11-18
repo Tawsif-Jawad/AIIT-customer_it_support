@@ -73,7 +73,7 @@ export interface RequestStore {
   ticketAnalytics?(user: User): Promise<TicketAnalytics>;
   getState(): DatabaseState;
   persist(): void;
-  isHealthy(): boolean | Promise<boolean>;
+  isHealthy(recycleIdlePool?: () => boolean): boolean | Promise<boolean>;
   transaction(operation: () => Promise<boolean>, scope?: RequestScope): Promise<void>;
 }
 

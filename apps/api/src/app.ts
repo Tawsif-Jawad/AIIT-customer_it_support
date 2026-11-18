@@ -1141,6 +1141,7 @@ export function createServer<Store extends RequestStore>(
   // Attach body listeners before waiting for the local serial queue.
   const requestIds = new WeakMap<http.IncomingMessage, string>();
   let providerOperations = 0;
+  let exclusiveProbe = false;
   let tail: Promise<void> = Promise.resolve();
   const handleAdmittedRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const requestId = crypto.randomUUID();
@@ -1203,10 +1204,12 @@ export function createServer<Store extends RequestStore>(
       finally { providerOperations--; }
     }
     bodies.set(req, body);
-    const previous = tail;
-    let done!: () => void;
-    tail = new Promise<void>(resolve => { done = resolve; });
-    await previous;
+    let done: (() => void) | undefined;
+    if (!postgres) {
+      const previous = tail;
+      tail = new Promise<void>(resolve => { done = resolve; });
+      await previous;
+    }
     let code = 200;
     const headers: Record<string, string | string[]> = {};
     let output = '';
@@ -1217,14 +1220,22 @@ export function createServer<Store extends RequestStore>(
     } as unknown as http.ServerResponse;
     try {
       if (method === 'GET' && pathname === '/api/ready') {
-        const ready = await store.isHealthy();
+        let ready: boolean;
+        try {
+          ready = await store.isHealthy(() => {
+            // Pause admission only if the failed probe is the sole active request.
+            exclusiveProbe = postgres && inFlight === 1;
+            return exclusiveProbe;
+          });
+        } finally { exclusiveProbe = false; }
         sendJson(res, ready ? 200 : 503, { status: ready ? 'READY' : 'UNAVAILABLE', storageMode: postgres ? 'postgres' : 'json' });
         return;
       }
+      try { await body; } catch (err) {
+        sendError(res, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.');
+        return;
+      }
       const operation = async () => {
-        try { await body; } catch (err) {
-          sendError(buffered, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.'); return false;
-        }
         await runRequest(req, buffered, clientIp, login);
         // Denials may contain a security audit event; only server failures roll back.
         return code < 500;
@@ -1240,13 +1251,13 @@ export function createServer<Store extends RequestStore>(
       logStructured('WARN', conflict ? 'PERSISTENCE_CONFLICT' : 'PERSISTENCE_FAILURE', { requestId, storageMode: postgres ? 'postgres' : 'json' });
       sendError(res, conflict ? 409 : 503,
         'PERSISTENCE_FAILURE', 'Operation was not committed. Retry after recovery or contention clears.');
-    } finally { bodies.delete(req); done(); }
+    } finally { bodies.delete(req); done?.(); }
   };
 
   let inFlight = 0;
   const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     if (req.method === 'GET' && req.url === '/api/live') return handleAdmittedRequest(req, res);
-    if (inFlight >= policy.inFlight) {
+    if (exclusiveProbe || inFlight >= policy.inFlight) {
       req.resume?.();
       res.setHeader('Retry-After', '1');
       sendError(res, 429, 'API_BUSY', 'The API is busy. Please retry shortly.');

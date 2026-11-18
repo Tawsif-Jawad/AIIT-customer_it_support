@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { isDeepStrictEqual } from 'node:util';
 import { ticketAccessScope, type User } from '../../../packages/shared/src/index.ts';
@@ -150,21 +151,22 @@ class RollbackResponse extends Error {}
 /** Request-scoped relational projection. Writes use targeted DML in the same
  * serializable transaction as the route, including its audit and outbox intent. */
 export class PostgresRequestStore implements RequestStore {
-  private state?: DatabaseState;
-  private tx?: Tx;
+  private readonly context = new AsyncLocalStorage<{ tx: Tx; state: DatabaseState }>();
 
   private readonly client: PrismaClient;
 
   constructor(client: PrismaClient) { this.client = client; }
 
   get transactionClient() {
-    if (!this.tx) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.tx;
+    const request = this.context.getStore();
+    if (!request) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return request.tx;
   }
 
   getState() {
-    if (!this.state) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.state;
+    const request = this.context.getStore();
+    if (!request) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return request.state;
   }
 
   persist() { void this.transactionClient; }
@@ -223,10 +225,10 @@ export class PostgresRequestStore implements RequestStore {
     };
   }
 
-  async isHealthy() {
+  async isHealthy(recycleIdlePool?: () => boolean) {
     try { await this.client.$queryRaw`SELECT 1`; return true; }
     catch {
-      await this.client.$disconnect().catch(() => {});
+      if (recycleIdlePool?.()) await this.client.$disconnect().catch(() => {});
       return false;
     }
   }
@@ -234,16 +236,12 @@ export class PostgresRequestStore implements RequestStore {
   async transaction(operation: () => Promise<boolean>, scope: RequestScope = { pathname: '/', method: 'GET' }) {
     try {
       await this.client.$transaction(async tx => {
-        this.tx = tx;
-        try {
-          const before = await readState(tx, scope);
-          this.state = structuredClone(before);
+        const before = await readState(tx, scope);
+        const state = structuredClone(before);
+        await this.context.run({ tx, state }, async () => {
           if (!await operation()) throw new RollbackResponse();
-          await commitChanges(tx, before, this.state);
-        } finally {
-          this.state = undefined;
-          this.tx = undefined;
-        }
+          await commitChanges(tx, before, state);
+        });
       }, { isolationLevel: 'Serializable', timeout: 15000 });
     } catch (error) {
       if (error instanceof RollbackResponse) return;
@@ -251,10 +249,6 @@ export class PostgresRequestStore implements RequestStore {
         if (['P2034', 'P2002', 'P2025'].includes(error.code) ||
           (error.code === 'P2010' && ['40001', '40P01'].includes(String(error.meta?.code)))) {
           throw new Error('PERSISTENCE_CONFLICT');
-        }
-        if (['P1001', 'P1002', 'P1017'].includes(error.code)) {
-          // Drop stale pooled connections. Prisma reconnects on the next request.
-          await this.client.$disconnect().catch(() => {});
         }
       }
       throw new Error('POSTGRES_TRANSACTION_FAILED');
