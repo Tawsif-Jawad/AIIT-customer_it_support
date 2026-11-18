@@ -274,7 +274,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
             <option value="ESCALATED_TO_CTO">Escalated to CTO</option>
             <option value="CLOSED">Closed</option>
           </select>
-          <select id="filter-severity" aria-label="Filter by priority" style="max-width:170px"><option value="">All priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select><button id="refresh-tickets-btn" class="btn-secondary" type="button">Filter / Refresh</button>
+          <select id="filter-severity" aria-label="Filter by priority" style="max-width:170px"><option value="">All priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select><label id="assigned-to-me-filter" hidden><input type="checkbox" id="filter-assigned-to-me" style="width:auto" /> Assigned to me</label><button id="refresh-tickets-btn" class="btn-secondary" type="button">Filter / Refresh</button>
         </div>
 
         <div class="layout-split">
@@ -423,7 +423,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         throw new Error('Session expired or invalid. Sign in again.');
       }
       if (!res.ok && !options.acceptError) {
-        throw new Error((data.error && data.error.message) || 'Request failed with status ' + res.status);
+        throw Object.assign(new Error((data.error && data.error.message) ||
+          'Request failed with status ' + res.status), { status: res.status });
       }
       return data;
     }
@@ -547,10 +548,15 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
     }
 
     async function refreshAllData() {
+      const isItAdmin = currentUser?.roleName === 'IT_ADMIN';
+      const assignmentFilter = document.getElementById('filter-assigned-to-me');
+      document.getElementById('assigned-to-me-filter').hidden = !isItAdmin;
+      if (!isItAdmin) assignmentFilter.checked = false;
       const [summary, ticketsRes] = await Promise.all([
         apiFetch('/api/analytics/summary'),
         apiFetch('/api/tickets?status=' + encodeURIComponent(document.getElementById('filter-status').value) +
-          '&search=' + encodeURIComponent(document.getElementById('filter-search').value) + '&severity=' + encodeURIComponent(document.getElementById('filter-severity').value) + '&page=' + ticketPage)
+          '&search=' + encodeURIComponent(document.getElementById('filter-search').value) + '&severity=' + encodeURIComponent(document.getElementById('filter-severity').value) + '&page=' + ticketPage +
+          (assignmentFilter.checked ? '&assignedToMe=true' : ''))
       ]);
 
       document.getElementById('metrics-container').innerHTML =
@@ -637,6 +643,18 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         actionsHtml += '<button class="btn-success" id="btn-cto-resolve" type="button">CTO Authorize & Resolve</button>';
       }
 
+      const assignment = detail.assignment;
+      const assignmentForm = assignment && assignment.candidates.length
+        ? '<form id="ticket-assignment-form">' +
+          '<label for="assignment-assignee">Assign to IT administrator</label>' +
+          '<select id="assignment-assignee" required><option value="">Select an administrator</option>' +
+          assignment.candidates.map(user => '<option value="' + escapeHtml(user.id) + '"' +
+            (user.id === t.assigneeId ? ' selected' : '') + '>' +
+            escapeHtml(user.displayName) + '</option>').join('') + '</select>' +
+          '<label for="assignment-reason">Assignment reason</label>' +
+          '<textarea id="assignment-reason" required minlength="10" maxlength="500"></textarea>' +
+          '<button type="submit" class="btn-secondary">Save assignment</button></form>' : '';
+
       box.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">' +
           '<div>' +
@@ -649,16 +667,53 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         (t.aiSuggestedFix ? '<div class="ai-box" data-testid="ai-decision-box"><strong>' + escapeHtml(t.aiSummary || 'AI Evaluation') + '</strong>\\n\\n' + escapeHtml(t.aiSuggestedFix) + '</div>' : '') +
         (t.escalationReason ? '<div class="alert-error"><strong>Escalation / Routing Reason:</strong> ' + escapeHtml(t.escalationReason) + '</div>' : '') +
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0;">' + actionsHtml + '</div>' +
-        '<h3 style="font-size:0.95rem;margin-top:1.25rem;margin-bottom:0.5rem;">State Transition & Audit Event History</h3>' +
+        (detail.assigneeName !== undefined ? '<p>Assigned to ' +
+          escapeHtml(detail.assigneeName || (t.assigneeId ? 'Unavailable administrator' : 'No administrator')) +
+          (detail.assigneeIsActive === false ? ' (inactive)' : '') + '</p>' : '') +
+        assignmentForm +
+        '<h3 style="font-size:0.95rem;margin-top:1.25rem;margin-bottom:0.5rem;">Ticket History</h3>' +
         '<div>' + detail.events.map(ev =>
           '<div class="timeline-item">' +
             '<strong>' + escapeHtml(ev.eventType) + '</strong> ' +
-            (ev.fromStatus ? '(' + escapeHtml(ev.fromStatus) + ' &rarr; ' + escapeHtml(ev.toStatus) + ')' : '') +
+            (ev.fromStatus && ev.fromStatus !== ev.toStatus ? '(' + escapeHtml(ev.fromStatus) + ' &rarr; ' + escapeHtml(ev.toStatus) + ')' : '') +
+            (ev.eventType === 'TICKET_REASSIGNED' && ev.metadata?.reason
+              ? '<div>' + escapeHtml(ev.metadata.reason) + '</div>' : '') +
             '<div style="color:var(--text-muted);font-size:0.76rem;">By ' + escapeHtml(ev.actorName || 'System') + ' at ' + new Date(ev.createdAt).toLocaleTimeString() + '</div>' +
           '</div>'
         ).join('') + '</div>';
 
       if (typeof renderTicketExtras === 'function') renderTicketExtras(detail);
+
+      const assignmentElement = document.getElementById('ticket-assignment-form');
+      if (assignmentElement) assignmentElement.onsubmit = async event => {
+        event.preventDefault();
+        const submit = assignmentElement.querySelector('button');
+        if (submit.disabled) return;
+        submit.disabled = true;
+        try {
+          const result = await apiFetch('/api/tickets/' + encodeURIComponent(t.id) + '/assign', {
+            method: 'POST',
+            body: JSON.stringify({
+              assigneeId: document.getElementById('assignment-assignee').value,
+              expectedAssigneeId: t.assigneeId,
+              expectedRevision: assignment.revision,
+              reason: document.getElementById('assignment-reason').value,
+            }),
+          });
+          showFeedback(result.changed ? 'Assignment saved.' : 'Ticket already assigned to this administrator.');
+          await refreshAllData();
+        } catch (error) {
+          showFeedback(error.message, 'error');
+          if (error.status === 409 && selectedTicketId === t.id) {
+            const reason = assignmentElement.querySelector('textarea').value;
+            await inspectTicket(t.id).catch(() => {});
+            if (selectedTicketId === t.id) {
+              const refreshedReason = document.getElementById('assignment-reason');
+              if (refreshedReason) refreshedReason.value = reason;
+            }
+          }
+        } finally { submit.disabled = false; }
+      };
 
       const bindTransition = (btnId, targetStatus, notesPrompt) => {
         const el = document.getElementById(btnId);
@@ -751,6 +806,10 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       } finally { submitButton.disabled = false; }
     };
 
+    document.getElementById('filter-assigned-to-me').onchange = () => {
+      ticketPage = 1;
+      refreshAllData().catch(error => showFeedback(error.message, 'error'));
+    };
     document.getElementById('refresh-tickets-btn').onclick = () => { ticketPage = 1; refreshAllData().catch(error => showFeedback(error.message, 'error')); };
 
     async function loadAssetsTab() {

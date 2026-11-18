@@ -3,7 +3,7 @@ import { connectPostgres } from "../../apps/api/src/postgres-runtime.ts";
 import { disposablePostgres } from "../support/disposable-postgres.ts";
 import { startOidcApplication } from "../support/oidc-application.ts";
 const test = base.extend<{
-  oidc: Pick<Awaited<ReturnType<typeof startOidcApplication>>, "issuer" | "publicUrl" | "expireSessions">;
+  oidc: Pick<Awaited<ReturnType<typeof startOidcApplication>>, "issuer" | "publicUrl" | "expireSessions" | "chooseRole">;
 }>({
   oidc: async ({}, use) => {
     const postgres = process.env.AIIT_E2E_POSTGRES === 'true';
@@ -101,4 +101,32 @@ test("expired enterprise session clears private workspace and gives sign-in feed
   await expect(page.locator("#global-feedback")).toContainText(
     "Session expired or invalid",
   );
+});
+
+
+test("enterprise IT assignment requires the session's Origin and CSRF token", async ({ page, oidc }) => {
+  oidc.chooseRole("IT_ADMIN");
+  await page.goto(oidc.publicUrl + "/app");
+  await page.click("#enterprise-login-btn");
+  await expect(page.getByTestId("active-user-badge")).toContainText("IT_ADMIN");
+  await page.click('button[data-tab="tickets"]');
+  const ticketPath = oidc.publicUrl + "/api/tickets/ticket-seed-1002";
+  await page.locator('[data-ticket-id="ticket-seed-1002"]').click();
+  const detail = await (await page.request.get(ticketPath)).json();
+  const session = await (await page.request.get(oidc.publicUrl + "/api/auth/me")).json();
+  const command = {
+    assigneeId: detail.ticket.assigneeId,
+    expectedAssigneeId: detail.ticket.assigneeId,
+    expectedRevision: detail.assignment.revision,
+    reason: "Synthetic enterprise assignment check",
+  };
+  const assign = (origin: string, csrf: string, data: object | string = command) => page.request.post(ticketPath + "/assign", {
+    headers: { origin, "x-csrf-token": csrf, "content-type": "application/json" }, data,
+  });
+  expect((await assign(oidc.publicUrl, "wrong-csrf")).status()).toBe(403);
+  expect((await assign("https://untrusted.example.test", session.csrfToken)).status()).toBe(403);
+  expect((await assign(oidc.publicUrl, session.csrfToken, "{")).status()).toBe(400);
+  await page.getByLabel("Assignment reason").fill(command.reason);
+  await page.getByRole("button", { name: "Save assignment" }).click();
+  await expect(page.locator("#global-feedback")).toContainText("Ticket already assigned");
 });
