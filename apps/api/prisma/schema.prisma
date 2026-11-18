@@ -256,6 +256,9 @@ model Notification {
 
   ticket         Ticket?            @relation(fields: [ticketId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   recipient      User               @relation(fields: [recipientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model AIActionLog {
