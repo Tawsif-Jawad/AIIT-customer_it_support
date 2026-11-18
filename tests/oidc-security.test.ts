@@ -541,3 +541,25 @@ test("OIDC callback persistence failure never releases a cookie or partial succe
     }
     assert.equal(fs.readFileSync(f.file, "utf8"), before);
   }));
+
+test("OIDC discovery refuses redirects before contacting the loopback trap", () =>
+  fixture(async f => {
+    f.issuer.setMode("redirect-discovery");
+    const response = await fetch(f.publicUrl + "/api/auth/oidc/login", { redirect: "manual" });
+    assert.equal(response.status, 503);
+    assert.equal(f.issuer.stats().redirectHits, 0);
+  }));
+
+test("OIDC loopback discovery fails closed with Node environment-proxy opt-in", () =>
+  fixture(async f => {
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = "--use_env_proxy";
+    try {
+      const response = await fetch(f.publicUrl + "/api/auth/oidc/login", { redirect: "manual" });
+      assert.equal(response.status, 503);
+      assert.equal(f.issuer.stats().discoveryRequests, 0);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  }));

@@ -226,3 +226,19 @@ test.describe('inactive assignment', () => {
   await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
 });
 });
+
+
+test('Support retries authentication after a temporary API outage', async ({ page }) => {
+  await page.route('**/api/auth/config', route => route.fulfill({
+    status: 502, json: { error: { code: 'BAD_GATEWAY' } },
+  }), { times: 1 });
+  await page.goto('/');
+  await page.getByRole('link', { name: /^Get support/ }).click();
+  await expect(page.locator('#auth-mode-notice')).toContainText('Sign-in is temporarily unavailable');
+  await expect(page.locator('#login-submit-btn')).toBeHidden();
+  await page.getByRole('button', { name: 'Retry health' }).click();
+  await expect(page.locator('#login-submit-btn')).toBeEnabled();
+  await page.locator('#login-email-input').fill(employee);
+  await page.locator('#login-submit-btn').click();
+  await expect(page.getByTestId('active-user-badge')).toContainText('Synthetic Employee');
+});

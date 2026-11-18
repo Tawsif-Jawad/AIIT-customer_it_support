@@ -488,6 +488,42 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     assert.equal(job.attempts, 1);
   });
 
+  await t.test('a locked expired final attempt cannot stall unrelated claims', async () => {
+    const createJob = (id: string, expired: boolean) => client.notification.create({ data: {
+      id, recipientId: source.users[0].id, recipientEmail: source.users[0].email,
+      subject: 'Synthetic sweep test', body: 'Synthetic test content',
+      job: { create: { id, availableAt: new Date(0), ...(expired ? {
+        state: 'PROCESSING', attempts: 1, maxAttempts: 1, leaseUntil: new Date(0), leaseToken: 'synthetic-lease',
+      } : {}) } },
+    } });
+    const terminal = await createJob('day9-locked-expired', true);
+    await createJob('day9-unrelated-claim', false);
+    let locked!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { locked = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const blocker = client.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "NotificationJob" WHERE id=${terminal.id} FOR UPDATE`;
+      locked();
+      await gate;
+    }, { timeout: 10000 });
+    const outbox = new PostgresOutbox(client);
+    try {
+      await Promise.race([ready, blocker]);
+      const claimed = await outbox.claim();
+      assert.equal(claimed?.id, 'day9-unrelated-claim');
+      await outbox.complete(claimed.id, claimed.leaseToken!);
+    } finally {
+      release();
+      await blocker;
+    }
+    assert.equal(await outbox.claim(), null);
+    const failed = await client.notification.findUniqueOrThrow({ where: { id: terminal.id }, include: { job: true } });
+    assert.equal(failed.status, 'FAILED');
+    assert.equal(failed.job?.lastError, 'LEASE_EXHAUSTED');
+    assert.equal(failed.sentAt, null);
+  });
+
   await t.test('SIGKILL after claim leaves a recoverable job for a new worker', async () => {
     const pending = await app.inject({ method: 'POST', url: '/api/tickets', token: employee, body: input });
     assert.equal(pending.status, 201);

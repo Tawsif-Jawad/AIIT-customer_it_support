@@ -9,7 +9,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-e2e-'));
 const app=createApiServer(path.join(dir,'db.json'));
 await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));
 const web=createWebServer(`http://127.0.0.1:${(app.server.address() as {port:number}).port}`);
-web.listen(4173,'127.0.0.1');
+web.listen(Number(process.env.AIIT_E2E_PORT ?? 4173),'127.0.0.1');
 let closing=false;
 async function close(){if(closing)return;closing=true;await new Promise<void>(r=>web.close(()=>r()));await new Promise<void>(r=>app.server.close(()=>r()));fs.rmSync(dir,{recursive:true,force:true});}
 process.on('SIGTERM',()=>void close());process.on('SIGINT',()=>void close());

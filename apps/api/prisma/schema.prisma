@@ -181,6 +181,8 @@ model TicketEvent {
   createdAt   DateTime      @default(now()) @db.Timestamptz(6)
 
   ticket      Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([ticketId, createdAt, id])
 }
 
 model TicketComment {
@@ -333,6 +335,7 @@ model NotificationJob {
   state String @default("QUEUED")
   lastError String?
   @@index([state, availableAt])
+  @@index([state, leaseUntil])
 }
 
 model TicketCounter {

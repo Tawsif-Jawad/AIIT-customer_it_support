@@ -18,6 +18,7 @@ export async function startTestIssuer() {
   let tokenRequests = 0;
   let jwksRequests = 0;
   let discoveryRequests = 0;
+  let redirectHits = 0;
   const codes = new Map<
     string,
     { nonce: string; challenge: string; redirect: string; clientId: string }
@@ -31,7 +32,17 @@ export async function startTestIssuer() {
       });
       res.end(JSON.stringify(value));
     };
+    if (url.pathname === "/redirect-trap") {
+      redirectHits++;
+      json({ error: "unexpected_redirect" }, 400);
+      return;
+    }
     if (url.pathname === "/.well-known/openid-configuration") {
+      if (mode === "redirect-discovery") {
+        res.writeHead(302, { Location: issuer + "/redirect-trap" });
+        res.end();
+        return;
+      }
       discoveryRequests++;
       if (mode === "stall-discovery") return;
       if (mode === "unavailable") {
@@ -157,7 +168,7 @@ export async function startTestIssuer() {
     setSubject: (value: string) => {
       subject = value;
     },
-    stats: () => ({ tokenRequests, jwksRequests, discoveryRequests }),
+    stats: () => ({ tokenRequests, jwksRequests, discoveryRequests, redirectHits }),
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
