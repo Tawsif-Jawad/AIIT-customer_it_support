@@ -98,3 +98,24 @@ for (const width of [390, 1280]) {
     await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
   });
 }
+
+
+test('development sign-in waits for initialization and keeps the entered identity', async ({ page }) => {
+  let release!: () => void;
+  const identities = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/auth/identities', async route => {
+    await identities;
+    await route.continue();
+  });
+  await page.goto('/app');
+  const button = page.locator('#login-submit-btn');
+  const email = page.locator('#login-email-input');
+  try {
+    await expect(button).toBeDisabled();
+    await email.fill('rahim.chowdhury@client.upstra.local');
+  } finally { release(); }
+  await expect(button).toBeEnabled();
+  await expect(email).toHaveValue('rahim.chowdhury@client.upstra.local');
+  await button.click();
+  await expect(page.getByTestId('active-user-badge')).toContainText('Rahim Chowdhury');
+});

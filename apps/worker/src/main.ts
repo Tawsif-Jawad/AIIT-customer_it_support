@@ -1,15 +1,18 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
+import { createRehearsalSmtp } from './rehearsal-smtp.ts';
 import { connectPostgres } from '../../api/src/postgres-runtime.ts';
 
 async function run() {
+  const rehearsalSmtp = createRehearsalSmtp();
   const client = await connectPostgres();
   try {
     const { NotificationWorker } = await import('./notification-worker.ts');
-    const worker = new NotificationWorker(client, new DevelopmentEmailTransport({
+    const transport = rehearsalSmtp ?? new DevelopmentEmailTransport({
       mode: 'mock', smtpHost: 'localhost', smtpPort: 1025,
       fromAddress: 'noreply@local.dev.invalid', retainMockMessages: false,
-    }));
+    });
+    const worker = new NotificationWorker(client, transport);
     let stopping = false;
     const stop = () => { stopping = true; };
     process.once('SIGINT', stop);
@@ -22,7 +25,7 @@ async function run() {
           const states = await client.notificationJob.groupBy({ by: ['state'], _count: { _all: true } });
           const counts = Object.fromEntries(states.map(row => [row.state, row._count._all]));
           console.log(JSON.stringify({
-            event: 'WORKER_READY', storageMode: 'postgres', transport: 'mock', environment: process.env.NODE_ENV,
+            event: 'WORKER_READY', storageMode: 'postgres', transport: rehearsalSmtp ? transport.providerName : 'mock', environment: process.env.NODE_ENV,
             queued: counts.QUEUED ?? 0, processing: counts.PROCESSING ?? 0, failed: counts.FAILED ?? 0,
           }));
           ready = true;

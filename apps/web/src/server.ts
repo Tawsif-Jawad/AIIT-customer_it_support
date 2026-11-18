@@ -241,7 +241,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         <input type="email" id="login-email-input" placeholder="e.g., tawsif.zawad@upstra.com" />
       </div>
       <a id="enterprise-login-btn" class="btn-primary" href="/api/auth/oidc/login" style="display:none">Sign in with enterprise identity ↗</a>
-      <button id="login-submit-btn" class="btn-primary" type="button">Sign in to development environment ↗</button>
+      <button id="login-submit-btn" class="btn-primary" type="button" disabled>Sign in to development environment ↗</button>
     </section>
 
     <!-- AUTHENTICATED WORKSPACE -->
@@ -452,7 +452,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       const development = config.mode === 'development';
       const enterpriseButton = document.getElementById('enterprise-login-btn');
       enterpriseButton.style.display = config.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
-      document.getElementById('login-submit-btn').style.display = development ? 'inline-block' : 'none';
+      const developmentButton = document.getElementById('login-submit-btn');
+      developmentButton.style.display = development ? 'inline-block' : 'none';
       document.getElementById('login-email-input').parentElement.style.display = development ? 'block' : 'none';
       document.getElementById('login-identity-select').parentElement.style.display = development ? 'block' : 'none';
       document.getElementById('auth-mode-notice').textContent = development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
@@ -461,8 +462,9 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       select.innerHTML = idData.identities.map(u =>
         '<option value="' + escapeHtml(u.email) + '">' + escapeHtml(u.displayName) + ' [' + escapeHtml(u.roleName) + ' | ' + escapeHtml(u.sbuCode) + ']</option>'
       ).join('');
-      if (idData.identities.length > 0) {
-        document.getElementById('login-email-input').value = idData.identities[0].email;
+      const emailInput = document.getElementById('login-email-input');
+      if (idData.identities.length > 0 && !emailInput.value.trim()) {
+        emailInput.value = idData.identities[0].email;
       }
       select.onchange = () => {
         document.getElementById('login-email-input').value = select.value;
@@ -478,6 +480,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         } catch {
           localStorage.removeItem('itsupport_token');
           authToken = '';
+        } finally {
+          developmentButton.disabled = !development;
         }
       }
       if (typeof resetPrivateViews === 'function') resetPrivateViews();
