@@ -91,9 +91,9 @@ export function createServer<Store extends RequestStore>(
   const adAdapter = new MockActiveDirectoryAdapter();
   const emailTransport = new DevelopmentEmailTransport({
     mode: (process.env.MAIL_PROVIDER as 'mock' | 'mailpit') || 'mock',
-    smtpHost: process.env.SMTP_HOST || 'localhost',
-    smtpPort: Number(process.env.SMTP_PORT || 1025),
-    fromAddress: process.env.MAIL_FROM_ADDRESS || 'noreply-itsupport@local.dev.invalid',
+    smtpHost: '127.0.0.1',
+    smtpPort: 1025,
+    fromAddress: 'noreply@example.test',
   });
   const mailboxProvisioner = new UnconfiguredMailboxProvisioningAdapter();
   const queueProcessor = new NotificationQueueProcessor(store, emailTransport, !!postgres);
@@ -343,7 +343,7 @@ export function createServer<Store extends RequestStore>(
             keycloakOidc: {
               status: 'UNKNOWN',
               note: enterpriseAuth ? 'OIDC adapter configured. Provider reachability is checked during sign-in; real Keycloak/AD integration is not certified.' : 'Live Keycloak connectivity and federation are not verified; development tokens require explicit local mode.',
-              issuer: enterpriseAuth?.issuer || process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/upstra-enterprise',
+              issuer: enterpriseAuth?.issuer ?? null,
               mode: process.env.AUTH_MODE || 'unconfigured',
             },
             activeDirectory: adHealth,

@@ -46,8 +46,8 @@ describe('Ticket Workflow State Machine & Role Guards', () => {
 describe('SBU & Resource-Level Authorization (RBAC)', () => {
   const empSbuTech: User = {
     id: 'u-1',
-    email: 'tawsif.zawad@upstra.com',
-    displayName: 'Tawsif Zawad',
+    email: 'employee@example.test',
+    displayName: 'Synthetic Employee',
     oidcSubject: 'sub-1',
     sbuId: 'sbu-tech-001',
     sbuCode: 'SBU-TECH',
@@ -61,7 +61,7 @@ describe('SBU & Resource-Level Authorization (RBAC)', () => {
   const empSbuFin: User = {
     ...empSbuTech,
     id: 'u-2',
-    email: 'nadia.islam@upstra.local',
+    email: 'second-employee@example.test',
     sbuId: 'sbu-fin-002',
     sbuCode: 'SBU-FIN',
   };
@@ -123,8 +123,8 @@ describe('AI Orchestration Safety, Redaction & Policy Governance', () => {
     const adAdapter = new MockActiveDirectoryAdapter();
     const unapprovedWrite = await adAdapter.proposeWriteAction({
       actionType: 'ADD_GROUP_MEMBER',
-      targetIdentifier: 'tawsif.zawad@upstra.com',
-      requestedByEmail: 'tawsif.zawad@upstra.com',
+      targetIdentifier: 'employee@example.test',
+      requestedByEmail: 'employee@example.test',
       dryRun: true,
       parameters: { group: 'CN=Domain-Admins' },
     });
@@ -133,7 +133,7 @@ describe('AI Orchestration Safety, Redaction & Policy Governance', () => {
 
     const mailProv = new UnconfiguredMailboxProvisioningAdapter();
     const mboxRes = await mailProv.requestMailboxCreation({
-      requestedAddress: 'newhire@upstra.com',
+      requestedAddress: 'newhire@example.test',
       displayName: 'New Hire',
       sbuCode: 'SBU-TECH',
     });

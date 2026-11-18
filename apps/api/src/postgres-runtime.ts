@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { disposablePostgresUrl } from '../../../packages/shared/src/isolation.ts';
 import { createServer } from './app.ts';
 
 export async function createPostgresApiServer(client: PrismaClient) {
@@ -28,6 +29,7 @@ export async function connectPostgres(env = process.env): Promise<PrismaClient> 
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.pathname.length < 2) {
     throw new Error('INVALID_POSTGRES_DATABASE_URL');
   }
+  if (!disposablePostgresUrl(url)) throw new Error('POSTGRES_DESTINATION_DENIED');
   const { PrismaClient } = await import('@prisma/client');
   const client = new PrismaClient({ datasourceUrl: url.href });
   try {

@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
 import https from 'node:https';
+import net from 'node:net';
 import type { IncomingHttpHeaders, OutgoingHttpHeaders, Server } from 'node:http';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -186,6 +187,37 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   assert.equal((await untrustedTransport.sendEmail({
     to: employee.email, deliveryId: 'wrong-trust-anchor', subject: 'blocked', textBody: 'blocked',
   })).delivered, false);
+  const message = { to: employee.email, deliveryId: 'transport-trust-check', subject: 'Synthetic probe', textBody: 'Synthetic probe' };
+  const mismatchedCertificate = rehearsalCertificate(mkdtempSync(cluster.dir + '/wrong-name-'), 'wrong-name.example.test');
+  const wrongHostSink = await startRehearsalSink(mismatchedCertificate);
+  try {
+    const wrongHost = createRehearsalSmtp({
+      ...env, AIIT_REHEARSAL_SMTP_PORT: String(wrongHostSink.port), AIIT_REHEARSAL_SMTP_CA: mismatchedCertificate.caFile,
+    })!;
+    assert.equal((await wrongHost.sendEmail(message)).delivered, false);
+    assert.equal(wrongHostSink.received.length, 0);
+  } finally { await wrongHostSink.close(); }
+
+  let plainConnections = 0;
+  let plaintextEnvelope = false;
+  const plainSink = net.createServer(socket => {
+    plainConnections++;
+    socket.on('error', () => {});
+    socket.on('data', chunk => { plaintextEnvelope ||= /MAIL FROM:|RCPT TO:/i.test(chunk.toString()); });
+    socket.end('220 localhost plaintext SMTP\r\n');
+  });
+  const plainPort = await listenOnLoopback(plainSink);
+  try {
+    const expectsTls = createRehearsalSmtp({ ...env, AIIT_REHEARSAL_SMTP_PORT: String(plainPort) })!;
+    assert.equal((await expectsTls.sendEmail(message)).delivered, false);
+    assert.equal(plainConnections, 1);
+    assert.equal(plaintextEnvelope, false);
+  } finally { await new Promise<void>(resolve => plainSink.close(() => resolve())); }
+
+  smtp.authenticationRequired(true);
+  assert.equal((await transport.sendEmail(message)).delivered, false);
+  assert.equal(smtp.authGateHits(), 1);
+  smtp.authenticationRequired(false);
   assert.equal(smtp.received.length, 0);
   assert.equal(smtp.rejectedCount(), 0);
   const [job] = await client.notificationJob.findMany({ include: { notification: true } });
@@ -251,5 +283,29 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   t.diagnostic('REHEARSAL_RECOVERY ' + JSON.stringify({ restartMs, restoreMs, tickets: sourceCounts[0],
     ticketEvents: sourceCounts[1], auditEntries: sourceCounts[2], sessions: sourceCounts[3],
     notifications: sourceCounts[4], jobs: sourceCounts[5] }));
-  t.diagnostic('Controlled rehearsal verified TLS ingress, identity, and one durable SMTP intent after a failed attempt and worker restart.');
+  const bounded = await client.notification.create({
+    data: {
+      recipientId: employee.id, recipientEmail: employee.email,
+      subject: 'Synthetic retry bound', body: 'Synthetic retry bound',
+      job: { create: { id: 'rehearsal-bounded-retry', maxAttempts: 2 } },
+    },
+  });
+  const worker = new NotificationWorker(client, transport);
+  smtp.rejectNextMessage();
+  assert.equal(await worker.runOnce(), true);
+  assert.equal((await client.notification.findUniqueOrThrow({ where: { id: bounded.id } })).status, 'QUEUED');
+  await client.notificationJob.update({ where: { id: 'rehearsal-bounded-retry' }, data: { availableAt: new Date(0) } });
+  smtp.rejectNextMessage();
+  assert.equal(await worker.runOnce(), true);
+  const exhausted = await client.notificationJob.findUniqueOrThrow({
+    where: { id: 'rehearsal-bounded-retry' }, include: { notification: true },
+  });
+  assert.equal(exhausted.attempts, 2);
+  assert.equal(exhausted.state, 'FAILED');
+  assert.equal(exhausted.notification.status, 'FAILED');
+  assert.equal(exhausted.notification.sentAt, null);
+  assert.equal(await worker.runOnce(), false);
+  assert.equal(smtp.rejectedCount(), 3);
+  assert.equal(smtp.received.length, 1);
+  t.diagnostic('Verified hostname, CA, encryption, authentication-required failure, recovery and bounded SMTP retries.');
 });

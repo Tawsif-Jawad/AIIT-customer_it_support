@@ -18,12 +18,12 @@ export async function listenOnLoopback(server: net.Server) {
   return (server.address() as net.AddressInfo).port;
 }
 
-export function rehearsalCertificate(dir: string) {
+export function rehearsalCertificate(dir: string, hostname = 'localhost') {
   const caFile = path.join(dir, 'rehearsal-cert.pem');
   const keyFile = path.join(dir, 'rehearsal-key.pem');
   execFileSync('openssl', [
-    'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=localhost',
-    '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1', '-keyout', keyFile, '-out', caFile,
+    'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=' + hostname,
+    '-addext', 'subjectAltName=DNS:' + hostname + ',IP:127.0.0.1', '-keyout', keyFile, '-out', caFile,
   ], { stdio: 'ignore' });
   return { caFile, cert: readFileSync(caFile), key: readFileSync(keyFile), minVersion: 'TLSv1.2' as const };
 }
@@ -53,6 +53,8 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
   const sockets = new Set<net.Socket>();
   let rejected = 0;
   let rejectNext = false;
+  let requireAuthentication = false;
+  let authGateHits = 0;
   const server = tls.createServer(certificate, socket => {
     sockets.add(socket);
     socket.once('close', () => sockets.delete(socket));
@@ -94,8 +96,13 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
         }
         if (/^(EHLO|HELO) /i.test(line)) socket.write('250 localhost\r\n');
         else if (/^MAIL FROM:<aiit-rehearsal@example\.test>$/i.test(line)) {
-          senderAccepted = true;
-          socket.write('250 Sender accepted\r\n');
+          if (requireAuthentication) {
+            authGateHits++;
+            socket.write('530 Authentication required\r\n');
+          } else {
+            senderAccepted = true;
+            socket.write('250 Sender accepted\r\n');
+          }
         } else if (senderAccepted && !recipient && /^RCPT TO:<[a-z0-9][a-z0-9._+-]{0,63}@example\.test>$/i.test(line)) {
           recipient = line.slice(line.indexOf('<') + 1, -1);
           socket.write('250 Recipient accepted\r\n');
@@ -112,6 +119,8 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
     received,
     rejectNextMessage: () => { rejectNext = true; },
     rejectedCount: () => rejected,
+    authenticationRequired: (required: boolean) => { requireAuthentication = required; },
+    authGateHits: () => authGateHits,
     close: () => new Promise<void>(resolve => {
       for (const socket of sockets) socket.destroy();
       server.close(() => resolve());

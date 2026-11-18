@@ -63,3 +63,30 @@ The native suite includes the staging rehearsal. Hosted PostgreSQL jobs require 
 An authorized target staging endpoint, nonproduction Keycloak tenant and approved organizational SMTP route were unavailable. Target firewall policy, certificate provisioning, actual federation, and SMTP authorization remain unverified. Privileged AI execution, AD writes, and mailbox provisioning remain disabled.
 
 For Day 9, identify an authorized staging host and issuer, confirm private networking and TLS, approve a non-relaying mail sink, and define RPO/RTO and audit retention. Replay restore on representative synthetic data and complete role-specific stakeholder UAT. Obtain independent review and integrate the prerequisite stack in order before re-running acceptance checks on main.
+
+## Office isolation follow-up
+
+The owner prohibited all office connections, including read-only, connectivity and certificate checks. Reused the clean standalone Day 8 clone at `1d58bce2172731ff269ddbbb225bb4504b036f10`, based on Day 7 `25d97a93252bfd36810cd15e320e1fb1494b4b29`. The GitHub branch and draft PR heads matched. The original Day 6 source and its existing audit evidence were outside the verification checkout.
+
+Added startup destination checks for the API's PostgreSQL connection, OIDC, portal upstream and disposable importer. The local verifier starts children with an allowlisted environment. Synthetic seed identities and tests use `example.test`. See the [office infrastructure isolation policy](../security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md).
+
+The isolated SMTP matrix covers trust and name validation, failure against a plaintext-only listener, rejection when authentication is required by the sink, synthetic recipient checks, recovery after SMTP 451, and exhaustion at a two-attempt limit. The adapter uses a public test-sink model without SMTP credentials. Authenticated SMTP interoperability remains outside the rehearsal. The disposable database and OIDC role workflows were replayed locally under the destination guards.
+
+### Isolation verification replay
+
+All final commands exited 0 under an allowlisted environment. The local host used macOS ARM64, Node.js 26.8.1, pnpm 9.15.0, disposable PostgreSQL 18.6, and Chromium. Harness listeners, database names, fixture certificates, and recipients were provisioned locally. GitHub and the public package registry were used for source control and dependency tooling.
+
+| Command | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| `pnpm install --frozen-lockfile`, `pnpm db:generate`, `pnpm typecheck`, `pnpm lint`, `pnpm build` | — | — | — |
+| `pnpm test` | 178 | 0 | 0 |
+| `pnpm test:security` | 53 | 0 | 0 |
+| `pnpm test:db` | 56 | 0 | 0 |
+| `pnpm test:e2e` | 28 | 0 | 0 |
+| `pnpm test:e2e:postgres` | 20 | 0 | 0 |
+| `pnpm test:staging` | 1 | 0 | 0 |
+| `pnpm audit --audit-level=moderate`, `pnpm audit --prod --audit-level=moderate` | — | — | — |
+
+npm initially rejected the same empty path for both user and global configuration. Separate paths enabled build and browser execution. One browser assertion still referenced the old fixture display name, and it passed after switching to the shared synthetic fixture label. The focused staging replay recorded 465 ms for database restart and 465 ms for backup, restore and the authenticated read. Evidence with command names, exit codes and initial failure logs is in `/private/tmp/aiit-isolation-evidence.yTNIYz`. The [draft PR checks](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/11/checks) track the exact pushed head.
+
+External staging access is not needed for the local rehearsal. Office integration stays disabled under the owner's restriction. Formal approval and prerequisite integration remain pending.

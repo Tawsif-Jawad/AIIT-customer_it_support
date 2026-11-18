@@ -7,7 +7,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
@@ -31,15 +30,20 @@ export async function runVerification(outputDirectory?:string):Promise<{exitCode
  const directory=outputDirectory?path.resolve(outputDirectory):fs.mkdtempSync(path.join(os.tmpdir(),'aiit-verify-'));
  if(outputDirectory)fs.mkdirSync(directory,{recursive:false}); // refuse overwriting evidence
  const protectedFiles=['.data/enterprise-db.json','.env'];
- const hash=(relative:string)=>{const file=path.join(root,relative);return fs.existsSync(file)?crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;};
- const before=protectedFiles.map(hash);
+ const present=(relative:string)=>fs.existsSync(path.join(root,relative));
+ if(protectedFiles.some(present)) throw new Error('ISOLATED_VERIFICATION_CHECKOUT_REQUIRED');
  const pnpmVersion=(JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')) as {packageManager:string}).packageManager;
  if(pnpmVersion!=='pnpm@9.15.0')throw new Error('Verification requires reviewed pnpm@9.15.0');
  const expectedNode=fs.readFileSync(path.join(root,'.node-version'),'utf8').trim();
  if(process.versions.node!==expectedNode)throw new Error(`Use Node ${expectedNode}; found ${process.versions.node}`);
- const env={...process.env,NODE_ENV:'test',AUTH_MODE:'dev_oidc',MAIL_PROVIDER:'mock',DB_REQUIRED:'true',DATABASE_URL:'postgresql://aiit_test@127.0.0.1:1/aiit_test'};
- // NODE_OPTIONS can load arbitrary code, but this script never logs its value.
- // No external DATABASE_URL/AD/mail configuration is used by test resources.
+ const allowed=['PATH','HOME','TMPDIR','TMP','TEMP','LANG','LC_ALL','PG_BINDIR','PLAYWRIGHT_BROWSERS_PATH'];
+ const env={
+  ...Object.fromEntries(allowed.map(key=>[key,process.env[key]])),
+  NODE_ENV:'test',AUTH_MODE:'dev_oidc',MAIL_PROVIDER:'mock',DB_REQUIRED:'true',
+  DATABASE_URL:'postgresql://aiit_test@127.0.0.1:1/aiit_test',
+  npm_config_registry:'https://registry.npmjs.org/',
+  npm_config_userconfig:path.join(directory,'npm-user-config'),npm_config_globalconfig:path.join(directory,'npm-global-config'),
+ };
  const results:{command:string;exitCode:number;signal:string|null;log:string;counts:Record<string,number>}[]=[];
  for(let index=0;index<VERIFICATION_COMMANDS.length;index++) {
   const args=VERIFICATION_COMMANDS[index];
@@ -57,10 +61,10 @@ export async function runVerification(outputDirectory?:string):Promise<{exitCode
   results.push({command:'npm '+[...prefix,...args].join(' '),exitCode:outcome.code,signal:outcome.signal,log:label,counts:parseTestCounts(output)});
   console.log(`${args.join(' ')}: exit ${outcome.code}`);
  }
- const after=protectedFiles.map(hash);
- const preserved=before.every((value,index)=>value===after[index]);
+ const after=protectedFiles.map(present);
+ const preserved=after.every(value=>!value);
  const exitCode=preserved&&results.every(result=>result.exitCode===0)?0:1;
- const report={scope:'LOCAL_DEVELOPMENT_ONLY',hostedCiPassed:false,alternativeCiActive:false,node:process.versions.node,pnpm:pnpmVersion,results,preservation:{operationalUnchanged:before[0]===after[0],configurationUnchanged:before[1]===after[1],operationalBefore:before[0],operationalAfter:after[0]},exitCode};
+ const report={scope:'LOCAL_DEVELOPMENT_ONLY',hostedCiPassed:false,alternativeCiActive:false,node:process.versions.node,pnpm:pnpmVersion,results,preservation:{operationalUnchanged:!after[0],configurationUnchanged:!after[1]},exitCode};
  fs.writeFileSync(path.join(directory,'summary.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
  console.log(`Evidence: ${directory}`);return {exitCode,directory};
 }

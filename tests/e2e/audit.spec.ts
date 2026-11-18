@@ -9,10 +9,10 @@ import {disposablePostgres, fixtureIdentities, runtimeFixture} from '../support/
 import {importJsonSnapshot} from '../../scripts/json-import.ts';
 import {createWebServer} from '../../apps/web/src/server.ts';
 const postgres = process.env.AIIT_E2E_POSTGRES === 'true';
-const employee = postgres ? fixtureIdentities[0].email : 'tawsif.zawad@upstra.com';
-const customer = postgres ? fixtureIdentities[2].email : 'rahim.chowdhury@client.upstra.local';
-const admin = postgres ? fixtureIdentities[3].email : 'kamal.hossain@upstra.local';
-const cto = postgres ? fixtureIdentities[4].email : 'farhana.ahmed@upstra.local';
+const employee = fixtureIdentities[0].email;
+const customer = fixtureIdentities[2].email;
+const admin = fixtureIdentities[3].email;
+const cto = fixtureIdentities[4].email;
 const test=baseTest.extend<{ inactiveAssignee: boolean }>({
  inactiveAssignee: [false, { option: true }],
  baseURL:async({inactiveAssignee},use)=>{
@@ -119,7 +119,7 @@ test('browser IT approval/internal note/escalation and CTO review share persiste
 });
 test('AU08 logout failure remains signed in and shows retry feedback',async({page})=>{
  await signIn(page);await page.route('**/api/auth/logout',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Synthetic storage outage'}})}));
- await page.click('#logout-btn');await expect(page.locator('#global-feedback')).toContainText('Your session is still active');await expect(page.getByTestId('active-user-badge')).toContainText(postgres ? fixtureIdentities[0].name : 'Tawsif');await shot(page,'logout-failure');await page.unroute('**/api/auth/logout');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
+ await page.click('#logout-btn');await expect(page.locator('#global-feedback')).toContainText('Your session is still active');await expect(page.getByTestId('active-user-badge')).toContainText(fixtureIdentities[0].name);await shot(page,'logout-failure');await page.unroute('**/api/auth/logout');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
 });
 test('assistant creates a mock request; catalog start and recoverable panel errors work',async({page})=>{
  await signIn(page);await tab(page,'catalog');await page.locator('[data-service="cat-outlook-config"]').click();await expect(page.locator('#tab-create')).toBeVisible();

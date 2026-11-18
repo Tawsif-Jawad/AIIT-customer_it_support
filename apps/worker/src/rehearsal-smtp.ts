@@ -1,3 +1,4 @@
+import { disposablePostgresUrl } from '../../../packages/shared/src/isolation.ts';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { EmailMessagePayload, EmailTransportAdapter } from '../../../packages/connectors/src/index.ts';
@@ -24,9 +25,7 @@ export function createRehearsalSmtp(env = process.env): RehearsalTransport | und
   const caFile = env.AIIT_REHEARSAL_SMTP_CA;
   const db = URL.parse(env.DATABASE_URL ?? '');
   if (env.NODE_ENV !== 'test' || env.STORAGE_MODE !== 'postgres' ||
-      db?.protocol !== 'postgresql:' || db.hostname !== '127.0.0.1' || db.pathname !== '/aiit_test' ||
-      db.username !== 'aiit_test' || db.password || !db.port || db.hash ||
-      [...db.searchParams.keys()].some(key => key !== 'connect_timeout') ||
+      !db || !disposablePostgresUrl(db) || db.pathname !== '/aiit_test' ||
       !Number.isInteger(port) || port < 1024 || port > 65535 || !caFile) {
     throw new Error('REHEARSAL_SMTP_UNSAFE_CONFIG');
   }
