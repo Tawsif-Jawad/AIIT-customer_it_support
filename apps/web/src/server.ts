@@ -606,15 +606,20 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
     }
 
     async function inspectTicket(ticketId) {
+      const box = document.getElementById('ticket-detail-container');
       if (selectedTicketId !== ticketId) {
-        document.getElementById('ticket-detail-container').textContent = 'Loading ticket…';
+        box.textContent = 'Loading ticket…';
       }
       selectedTicketId = ticketId;
       renderTicketList();
-      const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId));
-      if (selectedTicketId !== ticketId) return; // discard superseded detail requests
+      const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId)).catch(error => {
+        if (selectedTicketId === ticketId) {
+          box.textContent = 'Unable to load ticket. Select it again to retry.';
+          throw error;
+        }
+      });
+      if (!detail || selectedTicketId !== ticketId) return; // discard superseded detail requests
       const t = detail.ticket;
-      const box = document.getElementById('ticket-detail-container');
 
       let actionsHtml = '';
       if (t.status === 'RESOLVED_PENDING_CONFIRMATION' && (t.requesterId === currentUser.id || currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO')) {

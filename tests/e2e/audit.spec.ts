@@ -70,6 +70,24 @@ test('browser employee full lifecycle, comments, assets, KB, notifications and s
  await tab(page,'notifications');await page.click('#refresh-notifications');await expect(page.locator('#notifications-list')).toContainText(ticket.ticketNumber);
  await shot(page,'employee-desktop');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();expect(errors).toEqual([]);
 });
+test('ticket details show an error after a failed load and can be retried', async ({ page }) => {
+  await signIn(page);
+  const ticket = await create(page, 'Browser audit retry ticket');
+  await expect(page.locator('#ticket-detail-container')).toContainText(ticket.ticketNumber);
+  const other = await create(page, 'Browser audit other ticket');
+  const detail = page.locator('#ticket-detail-container');
+  await expect(detail).toContainText(other.ticketNumber);
+
+  await page.route('**/api/tickets/' + ticket.id, route => route.fulfill({
+    status: 503, json: { message: 'Ticket service temporarily unavailable' },
+  }), { times: 1 });
+  const row = page.locator('[data-ticket-id="' + ticket.id + '"]');
+  await row.click();
+  await expect(detail).toHaveText('Unable to load ticket. Select it again to retry.');
+  await row.click();
+  await expect(detail).toContainText(ticket.ticketNumber);
+});
+
 test('browser customer creates and rejects mock resolution without IT privileges',async({page})=>{
  await signIn(page,customer);await tab(page,'assets');await expect(page.locator('#assets-container')).toContainText('No equipment');await create(page,'Customer audit Outlook question');await page.click('#btn-reopen-it');await expect(page.getByTestId('detail-ticket-status')).toHaveText('ASSIGNED_TO_IT');
  await expect(page.locator('#btn-start-progress')).toHaveCount(0);await expect(page.locator('#tab-btn-approvals')).toBeHidden();await shot(page,'customer-desktop');
