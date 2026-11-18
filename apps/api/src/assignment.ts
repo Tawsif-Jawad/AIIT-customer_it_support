@@ -10,10 +10,14 @@ export interface AssignmentInput {
   reason: string;
 }
 
-export function validateAssignmentInput(value: Record<string, unknown>): AssignmentInput {
-  const id = value.assigneeId;
-  const expected = value.expectedAssigneeId;
-  const reason = value.reason;
+export function validateAssignmentInput(value: unknown): AssignmentInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ValidationError(['Assignment body must be a JSON object.']);
+  }
+  const fields = value as Record<string, unknown>;
+  const id = fields.assigneeId;
+  const expected = fields.expectedAssigneeId;
+  const reason = fields.reason;
 
   const validId = (input: unknown): input is string =>
     typeof input === 'string' && input.length > 0 && input.length <= 128 &&
@@ -21,7 +25,7 @@ export function validateAssignmentInput(value: Record<string, unknown>): Assignm
 
   const errors: string[] = [];
   if (!validId(id)) errors.push('assigneeId must be a nonempty user identifier (max 128 characters).');
-  if (!Object.prototype.hasOwnProperty.call(value, 'expectedAssigneeId') ||
+  if (!Object.prototype.hasOwnProperty.call(fields, 'expectedAssigneeId') ||
       (expected !== null && !validId(expected))) {
     errors.push('expectedAssigneeId must explicitly be null or a valid user identifier.');
   }
