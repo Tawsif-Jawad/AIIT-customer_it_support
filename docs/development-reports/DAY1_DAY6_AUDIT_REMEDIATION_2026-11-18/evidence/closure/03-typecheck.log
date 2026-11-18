@@ -1,0 +1,2 @@
+> it-support-system@1.0.0 typecheck <checkout>
+> tsc --noEmit

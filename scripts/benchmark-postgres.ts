@@ -11,6 +11,8 @@ import { startApiProcess } from '../tests/support/api-process.ts';
 import { importJsonSnapshot } from './json-import.ts';
 
 const samples = 120;
+const apiProcesses = Number(process.env.AIIT_BENCH_API_PROCESSES ?? 2);
+if (![1, 2].includes(apiProcesses)) throw new Error('Use one or two API processes');
 const datasets = [1000, 10000, 50000];
 const source = runtimeFixture();
 
@@ -98,7 +100,7 @@ try {
     SELECT 'day6-user-' || n, 'rehearsal-' || n || '@example.test', 'Synthetic employee ' || n,
       (ARRAY[${source.sbus[0].id}, ${source.sbus[1].id}, ${source.sbus[2].id}])[1 + n % 3], ${role}
     FROM generate_series(1, 120) n`;
-  for (let i = 0; i < 2; i++) apps.push(await startApiProcess(env));
+  for (let i = 0; i < apiProcesses; i++) apps.push(await startApiProcess(env));
   const login = async (email: string) => {
     const response = await fetch(apps[0].url + '/api/auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }),
@@ -110,7 +112,7 @@ try {
   const employee = await login(source.users[0].email);
   const read = async (index: number, route: string, token: string) => {
     const start = performance.now();
-    const response = await fetch(apps[index % 2].url + route, { headers: { authorization: 'Bearer ' + token } });
+    const response = await fetch(apps[index % apiProcesses].url + route, { headers: { authorization: 'Bearer ' + token } });
     assert.equal(response.status, 200, route);
     await response.json();
     return performance.now() - start;
@@ -127,6 +129,10 @@ try {
       { name: 'latest-page', path: '/api/tickets?pageSize=25', token: admin },
       { name: 'owned-category-search', path: '/api/tickets?pageSize=25&category=' + source.serviceCategories[0].slug + '&search=outlook', token: employee },
       { name: 'analytics', path: '/api/analytics/summary', token: admin },
+      { name: 'admin-notifications', path: '/api/notifications', token: admin },
+      { name: 'employee-notifications', path: '/api/notifications', token: employee },
+      // The complete legacy approval response grows with every dataset.
+      ...(size <= 10000 ? [{ name: 'approval-list', path: '/api/approvals', token: admin }] : []),
     ];
     for (const route of routes) for (let i = 0; i < 5; i++) await read(i, route.path, route.token);
     const workerRun = (async () => {
@@ -134,20 +140,21 @@ try {
       for (let i = 0; i < 150; i++) assert.equal(await worker.runOnce(), true);
       return { jobs: 150, durationMs: performance.now() - started };
     })();
-    const latencies: Record<string, ReturnType<typeof summarize>> = {};
+    const latencies: Record<string, ReturnType<typeof summarize> & { requestsPerSecond: number }> = {};
     for (const route of routes) {
       const measurements: number[] = [];
+      const started = performance.now();
       for (let i = 0; i < samples; i += 8) measurements.push(...await Promise.all(
         Array.from({ length: 8 }, (_, slot) => read(slot, route.path, route.token)),
       ));
-      latencies[route.name] = summarize(measurements);
+      latencies[route.name] = { ...summarize(measurements), requestsPerSecond: samples * 1000 / (performance.now() - started) };
     }
     const workerMetrics = await workerRun;
     const createStart = performance.now();
     let conflicts = 0;
     const created = await Promise.all(Array.from({ length: 20 }, async (_, i) => {
       for (let attempt = 0; attempt < 20; attempt++) {
-        const response = await fetch(apps[i % 2].url + '/api/tickets', {
+        const response = await fetch(apps[i % apiProcesses].url + '/api/tickets', {
           method: 'POST', headers: { authorization: 'Bearer ' + employee, 'content-type': 'application/json' },
           body: JSON.stringify({
             title: 'Concurrent synthetic support request ' + i,
@@ -205,7 +212,7 @@ try {
     environment: {
       postgres: cluster.version, node: process.version, platform: process.platform,
       kernel: os.release(), cpu: os.cpus()[0].model, logicalCores: os.cpus().length, memoryBytes: os.totalmem(),
-      apiProcesses: 2, connectionsPerPrismaClient: 8, readConcurrency: 8,
+      apiProcesses, connectionsPerPrismaClient: 8, readConcurrency: 8,
       harnessResourceUsage: process.resourceUsage(),
     },
     runs,

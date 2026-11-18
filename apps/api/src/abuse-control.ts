@@ -24,16 +24,23 @@ export function abusePolicy(env = process.env) {
   };
 }
 
+function ipv6Subnet(address: string, mask: number) {
+  const [left, right] = address.split('::');
+  const leading = left ? left.split(':') : [];
+  const trailing = right ? right.split(':') : [];
+  const groups = right === undefined ? leading : [...leading, ...Array(8 - leading.length - trailing.length).fill('0'), ...trailing];
+  const prefix = groups.slice(0, 4).map(group => parseInt(group, 16));
+  prefix[3] &= mask;
+  return prefix.map(group => group.toString(16)).join(':') + '::';
+}
+
 export function budgetBucket(secret: string, address: string) {
-  let identity = address;
-  if (address.includes(':')) {
-    const [left, right] = address.split('::');
-    const leading = left ? left.split(':') : [];
-    const trailing = right ? right.split(':') : [];
-    const groups = right === undefined ? leading : [...leading, ...Array(8 - leading.length - trailing.length).fill('0'), ...trailing];
-    identity = groups.slice(0, 4).map(group => parseInt(group, 16).toString(16)).join(':') + '/64';
-  }
+  const identity = address.includes(':') ? ipv6Subnet(address, 0xffff).slice(0, -2) + '/64' : address;
   return createHmac('sha256', secret).update(identity).digest('hex').slice(0, 5);
+}
+
+export function loginNetwork(address: string) {
+  return address.includes(':') ? ipv6Subnet(address, 0xff00) : address.replace(/\.\d+$/, '.0');
 }
 
 export class LocalAbuseCounter implements AbuseCounter {
@@ -68,7 +75,12 @@ export async function checkAbuse(counter: AbuseCounter, policy: ReturnType<typeo
   if (general) return general;
   if (pathname === '/api/auth/oidc/login') {
     const personal = await counter.take({ key: 'login:' + key, limit: policy.login, seconds: 300 });
-    return personal || counter.take({ key: 'login:global', limit: policy.globalLogin, seconds: 300 });
+    if (personal) return personal;
+    // Allocate the configured aggregate budget across independent network groups.
+    const groups = Math.min(8, policy.globalLogin);
+    const group = parseInt(counter.bucket(loginNetwork(address)), 16) % groups;
+    const limit = Math.floor(policy.globalLogin / groups) + Number(group < policy.globalLogin % groups);
+    return counter.take({ key: 'login:group:' + group, limit, seconds: 300 });
   }
   if (pathname === '/api/auth/oidc/callback') {
     return counter.take({ key: 'callback:' + key, limit: policy.callback, seconds: 60 });

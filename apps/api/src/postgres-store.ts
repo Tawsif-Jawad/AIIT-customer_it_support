@@ -1,6 +1,7 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { isDeepStrictEqual } from 'node:util';
-import { ticketAccessScope, type User } from '../../../packages/shared/src/index.ts';
+import { ticketAccessScope, type KnowledgeArticle, type User } from '../../../packages/shared/src/index.ts';
 import type { DatabaseState, RequestScope, RequestStore, TicketPageFilters } from './store.ts';
 
 type Tx = Prisma.TransactionClient;
@@ -43,8 +44,15 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   let ticketKey: string | undefined;
   try { if (ticketDetail) ticketKey = decodeURIComponent(ticketDetail[1]); } catch { /* HTTP validation handles malformed input */ }
   const ticketWhere = ticketKey ? { OR: [{ id: ticketKey }, { ticketNumber: ticketKey }] } : undefined;
-  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary'].includes(pathname);
-  const listing = pathname.startsWith('/api/approvals');
+  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary', '/api/approvals', '/api/assets', '/api/notifications', '/api/kb'].includes(pathname);
+  const approvalDecision = method === 'POST' && /^\/api\/approvals\/([^/]+)\/decide$/.exec(pathname);
+  const assetAck = method === 'POST' && /^\/api\/assets\/([^/]+)\/acknowledge$/.exec(pathname);
+  let approvalId: string | undefined;
+  let assetId: string | undefined;
+  try {
+    if (approvalDecision) approvalId = decodeURIComponent(approvalDecision[1]);
+    if (assetAck) assetId = decodeURIComponent(assetAck[1]);
+  } catch { /* HTTP validation handles malformed input */ }
   const creating = method === 'POST' && pathname === '/api/tickets';
   const detail = !!ticketKey && method === 'GET' && !ticketDetail?.[2];
   const ticketFilter = ticketKey ? { ticket: ticketWhere } : undefined;
@@ -60,17 +68,17 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     scopedRead ? [] : tx.sBU.findMany({ orderBy: [...oldest] }),
     pathname === '/api/auth/me' ? tx.role.findMany() : [],
     creating || detail || pathname === '/api/catalog' ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
-    (listing && !creating) || ticketWhere ? tx.ticket.findMany({ where: ticketWhere, orderBy: [...newest] }) : [],
+    ticketWhere || approvalId ? tx.ticket.findMany({
+      where: ticketWhere ?? { approvals: { some: { id: approvalId } } }, orderBy: [...newest],
+    }) : [],
     detail ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
-    pathname.startsWith('/api/assets') ? tx.asset.findMany({ orderBy: [...oldest] }) : [],
-    detail || pathname.startsWith('/api/approvals')
-      ? tx.approval.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
-    pathname === '/api/notifications' || notificationId
-      ? tx.notification.findMany({ where: notificationId ? { id: notificationId } : undefined, orderBy: [...newest] }) : [],
+    assetId ? tx.asset.findMany({ where: { id: assetId } }) : [],
+    detail || approvalId ? tx.approval.findMany({ where: ticketFilter ?? { id: approvalId }, orderBy: [...newest] }) : [],
+    notificationId ? tx.notification.findMany({ where: { id: notificationId } }) : [],
     detail ? tx.aIActionLog.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
     pathname === '/api/audit-logs' ? tx.auditLog.findMany({ orderBy: [...newest], take: 100 }) : [],
-    creating || pathname === '/api/kb' ? tx.knowledgeArticle.findMany({ orderBy: [...oldest] }) : [],
+    creating ? tx.knowledgeArticle.findMany({ where: { isApproved: true }, orderBy: [...oldest] }) : [],
     developmentSessionDigest
       ? tx.authSession.findMany({ where: { id: developmentSessionDigest, kind: null } }) : [],
     creating ? tx.ticketCounter.findUniqueOrThrow({ where: { id: 'tickets' } }) : null,
@@ -150,21 +158,23 @@ class RollbackResponse extends Error {}
 /** Request-scoped relational projection. Writes use targeted DML in the same
  * serializable transaction as the route, including its audit and outbox intent. */
 export class PostgresRequestStore implements RequestStore {
-  private state?: DatabaseState;
-  private tx?: Tx;
+  private readonly context = new AsyncLocalStorage<{ tx: Tx; state: DatabaseState }>();
+  private ticketCreationTail: Promise<void> = Promise.resolve();
 
   private readonly client: PrismaClient;
 
   constructor(client: PrismaClient) { this.client = client; }
 
   get transactionClient() {
-    if (!this.tx) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.tx;
+    const request = this.context.getStore();
+    if (!request) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return request.tx;
   }
 
   getState() {
-    if (!this.state) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
-    return this.state;
+    const request = this.context.getStore();
+    if (!request) throw new Error('POSTGRES_TRANSACTION_REQUIRED');
+    return request.state;
   }
 
   persist() { void this.transactionClient; }
@@ -195,6 +205,44 @@ export class PostgresRequestStore implements RequestStore {
     return { items: items.map(({ version, ...item }) => { void version; return item; }), total };
   }
 
+  async approvedKnowledgeItems() {
+    const rows = await this.transactionClient.knowledgeArticle.findMany({
+      where: { isApproved: true },
+      orderBy: [...oldest],
+    });
+    return project<KnowledgeArticle[]>(rows);
+  }
+
+  async approvalItems() {
+    const rows = await this.transactionClient.approval.findMany({
+      include: { ticket: { select: { ticketNumber: true, title: true } } },
+      orderBy: [...newest],
+    });
+    return project<unknown[]>(unversion(rows).map(({ ticket, ...approval }) => ({
+      ...approval, ticketNumber: ticket.ticketNumber, ticketTitle: ticket.title,
+    })));
+  }
+
+  async assetItems(user: User) {
+    const global = user.roleName === 'IT_ADMIN' || user.roleName === 'CTO';
+    const rows = await this.transactionClient.asset.findMany({
+      where: global ? undefined : { assignedUserId: user.id, sbuId: user.sbuId },
+      orderBy: [...oldest],
+    });
+    return project<unknown[]>(unversion(rows));
+  }
+
+  async notificationFeed(user: User) {
+    const global = user.roleName === 'IT_ADMIN' || user.roleName === 'CTO';
+    const where = global ? {} : { recipientId: user.id };
+    const tx = this.transactionClient;
+    const [rows, deliveredTransportCount] = await Promise.all([
+      tx.notification.findMany({ where, orderBy: [...newest], take: global ? 50 : undefined }),
+      tx.notification.count({ where: { ...where, status: 'SENT', channel: 'EMAIL_AND_IN_APP' } }),
+    ]);
+    return { items: project<unknown[]>(rows), deliveredTransportCount };
+  }
+
   async ticketAnalytics(user: User) {
     const tx = this.transactionClient;
     const where = visibleTicketSql(user);
@@ -223,27 +271,31 @@ export class PostgresRequestStore implements RequestStore {
     };
   }
 
-  async isHealthy() {
+  async isHealthy(recycleIdlePool?: () => boolean) {
     try { await this.client.$queryRaw`SELECT 1`; return true; }
     catch {
-      await this.client.$disconnect().catch(() => {});
+      if (recycleIdlePool?.()) await this.client.$disconnect().catch(() => {});
       return false;
     }
   }
 
   async transaction(operation: () => Promise<boolean>, scope: RequestScope = { pathname: '/', method: 'GET' }) {
+    // Ticket numbering uses one shared counter. Wait before taking a database
+    // snapshot so same-process creates do not take stale snapshots of that row.
+    let release: (() => void) | undefined;
+    if (scope.method === 'POST' && scope.pathname === '/api/tickets') {
+      const previous = this.ticketCreationTail;
+      this.ticketCreationTail = new Promise<void>(resolve => { release = resolve; });
+      await previous;
+    }
     try {
       await this.client.$transaction(async tx => {
-        this.tx = tx;
-        try {
-          const before = await readState(tx, scope);
-          this.state = structuredClone(before);
+        const before = await readState(tx, scope);
+        const state = structuredClone(before);
+        await this.context.run({ tx, state }, async () => {
           if (!await operation()) throw new RollbackResponse();
-          await commitChanges(tx, before, this.state);
-        } finally {
-          this.state = undefined;
-          this.tx = undefined;
-        }
+          await commitChanges(tx, before, state);
+        });
       }, { isolationLevel: 'Serializable', timeout: 15000 });
     } catch (error) {
       if (error instanceof RollbackResponse) return;
@@ -252,12 +304,10 @@ export class PostgresRequestStore implements RequestStore {
           (error.code === 'P2010' && ['40001', '40P01'].includes(String(error.meta?.code)))) {
           throw new Error('PERSISTENCE_CONFLICT');
         }
-        if (['P1001', 'P1002', 'P1017'].includes(error.code)) {
-          // Drop stale pooled connections. Prisma reconnects on the next request.
-          await this.client.$disconnect().catch(() => {});
-        }
       }
       throw new Error('POSTGRES_TRANSACTION_FAILED');
+    } finally {
+      release?.();
     }
   }
 }

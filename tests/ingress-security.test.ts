@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import http from 'node:http';
+import https from 'node:https';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
@@ -8,7 +11,7 @@ import { createApiServer } from '../apps/api/src/app.ts';
 import { createWebServer } from '../apps/web/src/server.ts';
 import { clientAddress, trustedPeers } from '../packages/shared/src/ingress.ts';
 import { startOidcApplication } from './support/oidc-application.ts';
-import { budgetBucket } from '../apps/api/src/abuse-control.ts';
+import { budgetBucket, loginNetwork } from '../apps/api/src/abuse-control.ts';
 
 test('ingress canonicalizes mapped IPv4 and IPv6 and stops at the first untrusted hop', () => {
   const trusted = trustedPeers('127.0.0.1, 2001:db8:2::1');
@@ -18,6 +21,9 @@ test('ingress canonicalizes mapped IPv4 and IPv6 and stops at the first untruste
   assert.throws(() => clientAddress('127.0.0.1', { forwarded: 'for=192.0.2.5', 'x-forwarded-for': '192.0.2.5' }, trusted), /INVALID_FORWARDING_CHAIN/);
   assert.throws(() => clientAddress('127.0.0.1', { forwarded: 'for=unknown' }, trusted), /INVALID_FORWARDING_CHAIN/);
   assert.equal(budgetBucket('test-secret', '2001:db8:3::11'), budgetBucket('test-secret', '2001:db8:3::9999'));
+  assert.equal(loginNetwork('2001:db8:3:7f01::1'), loginNetwork('2001:db8:3:7fff::9'));
+  assert.notEqual(loginNetwork('2001:db8:3:7fff::9'), loginNetwork('2001:db8:3:8000::1'));
+  assert.equal(loginNetwork('192.0.2.1'), loginNetwork('192.0.2.254'));
   assert.throws(() => trustedPeers('0.0.0.0/0'), /INVALID_TRUSTED_PROXY_IPS/);
 });
 
@@ -99,4 +105,50 @@ test('OIDC discovery timeout leaves the API available and establishes no session
     fixture.issuer.server.closeAllConnections();
     await fixture.close();
   }
+});
+
+test('production web requires configured TLS ingress and the TLS edge owns HSTS', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiit-tls-edge-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const keys = ['NODE_ENV', 'APP_PUBLIC_URL', 'WEB_TRUSTED_PROXY_IPS', 'WEB_PROXY_TOKEN'];
+  const original = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => {
+    if (original[i] === undefined) delete process.env[key];
+    else process.env[key] = original[i];
+  }));
+  Object.assign(process.env, {
+    NODE_ENV: 'production', APP_PUBLIC_URL: 'http://localhost',
+    WEB_TRUSTED_PROXY_IPS: '127.0.0.1', WEB_PROXY_TOKEN: randomBytes(32).toString('hex'),
+  });
+  assert.throws(() => createWebServer(), /PRODUCTION_REQUIRES_HTTPS_INGRESS/);
+  process.env.APP_PUBLIC_URL = 'https://localhost';
+  const web = createWebServer('http://127.0.0.1:9');
+  await new Promise<void>(resolve => web.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise<void>(resolve => web.close(() => resolve())));
+  const webPort = (web.address() as { port: number }).port;
+  const direct = await fetch('http://127.0.0.1:' + webPort + '/app');
+  await direct.text();
+  assert.equal(direct.headers.get('strict-transport-security'), null);
+  const certPath = path.join(dir, 'cert.pem');
+  const keyPath = path.join(dir, 'key.pem');
+  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
+    '-subj', '/CN=localhost', '-keyout', keyPath, '-out', certPath], { stdio: 'ignore' });
+  const cert = fs.readFileSync(certPath);
+  const edge = https.createServer({ cert, key: fs.readFileSync(keyPath) }, (_req, res) => {
+    http.get({ host: '127.0.0.1', port: webPort, path: '/app' }, upstream => {
+      res.writeHead(upstream.statusCode!, { ...upstream.headers, 'strict-transport-security': 'max-age=300' });
+      upstream.pipe(res);
+    }).on('error', () => { res.writeHead(502); res.end(); });
+  });
+  await new Promise<void>(resolve => edge.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise<void>(resolve => edge.close(() => resolve())));
+  const headers = await new Promise<http.IncomingHttpHeaders>((resolve, reject) =>
+    https.get({ host: '127.0.0.1', servername: 'localhost', port: (edge.address() as { port: number }).port, ca: cert },
+      response => {
+        response.resume();
+        assert.equal(response.statusCode, 200);
+        resolve(response.headers);
+      }).on('error', reject));
+  assert.equal(headers['strict-transport-security'], 'max-age=300');
+  assert.match(String(headers['content-security-policy']), /frame-ancestors 'none'/);
 });

@@ -547,9 +547,11 @@ export function createServer<Store extends RequestStore>(
       }
 
       if (method === 'GET' && pathname === '/api/kb') {
-        const state = store.getState();
+        const knowledge = store.approvedKnowledgeItems
+          ? await store.approvedKnowledgeItems()
+          : store.getState().knowledgeArticles;
         const q = (parsedUrl.searchParams.get('q') || '').trim().toLowerCase();
-        const articles = state.knowledgeArticles.filter((a) => {
+        const articles = knowledge.filter((a) => {
           if (!a.isApproved) return false;
           if (!q) return true;
           return (
@@ -657,7 +659,6 @@ export function createServer<Store extends RequestStore>(
           state.knowledgeArticles, aiOrchestrator, ticketNumberFor(category.slug, sequence, now), now,
         );
         const { ticket, events, approvals, aiLog, aiDecision, auditDetails, notification } = workflow;
-        if (postgres) ticket.description = redactSensitiveData(ticket.description);
         state.ticketNumberHighWatermark = sequence;
         state.tickets.unshift(ticket);
         state.ticketEvents.push(...events);
@@ -898,6 +899,10 @@ export function createServer<Store extends RequestStore>(
           sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators and the CTO can view approval queues.');
           return;
         }
+        if (store.approvalItems) {
+          sendJson(res, 200, { items: await store.approvalItems() });
+          return;
+        }
         const state = store.getState();
         const items = state.approvals.map((a) => {
           const t = state.tickets.find((tk) => tk.id === a.ticketId);
@@ -985,6 +990,10 @@ export function createServer<Store extends RequestStore>(
       // 6. IT ASSET INVENTORY & HANDOVER/TAKEOVER ACKNOWLEDGMENT
       // ======================================================================
       if (method === 'GET' && pathname === '/api/assets') {
+        if (store.assetItems) {
+          sendJson(res, 200, { items: await store.assetItems(currentUser) });
+          return;
+        }
         const state = store.getState();
         const items =
           currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO'
@@ -1043,6 +1052,10 @@ export function createServer<Store extends RequestStore>(
       // 7. NOTIFICATIONS, ANALYTICS DASHBOARD & AUDIT LOGS
       // ======================================================================
       if (method === 'GET' && pathname === '/api/notifications') {
+        if (store.notificationFeed) {
+          sendJson(res, 200, await store.notificationFeed(currentUser));
+          return;
+        }
         const state = store.getState();
         const items =
           currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO'
@@ -1050,9 +1063,7 @@ export function createServer<Store extends RequestStore>(
             : state.notifications.filter((n) => n.recipientId === currentUser.id);
         sendJson(res, 200, {
           items,
-          deliveredTransportCount: postgres
-            ? state.notifications.filter(n => n.status === 'SENT' && n.channel === 'EMAIL_AND_IN_APP' && (['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || n.recipientId === currentUser.id)).length
-            : emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
+          deliveredTransportCount: emailTransport.getDeliveredMessages().filter(message => ['IT_ADMIN', 'CTO'].includes(currentUser.roleName) || message.to.toLowerCase() === currentUser.email.toLowerCase()).length,
         });
         return;
       }
@@ -1140,7 +1151,9 @@ export function createServer<Store extends RequestStore>(
 
   // Attach body listeners before waiting for the local serial queue.
   const requestIds = new WeakMap<http.IncomingMessage, string>();
-  let providerOperations = 0;
+  let loginOperations = 0;
+  let callbackOperations = 0;
+  let exclusiveProbe = false;
   let tail: Promise<void> = Promise.resolve();
   const handleAdmittedRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const requestId = crypto.randomUUID();
@@ -1184,12 +1197,13 @@ export function createServer<Store extends RequestStore>(
     const exchangeOidc = method === 'GET' && pathname === '/api/auth/oidc/callback' && (!req.headers.origin || req.headers.origin === enterpriseAuth?.publicUrl)
       ? enterpriseAuth : undefined;
     if (beginOidc || exchangeOidc) {
-      if (providerOperations >= 4) {
+      if ((beginOidc ? loginOperations : callbackOperations) >= 4) {
         res.setHeader('Retry-After', '2');
         sendError(res, 429, 'OIDC_BUSY', 'Sign-in is busy. Please retry shortly.');
         return;
       }
-      providerOperations++;
+      if (beginOidc) loginOperations++;
+      else callbackOperations++;
       try {
         if (beginOidc) {
           await runRequest(req, res, clientIp);
@@ -1200,13 +1214,18 @@ export function createServer<Store extends RequestStore>(
             cookieValue(req.headers.cookie, 'aiit_oidc_flow'));
         }
       } catch { /* The callback emits a generic failure without provider data. */ }
-      finally { providerOperations--; }
+      finally {
+        if (beginOidc) loginOperations--;
+        else callbackOperations--;
+      }
     }
     bodies.set(req, body);
-    const previous = tail;
-    let done!: () => void;
-    tail = new Promise<void>(resolve => { done = resolve; });
-    await previous;
+    let done: (() => void) | undefined;
+    if (!postgres) {
+      const previous = tail;
+      tail = new Promise<void>(resolve => { done = resolve; });
+      await previous;
+    }
     let code = 200;
     const headers: Record<string, string | string[]> = {};
     let output = '';
@@ -1217,14 +1236,22 @@ export function createServer<Store extends RequestStore>(
     } as unknown as http.ServerResponse;
     try {
       if (method === 'GET' && pathname === '/api/ready') {
-        const ready = await store.isHealthy();
+        let ready: boolean;
+        try {
+          ready = await store.isHealthy(() => {
+            // Pause admission only if the failed probe is the sole active request.
+            exclusiveProbe = postgres && inFlight === 1;
+            return exclusiveProbe;
+          });
+        } finally { exclusiveProbe = false; }
         sendJson(res, ready ? 200 : 503, { status: ready ? 'READY' : 'UNAVAILABLE', storageMode: postgres ? 'postgres' : 'json' });
         return;
       }
+      try { await body; } catch (err) {
+        sendError(res, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.');
+        return;
+      }
       const operation = async () => {
-        try { await body; } catch (err) {
-          sendError(buffered, String(err).includes('1MB') ? 413 : 400, 'VALIDATION_ERROR', 'Invalid or oversized JSON request.'); return false;
-        }
         await runRequest(req, buffered, clientIp, login);
         // Denials may contain a security audit event; only server failures roll back.
         return code < 500;
@@ -1240,13 +1267,13 @@ export function createServer<Store extends RequestStore>(
       logStructured('WARN', conflict ? 'PERSISTENCE_CONFLICT' : 'PERSISTENCE_FAILURE', { requestId, storageMode: postgres ? 'postgres' : 'json' });
       sendError(res, conflict ? 409 : 503,
         'PERSISTENCE_FAILURE', 'Operation was not committed. Retry after recovery or contention clears.');
-    } finally { bodies.delete(req); done(); }
+    } finally { bodies.delete(req); done?.(); }
   };
 
   let inFlight = 0;
   const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     if (req.method === 'GET' && req.url === '/api/live') return handleAdmittedRequest(req, res);
-    if (inFlight >= policy.inFlight) {
+    if (exclusiveProbe || inFlight >= policy.inFlight) {
       req.resume?.();
       res.setHeader('Retry-After', '1');
       sendError(res, 429, 'API_BUSY', 'The API is busy. Please retry shortly.');

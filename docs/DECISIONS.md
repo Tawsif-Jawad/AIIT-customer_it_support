@@ -1,3 +1,5 @@
+> **Day 1–6 remediation update.** ADR-009 is extended with request-local PostgreSQL transaction isolation and partitioned authentication admission. Existing serializable commit semantics and JSON containment remain in force. This development decision adds no production authorization. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/01_EXECUTIVE_SUMMARY.md)
+
 # Architectural Decision Records (ADRs)
 **Project:** Enterprise Multi-SBU AI-Powered IT Support System
 

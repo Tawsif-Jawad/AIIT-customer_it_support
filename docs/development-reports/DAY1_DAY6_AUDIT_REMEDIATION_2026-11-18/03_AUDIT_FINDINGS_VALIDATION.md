@@ -1,0 +1,10 @@
+# Audit findings
+
+| Finding | Allegation | Verified evidence and result | Changes and regression | Remaining limitation |
+| --- | --- | --- | --- | --- |
+| IMP-01 | Seven unmerged PRs | GitHub returned open PRs #2–#8 with a single dependency chain | [Integration plan](12_GITHUB_INTEGRATION_PLAN.md) | Maintainer approvals and hosted acceptance pending |
+| IMP-03 | Request-wide serialization | Confirmed. A held SQL advisory lock stalled unrelated ticket search and session lookup until the baseline queue released | PostgreSQL request-local context, fixture replay, competing decisions and session operations | Serializable conflicts, shared number allocation, finite pool |
+| IMP-04 | Shared global login denial of service | Confirmed. Day 6 test demonstrated denial of a new client after the global budget filled | Partitioned shared budget, separate provider-operation lanes, two-process test of login and callback during abuse | Distinct networks can still fill all groups. Collisions and NAT are shared failure domains |
+| IMP-10 | Whole-table hydration | Partly confirmed. Ticket pagination and analytics were already SQL-scoped. Approval decisions, assets, notifications and approved-knowledge filtering still had avoidable projections | Scoped queries and paired workflows. [Measured comparison](11_PERFORMANCE_COMPARISON.md) | Contractually unbounded results, KB search and ticket histories remain |
+| IMP-11 | Missing CSP and HTTPS boundary | Confirmed CSP gap. The web server already had frame and MIME controls on main HTML routes. It speaks internal HTTP | Nonce CSP, production HTTPS origin/ingress configuration, TLS fixture and Chromium injection test | Real TLS terminator and ingress limits require deployment rehearsal |
+| IMP-13 | Redaction divergence | Confirmed. Baseline test located the secret via JSON description search, while PostgreSQL returned zero | Move existing description redaction into shared workflow. Both backends now redact new descriptions | Legacy records need owner-approved handling. Arbitrary PII and custom fields need classified policy |

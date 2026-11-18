@@ -1,3 +1,5 @@
+> **Day 1–6 remediation update.** Use the current feature matrix alongside Day 1 traceability. FR-D2-07 covers an exact-action binding that remains pending. Existing approval record and decision behavior were verified locally under contention. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/14_REMAINING_RELEASE_BLOCKERS.md)
+
 # AIIT requirements traceability — Day 1
 
 Sources: the supplied Day 1 execution request, the earlier AIIT master requirements, and the current repository `docs/SRS.md`. The SRS describes cross-SBU IT/CTO roles, but its “approved/implemented” labels are not independent proof of stakeholder approval or runtime completion. No separate office IT task list was found. Day 2 must reconcile the sources without silently rewriting business policy.

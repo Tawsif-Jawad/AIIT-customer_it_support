@@ -1,0 +1,620 @@
+{
+  "environment": {
+    "postgres": "postgres (PostgreSQL) 18.6 (Homebrew)",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "kernel": "25.5.0",
+    "cpu": "Apple M3",
+    "logicalCores": 8,
+    "memoryBytes": 8589934592,
+    "apiProcesses": 2,
+    "connectionsPerPrismaClient": 8,
+    "readConcurrency": 8,
+    "harnessResourceUsage": {
+      "userCPUTime": 2217107,
+      "systemCPUTime": 500504,
+      "maxRSS": 146672,
+      "sharedMemorySize": 0,
+      "unsharedDataSize": 0,
+      "unsharedStackSize": 0,
+      "minorPageFault": 50590,
+      "majorPageFault": 1718,
+      "swappedOut": 0,
+      "fsRead": 0,
+      "fsWrite": 0,
+      "ipcSent": 7383,
+      "ipcReceived": 9632,
+      "signalsCount": 0,
+      "voluntaryContextSwitches": 231,
+      "involuntaryContextSwitches": 60858
+    }
+  },
+  "runs": [
+    {
+      "seededTickets": 1000,
+      "totalTickets": 1023,
+      "users": 125,
+      "events": 2084,
+      "approvals": 168,
+      "audits": 1023,
+      "jobs": 220,
+      "latenciesMs": {
+        "latest-page": {
+          "samples": 120,
+          "p50": 7.74,
+          "p95": 13.65,
+          "p99": 17.63,
+          "requestsPerSecond": 665.8525398637171
+        },
+        "owned-category-search": {
+          "samples": 120,
+          "p50": 6.64,
+          "p95": 10.1,
+          "p99": 11.84,
+          "requestsPerSecond": 812.2894850263349
+        },
+        "analytics": {
+          "samples": 120,
+          "p50": 5.24,
+          "p95": 11.57,
+          "p99": 14.31,
+          "requestsPerSecond": 981.8959497626666
+        },
+        "admin-notifications": {
+          "samples": 120,
+          "p50": 16.61,
+          "p95": 29.38,
+          "p99": 41.37,
+          "requestsPerSecond": 311.03843041547736
+        },
+        "employee-notifications": {
+          "samples": 120,
+          "p50": 15.53,
+          "p95": 25.59,
+          "p99": 26.9,
+          "requestsPerSecond": 334.4519664642673
+        },
+        "approval-list": {
+          "samples": 120,
+          "p50": 49.95,
+          "p95": 93.42,
+          "p99": 97.54,
+          "requestsPerSecond": 86.88087613420927
+        }
+      },
+      "creates": {
+        "count": 20,
+        "conflicts": 10,
+        "durationMs": 112.48570799999925
+      },
+      "worker": {
+        "jobs": 150,
+        "durationMs": 368.19683399999985,
+        "jobsPerSecond": 407.39079250203457
+      },
+      "dbConnectionsAfterTraffic": 17,
+      "apiProcessRssKiBAndCpuTime": [
+        "233088   0:02.87",
+        "233344   0:02.84"
+      ],
+      "plans": {
+        "latest": {
+          "executionMs": 0.021,
+          "planningMs": 0.358,
+          "nodes": [
+            {
+              "node": "Limit",
+              "rows": 25
+            },
+            {
+              "node": "Index Scan",
+              "index": "Ticket_createdAt_id_idx",
+              "rows": 25
+            }
+          ]
+        },
+        "legacyProjection": {
+          "executionMs": 0.439,
+          "planningMs": 0.015,
+          "nodes": [
+            {
+              "node": "Sort",
+              "rows": 1023
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 1023
+            }
+          ]
+        },
+        "analytics": {
+          "executionMs": 0.256,
+          "planningMs": 0.232,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 15
+            },
+            {
+              "node": "Hash Join",
+              "rows": 1023
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 1023
+            },
+            {
+              "node": "Hash",
+              "rows": 3
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 3
+            }
+          ]
+        },
+        "scopedSearch": {
+          "executionMs": 0.045,
+          "planningMs": 0.027,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 33
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 111
+            }
+          ]
+        },
+        "pendingApprovals": {
+          "executionMs": 0.056,
+          "planningMs": 0.194,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Hash Join",
+              "rows": 15
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 168
+            },
+            {
+              "node": "Hash",
+              "rows": 111
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 111
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 111
+            }
+          ]
+        },
+        "suffixScan": {
+          "executionMs": 1.224,
+          "planningMs": 0.045,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 1023
+            }
+          ]
+        },
+        "counter": {
+          "executionMs": 0.008,
+          "planningMs": 0.053,
+          "nodes": [
+            {
+              "node": "Seq Scan",
+              "rows": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "seededTickets": 10000,
+      "totalTickets": 10043,
+      "users": 125,
+      "events": 20164,
+      "approvals": 1668,
+      "audits": 10043,
+      "jobs": 2040,
+      "latenciesMs": {
+        "latest-page": {
+          "samples": 120,
+          "p50": 7.8,
+          "p95": 13.1,
+          "p99": 16,
+          "requestsPerSecond": 695.4383336806063
+        },
+        "owned-category-search": {
+          "samples": 120,
+          "p50": 8.53,
+          "p95": 13.54,
+          "p99": 14.95,
+          "requestsPerSecond": 610.3861009998246
+        },
+        "analytics": {
+          "samples": 120,
+          "p50": 11.87,
+          "p95": 18.41,
+          "p99": 19.83,
+          "requestsPerSecond": 443.7588780666151
+        },
+        "admin-notifications": {
+          "samples": 120,
+          "p50": 45.88,
+          "p95": 82.18,
+          "p99": 86.55,
+          "requestsPerSecond": 97.74376176851702
+        },
+        "employee-notifications": {
+          "samples": 120,
+          "p50": 58.97,
+          "p95": 82.89,
+          "p99": 100.86,
+          "requestsPerSecond": 96.07870444643818
+        },
+        "approval-list": {
+          "samples": 120,
+          "p50": 548.79,
+          "p95": 1028.52,
+          "p99": 1111.82,
+          "requestsPerSecond": 7.825526793745672
+        }
+      },
+      "creates": {
+        "count": 20,
+        "conflicts": 12,
+        "durationMs": 128.1930829999983
+      },
+      "worker": {
+        "jobs": 150,
+        "durationMs": 362.17554199999995,
+        "jobsPerSecond": 414.1638034740624
+      },
+      "dbConnectionsAfterTraffic": 17,
+      "apiProcessRssKiBAndCpuTime": [
+        "323856   0:23.66",
+        "336496   0:23.21"
+      ],
+      "plans": {
+        "latest": {
+          "executionMs": 0.035,
+          "planningMs": 0.413,
+          "nodes": [
+            {
+              "node": "Limit",
+              "rows": 25
+            },
+            {
+              "node": "Index Scan",
+              "index": "Ticket_createdAt_id_idx",
+              "rows": 25
+            }
+          ]
+        },
+        "legacyProjection": {
+          "executionMs": 1.748,
+          "planningMs": 0.014,
+          "nodes": [
+            {
+              "node": "Index Scan",
+              "index": "Ticket_createdAt_id_idx",
+              "rows": 10043
+            }
+          ]
+        },
+        "analytics": {
+          "executionMs": 3.037,
+          "planningMs": 0.828,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 15
+            },
+            {
+              "node": "Hash Join",
+              "rows": 10043
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 10043
+            },
+            {
+              "node": "Hash",
+              "rows": 3
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 3
+            }
+          ]
+        },
+        "scopedSearch": {
+          "executionMs": 0.44,
+          "planningMs": 0.027,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 170
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 950
+            }
+          ]
+        },
+        "pendingApprovals": {
+          "executionMs": 0.426,
+          "planningMs": 0.193,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Hash Join",
+              "rows": 151
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 1668
+            },
+            {
+              "node": "Hash",
+              "rows": 950
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 950
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 950
+            }
+          ]
+        },
+        "suffixScan": {
+          "executionMs": 12.21,
+          "planningMs": 0.032,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 10043
+            }
+          ]
+        },
+        "counter": {
+          "executionMs": 0.011,
+          "planningMs": 0.052,
+          "nodes": [
+            {
+              "node": "Index Scan",
+              "index": "TicketCounter_pkey",
+              "rows": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "seededTickets": 50000,
+      "totalTickets": 50063,
+      "users": 125,
+      "events": 100244,
+      "approvals": 8335,
+      "audits": 50063,
+      "jobs": 10060,
+      "latenciesMs": {
+        "latest-page": {
+          "samples": 120,
+          "p50": 15.76,
+          "p95": 23.54,
+          "p99": 28.2,
+          "requestsPerSecond": 352.2079272177808
+        },
+        "owned-category-search": {
+          "samples": 120,
+          "p50": 13.78,
+          "p95": 20.47,
+          "p99": 24.27,
+          "requestsPerSecond": 398.76929825326476
+        },
+        "analytics": {
+          "samples": 120,
+          "p50": 37.97,
+          "p95": 70.72,
+          "p99": 72,
+          "requestsPerSecond": 114.87055122233569
+        },
+        "admin-notifications": {
+          "samples": 120,
+          "p50": 171.76,
+          "p95": 334,
+          "p99": 346.73,
+          "requestsPerSecond": 24.066041834661128
+        },
+        "employee-notifications": {
+          "samples": 120,
+          "p50": 185.95,
+          "p95": 342.37,
+          "p99": 348.21,
+          "requestsPerSecond": 23.73287013300013
+        }
+      },
+      "creates": {
+        "count": 20,
+        "conflicts": 13,
+        "durationMs": 132.4543330000015
+      },
+      "worker": {
+        "jobs": 150,
+        "durationMs": 535.5803749999977,
+        "jobsPerSecond": 280.0700081663758
+      },
+      "dbConnectionsAfterTraffic": 17,
+      "apiProcessRssKiBAndCpuTime": [
+        "295424   0:35.24",
+        "293344   0:34.66"
+      ],
+      "plans": {
+        "latest": {
+          "executionMs": 0.036,
+          "planningMs": 0.463,
+          "nodes": [
+            {
+              "node": "Limit",
+              "rows": 25
+            },
+            {
+              "node": "Index Scan",
+              "index": "Ticket_createdAt_id_idx",
+              "rows": 25
+            }
+          ]
+        },
+        "legacyProjection": {
+          "executionMs": 11.282,
+          "planningMs": 0.016,
+          "nodes": [
+            {
+              "node": "Index Scan",
+              "index": "Ticket_createdAt_id_idx",
+              "rows": 50063
+            }
+          ]
+        },
+        "analytics": {
+          "executionMs": 12.509,
+          "planningMs": 0.142,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 15
+            },
+            {
+              "node": "Hash Join",
+              "rows": 50063
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 50063
+            },
+            {
+              "node": "Hash",
+              "rows": 3
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 3
+            }
+          ]
+        },
+        "scopedSearch": {
+          "executionMs": 1.489,
+          "planningMs": 0.035,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 710
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 4606
+            }
+          ]
+        },
+        "pendingApprovals": {
+          "executionMs": 2.334,
+          "planningMs": 0.234,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Hash Join",
+              "rows": 757
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 8335
+            },
+            {
+              "node": "Hash",
+              "rows": 4606
+            },
+            {
+              "node": "Bitmap Heap Scan",
+              "rows": 4606
+            },
+            {
+              "node": "Bitmap Index Scan",
+              "index": "Ticket_requesterId_createdAt_idx",
+              "rows": 4606
+            }
+          ]
+        },
+        "suffixScan": {
+          "executionMs": 61.937,
+          "planningMs": 0.05,
+          "nodes": [
+            {
+              "node": "Aggregate",
+              "rows": 1
+            },
+            {
+              "node": "Seq Scan",
+              "rows": 50063
+            }
+          ]
+        },
+        "counter": {
+          "executionMs": 0.011,
+          "planningMs": 0.099,
+          "nodes": [
+            {
+              "node": "Index Scan",
+              "index": "TicketCounter_pkey",
+              "rows": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
