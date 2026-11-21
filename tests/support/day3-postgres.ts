@@ -26,6 +26,7 @@ export async function exerciseDay3(
       } catch (error) {
         if ((error as { code?: string }).code !== "CONFLICT" || attempt >= 9)
           throw error;
+        await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 5));
       }
     }
   };
@@ -199,18 +200,18 @@ export async function exerciseDay3(
     "Day3 opposing approval decisions commit once and historical records reject mutation",
     async () => {
       const decisions = await Promise.allSettled([
-        repo.decideApproval(
+        retry(() => repo.decideApproval(
           admin,
           "approval-seed-001",
           "APPROVED",
           "synthetic approve",
-        ),
-        repo.decideApproval(
+        )),
+        retry(() => repo.decideApproval(
           cto,
           "approval-seed-001",
           "REJECTED",
           "synthetic reject",
-        ),
+        )),
       ]);
       assert.equal(decisions.filter((r) => r.status === "fulfilled").length, 1);
       assert.equal(
@@ -253,32 +254,32 @@ export async function exerciseDay3(
     "Day3 escalation and requester reopen preserve workflow routing",
     async () => {
       const fresh = await repo.createTicket(employee, input);
-      const escalated = await repo.transition(
+      const escalated = await retry(() => repo.transition(
         admin,
         fresh.id,
         0,
         "ESCALATED_TO_CTO",
         "Synthetic governance review",
-      );
+      ));
       assert.equal(escalated.escalationReason, "Synthetic governance review");
       await assert.rejects(
         repo.transition(admin, fresh.id, 1, "IN_PROGRESS", "invalid"),
         /TRANSITION_NOT_ALLOWED/,
       );
-      const resolved = await repo.transition(
+      const resolved = await retry(() => repo.transition(
         cto,
         fresh.id,
         1,
         "RESOLVED_PENDING_CONFIRMATION",
         "Synthetic resolution",
-      );
-      const reopened = await repo.transition(
+      ));
+      const reopened = await retry(() => repo.transition(
         employee,
         fresh.id,
         resolved.version,
         "REOPENED",
         "Synthetic rejection",
-      );
+      ));
       assert.equal(reopened.status, "ASSIGNED_TO_IT");
       assert.equal(reopened.assigneeId, admin);
       assert.equal(reopened.resolvedAt, null);

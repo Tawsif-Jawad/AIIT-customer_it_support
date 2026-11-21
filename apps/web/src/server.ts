@@ -801,51 +801,6 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
           '</tr>'
         ).join('') + '</tbody></table>';
 
-      if (currentUser.roleName === 'IT_ADMIN') {
-        box.insertAdjacentHTML('beforeend',
-          '<details style="margin-top:20px"><summary>Register or manage equipment</summary>' +
-          '<form id="asset-register-form" class="card" style="margin-top:12px">' +
-          '<input name="assetTag" required placeholder="Asset tag" /><input name="serialNumber" required placeholder="Serial number" />' +
-          '<input name="category" required placeholder="Category" /><input name="modelName" required placeholder="Model" />' +
-          '<input name="location" placeholder="Location" /><input name="assigneeId" placeholder="Optional employee ID" />' +
-          '<button class="btn-primary" type="submit">Register asset</button></form>' +
-          '</details>');
-        const registerForm = box.querySelector('#asset-register-form');
-        registerForm.onsubmit = async (event) => {
-          event.preventDefault();
-          const form = new FormData(registerForm);
-          try {
-            await apiFetch('/api/assets', { method: 'POST', body: JSON.stringify({
-              assetTag: form.get('assetTag'), serialNumber: form.get('serialNumber'),
-              category: form.get('category'), modelName: form.get('modelName'),
-              location: form.get('location'), sbuId: currentUser.sbuId,
-              assignedUserId: form.get('assigneeId') || null,
-            }) });
-            showFeedback('Asset registered.');
-            await loadAssetsTab();
-          } catch (error) { showFeedback(error.message, 'error'); }
-        };
-
-        box.insertAdjacentHTML('beforeend',
-          '<form id="asset-lifecycle-form" class="card" style="margin-top:12px">' +
-          '<h3>Asset lifecycle</h3><select name="assetId" required>' +
-          data.items.map(asset => '<option value="' + escapeHtml(asset.id) + '">' + escapeHtml(asset.assetTag) + ' — ' + escapeHtml(asset.status) + '</option>').join('') +
-          '</select><select name="action" required><option value="assign">Assign</option><option value="reassign">Reassign</option><option value="handover">Start handover</option><option value="takeover">Start takeover</option><option value="return">Return</option><option value="maintenance">Maintenance</option><option value="retire">Retire</option></select>' +
-          '<input name="assigneeId" placeholder="Assignee employee ID" /><input name="notes" placeholder="Lifecycle notes" /><button class="btn-secondary" type="submit">Apply lifecycle action</button></form>');
-        const lifecycleForm = box.querySelector('#asset-lifecycle-form');
-        lifecycleForm.onsubmit = async (event) => {
-          event.preventDefault();
-          const form = new FormData(lifecycleForm);
-          try {
-            await apiFetch('/api/assets/' + encodeURIComponent(form.get('assetId')) + '/lifecycle', {
-              method: 'POST',
-              body: JSON.stringify({ action: form.get('action'), assigneeId: form.get('assigneeId'), notes: form.get('notes') }),
-            });
-            showFeedback('Asset lifecycle updated.');
-            await loadAssetsTab();
-          } catch (error) { showFeedback(error.message, 'error'); }
-        };
-      }
     }
 
     document.getElementById('create-ticket-form').onsubmit = async (e) => {
@@ -924,6 +879,51 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
               : (a.handoverAckStatus === 'ACKNOWLEDGED' ? 'Acknowledged' : 'No acknowledgement pending')) + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
+
+      if (currentUser.roleName === 'IT_ADMIN') {
+        box.insertAdjacentHTML('beforeend',
+          '<details style="margin-top:20px"><summary>Register or manage equipment</summary>' +
+          '<form id="asset-register-form" class="card" style="margin-top:12px">' +
+          '<input name="assetTag" required placeholder="Asset tag" /><input name="serialNumber" required placeholder="Serial number" />' +
+          '<input name="category" required placeholder="Category" /><input name="modelName" required placeholder="Model" />' +
+          '<input name="location" placeholder="Location" />' +
+          '<button class="btn-primary" type="submit">Register asset</button></form>' +
+          '</details>');
+        const registerForm = box.querySelector('#asset-register-form');
+        registerForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(registerForm);
+          try {
+            await apiFetch('/api/assets', { method: 'POST', body: JSON.stringify({
+              assetTag: form.get('assetTag'), serialNumber: form.get('serialNumber'),
+              category: form.get('category'), modelName: form.get('modelName'),
+              location: form.get('location'), sbuId: currentUser.sbuId,
+            }) });
+            showFeedback('Asset registered.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+
+        box.insertAdjacentHTML('beforeend',
+          '<form id="asset-lifecycle-form" class="card" style="margin-top:12px">' +
+          '<h3>Asset lifecycle</h3><select name="assetId" required>' +
+          data.items.map(asset => '<option value="' + escapeHtml(asset.id) + '">' + escapeHtml(asset.assetTag) + ' — ' + escapeHtml(asset.status) + '</option>').join('') +
+          '</select><select name="action" required><option value="assign">Assign</option><option value="reassign">Reassign</option><option value="handover">Start handover</option><option value="takeover">Start takeover</option><option value="return">Return</option><option value="maintenance">Maintenance</option><option value="retire">Retire</option></select>' +
+          '<input name="assigneeId" placeholder="Assignee employee ID" /><input name="notes" placeholder="Lifecycle notes" /><button class="btn-secondary" type="submit">Apply lifecycle action</button></form>');
+        const lifecycleForm = box.querySelector('#asset-lifecycle-form');
+        lifecycleForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(lifecycleForm);
+          try {
+            await apiFetch('/api/assets/' + encodeURIComponent(form.get('assetId')) + '/lifecycle', {
+              method: 'POST',
+              body: JSON.stringify({ action: form.get('action'), assigneeId: form.get('assigneeId'), notes: form.get('notes') }),
+            });
+            showFeedback('Asset lifecycle updated.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+      }
 
       box.querySelectorAll('.btn-ack-asset').forEach(btn => {
         btn.onclick = async () => {
