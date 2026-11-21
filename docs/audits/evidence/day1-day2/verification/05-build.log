@@ -1,0 +1,9 @@
+
+> it-support-system@1.0.0 build /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> npm run typecheck && node scripts/verify-types.ts
+
+
+> it-support-system@1.0.0 typecheck
+> tsc --noEmit
+
+{"status":"PASSED","step":"MONOREPO_BUILD_AND_MODULE_VERIFICATION","verifiedPackages":["@it-support/shared","@it-support/connectors","@it-support/api","@it-support/web"],"limitations":"This is the import/browser-syntax substep; package build runs tsc first. No framework bundle or production integration is claimed. Standalone JSON worker disabled.","timestamp":"2026-11-09T11:31:40.238Z"}

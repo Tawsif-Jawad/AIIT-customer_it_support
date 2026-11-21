@@ -1,0 +1,4 @@
+
+> it-support-system@1.0.0 lint /private/tmp/aiit-day3-source-4dfe635
+> eslint apps packages scripts tests playwright.config.ts
+

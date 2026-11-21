@@ -1,0 +1,62 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test --grep AU08|AU09
+
+[WebServer] (node:7875) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:7882) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/audit.spec.ts:56:1 › AU08 logout failure remains signed in and shows retry feedback (149ms)
+(node:7883) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket (152ms)
+
+
+  1) tests/e2e/audit.spec.ts:56:1 › AU08 logout failure remains signed in and shows retry feedback ─
+
+    Error: Cannot require() ES Module /private/tmp/aiit-baseline-web/web/src/server.ts in a cycle. A cycle involving require(esm) is not allowed to maintain invariants mandated by the ECMAScript specification. Try making at least part of the dependency in the graph lazily loaded.
+
+       8 |  process.env.NODE_ENV='test';process.env.AUTH_MODE='dev_oidc';process.env.MAIL_PROVIDER='mock';
+       9 |  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-browser-audit-'));const app=createApiServer(path.join(dir,'db.json'));
+    > 10 |  await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));const webFactory=process.env.AIIT_AUDIT_BASELINE_WEB?(await import(process.env.AIIT_AUDIT_BASELINE_WEB)).createWebServer:createWebServer;const web=webFactory('http://127.0.0.1:'+(app.server.address() as {port:number}).port);
+         |                                                                                                                       ^
+      11 |  await new Promise<void>(r=>web.listen(0,'127.0.0.1',r));
+      12 |  try{await use('http://127.0.0.1:'+(web.address() as {port:number}).port);}finally{await new Promise<void>(r=>web.close(()=>r()));await new Promise<void>(r=>app.server.close(()=>r()));fs.rmSync(dir,{recursive:true,force:true});}
+      13 | }});
+        at Object.baseURL (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:10:119)
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-AU08-logout-failure--f2537-in-and-shows-retry-feedback/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket
+
+    Error: Cannot require() ES Module /private/tmp/aiit-baseline-web/web/src/server.ts in a cycle. A cycle involving require(esm) is not allowed to maintain invariants mandated by the ECMAScript specification. Try making at least part of the dependency in the graph lazily loaded.
+
+       8 |  process.env.NODE_ENV='test';process.env.AUTH_MODE='dev_oidc';process.env.MAIL_PROVIDER='mock';
+       9 |  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'aiit-browser-audit-'));const app=createApiServer(path.join(dir,'db.json'));
+    > 10 |  await new Promise<void>(r=>app.server.listen(0,'127.0.0.1',r));const webFactory=process.env.AIIT_AUDIT_BASELINE_WEB?(await import(process.env.AIIT_AUDIT_BASELINE_WEB)).createWebServer:createWebServer;const web=webFactory('http://127.0.0.1:'+(app.server.address() as {port:number}).port);
+         |                                                                                                                       ^
+      11 |  await new Promise<void>(r=>web.listen(0,'127.0.0.1',r));
+      12 |  try{await use('http://127.0.0.1:'+(web.address() as {port:number}).port);}finally{await new Promise<void>(r=>web.close(()=>r()));await new Promise<void>(r=>app.server.close(()=>r()));fs.rmSync(dir,{recursive:true,force:true});}
+      13 | }});
+        at Object.baseURL (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:10:119)
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-AU09-a-delayed-older-86bf5-replace-the-selected-ticket/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    tests/e2e/audit.spec.ts:56:1 › AU08 logout failure remains signed in and shows retry feedback ──
+    tests/e2e/audit.spec.ts:73:1 › AU09 a delayed older detail response cannot replace the selected ticket

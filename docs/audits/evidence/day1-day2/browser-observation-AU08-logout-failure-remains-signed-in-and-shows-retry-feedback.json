@@ -1,0 +1,19 @@
+{
+  "test": "AU08 logout failure remains signed in and shows retry feedback",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/logout",
+      "status": 503
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

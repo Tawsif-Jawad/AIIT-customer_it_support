@@ -1,0 +1,19 @@
+npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e:postgres
+Exit 0
+Running 15 tests using 1 worker
+  ✓   1 tests/e2e/audit.spec.ts:48:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (6.1s)
+  ✓   2 tests/e2e/audit.spec.ts:60:1 › browser customer creates and rejects mock resolution without IT privileges (5.0s)
+  ✓   3 tests/e2e/audit.spec.ts:64:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (5.1s)
+  ✓   4 tests/e2e/audit.spec.ts:76:1 › AU08 logout failure remains signed in and shows retry feedback (4.0s)
+  ✓   5 tests/e2e/audit.spec.ts:80:1 › assistant creates a mock request; catalog start and recoverable panel errors work (3.6s)
+  ✓   6 tests/e2e/audit.spec.ts:85:39 › responsive landing/workspace, menu and keyboard at 320px (5.1s)
+  ✓   7 tests/e2e/audit.spec.ts:85:39 › responsive landing/workspace, menu and keyboard at 390px (3.3s)
+  ✓   8 tests/e2e/audit.spec.ts:85:39 › responsive landing/workspace, menu and keyboard at 768px (2.4s)
+  ✓   9 tests/e2e/audit.spec.ts:85:39 › responsive landing/workspace, menu and keyboard at 1440px (2.4s)
+  ✓  10 tests/e2e/audit.spec.ts:93:1 › AU09 a delayed older detail response cannot replace the selected ticket (2.9s)
+  ✓  11 tests/e2e/audit.spec.ts:104:1 › ticket filters, pagination, keyboard activation and required form fields work (2.8s)
+  ✓  12 tests/e2e/audit.spec.ts:116:1 › sampled text contrast is measured without assuming whole-app accessibility (3.5s)
+  ✓  13 tests/e2e/oidc.spec.ts:29:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out (3.4s)
+  ✓  14 tests/e2e/oidc.spec.ts:76:1 › enterprise provider failure stays fail-closed and never offers development identity selection (2.6s)
+  ✓  15 tests/e2e/oidc.spec.ts:89:1 › expired enterprise session clears private workspace and gives sign-in feedback (2.3s)
+  15 passed (57.1s)

@@ -1,0 +1,105 @@
+
+> it-support-system@1.0.0 test:e2e /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> npx playwright test
+
+[WebServer] (node:41929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 20 tests using 1 worker
+
+(node:41930) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:32:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (2.9s)
+  ✓   2 tests/e2e/audit.spec.ts:44:1 › browser customer creates and rejects mock resolution without IT privileges (766ms)
+  ✓   3 tests/e2e/audit.spec.ts:48:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (1.9s)
+  ✓   4 tests/e2e/audit.spec.ts:60:1 › AU08 logout failure remains signed in and shows retry feedback (642ms)
+  ✓   5 tests/e2e/audit.spec.ts:64:1 › assistant creates a mock request; catalog start and recoverable panel errors work (601ms)
+  ✓   6 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 320px (988ms)
+  ✓   7 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 390px (950ms)
+  ✓   8 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 768px (375ms)
+  ✓   9 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 1440px (446ms)
+  ✓  10 tests/e2e/audit.spec.ts:77:1 › AU09 a delayed older detail response cannot replace the selected ticket (801ms)
+  ✓  11 tests/e2e/audit.spec.ts:88:1 › ticket filters, pagination, keyboard activation and required form fields work (797ms)
+  ✓  12 tests/e2e/audit.spec.ts:100:1 › sampled text contrast is measured without assuming whole-app accessibility (238ms)
+  ✘  13 tests/e2e/oidc.spec.ts:4:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out (30.2s)
+(node:42026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  14 tests/e2e/oidc.spec.ts:11:1 › enterprise provider failure stays fail-closed and never offers development identity selection (668ms)
+  ✘  15 tests/e2e/oidc.spec.ts:14:1 › expired enterprise session clears private workspace and gives sign-in feedback (30.3s)
+(node:42192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  16 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (975ms)
+  ✓  17 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (434ms)
+  ✓  18 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (437ms)
+  ✓  19 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (605ms)
+  ✓  20 tests/e2e/portal.spec.ts:44:1 › slow initial data cannot reset an early support-form navigation (334ms)
+
+
+  1) tests/e2e/oidc.spec.ts:4:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('#tab-btn-create')
+
+
+       6 |  await page.click('#enterprise-login-btn');await expect(page.locator('#workspace-section')).toBeVisible();await expect(page.getByTestId('active-user-badge')).toContainText('EMPLOYEE');await expect(page.locator('#tab-btn-approvals')).toBeHidden();
+       7 |  const cookie=(await context.cookies()).find(c=>c.name==='itsupport_session')!;expect(cookie.httpOnly).toBe(true);expect(cookie.sameSite).toBe('Strict');expect(await page.evaluate(()=>JSON.stringify({local:localStorage,session:sessionStorage}))).not.toContain('SYNTHETIC_ACCESS');
+    >  8 |  await page.reload();await expect(page.locator('#workspace-section')).toBeVisible();await page.click('#tab-btn-create');await page.selectOption('#ticket-category','cat-outlook-config');await page.fill('#ticket-title','OIDC browser isolated request');await page.fill('#ticket-description','Synthetic Outlook setup from an enterprise-authenticated browser');await page.click('#submit-ticket-btn');await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');
+         |                                                                                                ^
+       9 |  await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();await page.reload();await expect(page.locator('#workspace-section')).toBeHidden();expect(errors).toEqual([]);
+      10 | });
+      11 | test('enterprise provider failure stays fail-closed and never offers development identity selection',async({page,oidc})=>{
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/oidc.spec.ts:8:96
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/oidc-enterprise-sign-in-re-57983-orized-request-and-logs-out/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/oidc-enterprise-sign-in-re-57983-orized-request-and-logs-out/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/oidc-enterprise-sign-in-re-57983-orized-request-and-logs-out/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/oidc-enterprise-sign-in-re-57983-orized-request-and-logs-out/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/oidc.spec.ts:14:1 › expired enterprise session clears private workspace and gives sign-in feedback 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('#tab-btn-tickets')
+
+
+      13 | });
+      14 | test('expired enterprise session clears private workspace and gives sign-in feedback',async({page,oidc})=>{
+    > 15 |  await page.goto(oidc.publicUrl+'/app');await page.click('#enterprise-login-btn');await expect(page.locator('#workspace-section')).toBeVisible();await page.click('button[data-tab="tickets"]');const state=oidc.app.store.getState();for(const session of state.authSessions||[])session.expiresAt=Date.now()-1;oidc.app.store.persist();await page.click('#refresh-tickets-btn');await expect(page.locator('#workspace-section')).toBeHidden();await expect(page.locator('#login-section')).toBeVisible();await expect(page.locator('#global-feedback')).toContainText('Session expired or invalid');
+         |                                                                                                                                                             ^
+      16 | });
+      17 |
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/oidc.spec.ts:15:157
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/oidc-expired-enterprise-se-c18ab--and-gives-sign-in-feedback/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/oidc-expired-enterprise-se-c18ab--and-gives-sign-in-feedback/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/oidc-expired-enterprise-se-c18ab--and-gives-sign-in-feedback/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/oidc-expired-enterprise-se-c18ab--and-gives-sign-in-feedback/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    tests/e2e/oidc.spec.ts:4:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out 
+    tests/e2e/oidc.spec.ts:14:1 › expired enterprise session clears private workspace and gives sign-in feedback 
+  18 passed (1.3m)
+ ELIFECYCLE  Command failed with exit code 1.

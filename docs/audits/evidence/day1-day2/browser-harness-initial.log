@@ -1,0 +1,60 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test
+
+[WebServer] (node:7389) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:7402) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:19:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (3.0s)
+  ✓   2 tests/e2e/audit.spec.ts:31:1 › browser customer creates and rejects mock resolution without IT privileges (720ms)
+  ✘   3 tests/e2e/audit.spec.ts:35:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (30.3s)
+(node:7588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 tests/e2e/audit.spec.ts:47:1 › AU08 logout failure remains signed in and shows retry feedback (1.1s)
+  ✓   5 tests/e2e/audit.spec.ts:51:1 › assistant creates a mock request; catalog start and recoverable panel errors work (597ms)
+  ✓   6 tests/e2e/audit.spec.ts:56:39 › responsive landing/workspace, menu and keyboard at 320px (1.1s)
+  ✓   7 tests/e2e/audit.spec.ts:56:39 › responsive landing/workspace, menu and keyboard at 390px (1.1s)
+  ✓   8 tests/e2e/audit.spec.ts:56:39 › responsive landing/workspace, menu and keyboard at 768px (426ms)
+  ✓   9 tests/e2e/audit.spec.ts:56:39 › responsive landing/workspace, menu and keyboard at 1440px (511ms)
+  ✓  10 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (582ms)
+  ✓  11 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (368ms)
+  ✓  12 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (379ms)
+  ✓  13 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (442ms)
+  ✓  14 tests/e2e/portal.spec.ts:44:1 › slow initial data cannot reset an early support-form navigation (290ms)
+
+
+  1) tests/e2e/audit.spec.ts:35:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('#ticket-list-container button').first()
+
+
+      36 |  await signIn(page);const ticket=await create(page,'Browser audit AD approval','cat-ad-account');await page.click('#logout-btn');await expect(page.locator('#login-section')).toBeVisible();
+      37 |  await page.fill('#login-email-input','kamal.hossain@upstra.local');await page.click('#login-submit-btn');await expect(page.locator('#workspace-section')).toBeVisible();
+    > 38 |  await tab(page,'tickets');await page.fill('#filter-search',ticket.ticketNumber);await page.click('#refresh-tickets-btn');await page.locator('#ticket-list-container button').first().click();
+         |                                                                                                                                                                                       ^
+      39 |  await page.click('#btn-start-progress');await expect(page.getByTestId('detail-ticket-status')).toHaveText('IN_PROGRESS');
+      40 |  await page.fill('#ticket-comment','Private audit note for IT');await page.check('#comment-internal');await page.locator('#ticket-comment-form button').click();await expect(page.locator('#ticket-detail-container')).toContainText('INTERNAL NOTE');
+      41 |  await tab(page,'approvals');await page.fill('#approval-reason','Reviewed synthetic audit request');const row=page.locator('#approvals-container tr').filter({hasText:ticket.ticketNumber});await row.getByRole('button',{name:'Approve',exact:true}).click();await expect(row).toContainText('APPROVED');
+        at /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/e2e/audit.spec.ts:38:183
+
+    Error Context: test-results/audit-browser-IT-approval--cf57a-view-share-persisted-ticket/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-browser-IT-approval--cf57a-view-share-persisted-ticket/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/audit-browser-IT-approval--cf57a-view-share-persisted-ticket/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/audit.spec.ts:35:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket
+  13 passed (43.5s)

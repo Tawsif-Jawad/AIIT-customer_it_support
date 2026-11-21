@@ -1,0 +1,30 @@
+{
+  "startingCommit": "57ece2b720f47d5f4411e465f3e188371165eb1e",
+  "startingTree": "clean",
+  "fetchedRemoteDivergence": {
+    "ahead": 0,
+    "behind": 0
+  },
+  "implementationCommit": "9908a66bfa53673f6c2bf547d287575840e87d62",
+  "branch": "codex/day3-transactional-postgres",
+  "codeReviewScope": [
+    "postgres-repository.ts",
+    "postgres-outbox.ts",
+    "third migration",
+    "Prisma schema",
+    "importer and canonical verifier",
+    "database/native/browser tests",
+    "append-only history",
+    "versioned concurrency",
+    "lease fencing",
+    "error mapping and parameterized SQL"
+  ],
+  "confirmedFixed": [
+    "Escalation reason/severity and governance action parity",
+    "Approval-resource audit attribution and complete redacted metadata",
+    "Expired lease acknowledgment after lock wait"
+  ],
+  "unresolvedPolicyConflict": "Generic JSON transition bypasses dedicated escalation rules; operational API unchanged per instruction",
+  "schemaOrMigrationChanged": false,
+  "reviewType": "Agent source review with executable regressions, not independent approval"
+}

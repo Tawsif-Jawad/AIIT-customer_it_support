@@ -1,0 +1,101 @@
+
+> it-support-system@1.0.0 test:e2e:postgres <checkout>
+> AIIT_E2E_POSTGRES=true npx playwright test audit.spec.ts oidc.spec.ts
+
+
+Running 16 tests using 1 worker
+
+(node:88547) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:48:1 › portal CSP blocks an injected inline script while the application signs in (3.0s)
+  ✘   2 tests/e2e/audit.spec.ts:59:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (7.6s)
+(node:88736) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 tests/e2e/audit.spec.ts:71:1 › browser customer creates and rejects mock resolution without IT privileges (3.3s)
+  ✓   4 tests/e2e/audit.spec.ts:75:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (3.8s)
+  ✓   5 tests/e2e/audit.spec.ts:87:1 › AU08 logout failure remains signed in and shows retry feedback (2.2s)
+  ✓   6 tests/e2e/audit.spec.ts:91:1 › assistant creates a mock request; catalog start and recoverable panel errors work (2.2s)
+  ✓   7 tests/e2e/audit.spec.ts:96:39 › responsive landing/workspace, menu and keyboard at 320px (2.9s)
+  ✓   8 tests/e2e/audit.spec.ts:96:39 › responsive landing/workspace, menu and keyboard at 390px (2.6s)
+  ✓   9 tests/e2e/audit.spec.ts:96:39 › responsive landing/workspace, menu and keyboard at 768px (1.9s)
+  ✓  10 tests/e2e/audit.spec.ts:96:39 › responsive landing/workspace, menu and keyboard at 1440px (1.8s)
+  ✓  11 tests/e2e/audit.spec.ts:104:1 › AU09 a delayed older detail response cannot replace the selected ticket (2.3s)
+  ✓  12 tests/e2e/audit.spec.ts:115:1 › ticket filters, pagination, keyboard activation and required form fields work (2.2s)
+  ✓  13 tests/e2e/audit.spec.ts:127:1 › sampled text contrast is measured without assuming whole-app accessibility (1.9s)
+(node:89549) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  14 tests/e2e/oidc.spec.ts:29:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out (2.8s)
+  ✓  15 tests/e2e/oidc.spec.ts:76:1 › enterprise provider failure stays fail-closed and never offers development identity selection (1.7s)
+  ✓  16 tests/e2e/oidc.spec.ts:89:1 › expired enterprise session clears private workspace and gives sign-in feedback (1.9s)
+
+
+  1) tests/e2e/audit.spec.ts:59:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('#ticket-detail-container')
+    Timeout: 5000ms
+    - Expected substring  -  1
+    + Received string     + 13
+
+    - Browser audit synthetic comment
+    + REQ-2026-1004 • SBU-TECH • Outlook & Mail Client ConfigurationBrowser audit Outlook lifecycleRESOLVED_PENDING_CONFIRMATIONSynthetic audit Outlook TLS setup requires assistance with configurationClassification: LOW_RISK_OUTLOOK_CONFIGURATION (93% confidence) | Policy: ALLOWED_LOW_RISK
+    +
+    + [Deterministic Mock AI - Knowledge Assisted Resolution]
+    + We classified your request as an Outlook Configuration question (Confidence: 93%).
+    +
+    + Recommended Steps:
+    + 1. Launch Microsoft Outlook and navigate to File > Account Settings > Manage Profiles.
+    + 2. Choose Manual setup or additional server types > POP or IMAP.
+    + 3. Enter your full corporate email address (e.g., firstname.lastname@upstra.com) and the verified SBU mail server hostname provided in your onboarding sheet.
+    + 4. Under More Settings > Advanced, set Incoming Server (IMAP) to require SSL/TLS (Port 993) and Outgoing Server (SMTP) to STARTTLS (Port 587).
+    + 5. Never disable certificate verification.
+    +
+    + Please confirm if this resolves your issue, or click "Request IT Help" to reopen and assign to an IT Administrator.Confirm Resolution & Close Unresolved — Route to IT Admin State Transition & Audit Event HistoryTICKET_CREATED By Synthetic Employee at 10:48:54 AMAI_HANDLING_STARTED (TRIAGED → AI_HANDLING)By Deterministic Mock AI Orchestrator at 10:48:54 AMTICKET_TRIAGED (NEW → TRIAGED)By Automated Workflow Engine at 10:48:54 AMAI_PROPOSED_RESOLUTION (AI_HANDLING → RESOLVED_PENDING_CONFIRMATION)By Deterministic Mock AI Orchestrator at 10:48:54 AMConversationAdd a commentSend update ↗
+
+    Call log:
+      - Expect "toContainText" locator('#ticket-detail-container') with timeout 5000ms
+      - waiting for locator('#ticket-detail-container')
+        14 × locator resolved to <div class="card" id="ticket-detail-container">…</div>
+           - unexpected value "REQ-2026-1004 • SBU-TECH • Outlook & Mail Client ConfigurationBrowser audit Outlook lifecycleRESOLVED_PENDING_CONFIRMATIONSynthetic audit Outlook TLS setup requires assistance with configurationClassification: LOW_RISK_OUTLOOK_CONFIGURATION (93% confidence) | Policy: ALLOWED_LOW_RISK
+
+    [Deterministic Mock AI - Knowledge Assisted Resolution]
+    We classified your request as an Outlook Configuration question (Confidence: 93%).
+
+    Recommended Steps:
+    1. Launch Microsoft Outlook and navigate to File > Account Settings > Manage Profiles.
+    2. Choose Manual setup or additional server types > POP or IMAP.
+    3. Enter your full corporate email address (e.g., firstname.lastname@upstra.com) and the verified SBU mail server hostname provided in your onboarding sheet.
+    4. Under More Settings > Advanced, set Incoming Server (IMAP) to require SSL/TLS (Port 993) and Outgoing Server (SMTP) to STARTTLS (Port 587).
+    5. Never disable certificate verification.
+
+    Please confirm if this resolves your issue, or click "Request IT Help" to reopen and assign to an IT Administrator.Confirm Resolution & Close Unresolved — Route to IT Admin State Transition & Audit Event HistoryTICKET_CREATED By Synthetic Employee at 10:48:54 AMAI_HANDLING_STARTED (TRIAGED → AI_HANDLING)By Deterministic Mock AI Orchestrator at 10:48:54 AMTICKET_TRIAGED (NEW → TRIAGED)By Automated Workflow Engine at 10:48:54 AMAI_PROPOSED_RESOLUTION (AI_HANDLING → RESOLVED_PENDING_CONFIRMATION)By Deterministic Mock AI Orchestrator at 10:48:54 AMConversationAdd a commentSend update ↗"
+
+
+      60 |  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await signIn(page);
+      61 |  const ticket=await create(page,'Browser audit Outlook lifecycle');await expect(page.getByTestId('detail-ticket-status')).toHaveText('RESOLVED_PENDING_CONFIRMATION');
+    > 62 |  await page.fill('#ticket-comment','Browser audit synthetic comment');await page.locator('#ticket-comment-form button').click();await expect(page.locator('#ticket-detail-container')).toContainText('Browser audit synthetic comment');
+         |                                                                                                                                                                                        ^
+      63 |  await page.click('#btn-confirm-close');await expect(page.getByTestId('detail-ticket-status')).toHaveText('CLOSED');
+      64 |  await page.reload();await expect(page.locator('#workspace-section')).toBeVisible();await tab(page,'tickets');await page.fill('#filter-search',ticket.ticketNumber);await page.click('#refresh-tickets-btn');
+      65 |  await expect(page.locator('#ticket-list-container')).toContainText(ticket.ticketNumber);
+        at <checkout>/tests/e2e/audit.spec.ts:62:184
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/audit-browser-employee-ful-a3972-B-notifications-and-signout/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/audit-browser-employee-ful-a3972-B-notifications-and-signout/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/audit-browser-employee-ful-a3972-B-notifications-and-signout/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/audit-browser-employee-ful-a3972-B-notifications-and-signout/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/audit.spec.ts:59:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout
+  15 passed (47.8s)
+ ELIFECYCLE  Command failed with exit code 1.

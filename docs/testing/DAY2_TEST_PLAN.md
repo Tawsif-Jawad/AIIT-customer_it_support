@@ -11,3 +11,7 @@ Run `npm test` on Node 26.8.1. The script explicitly sets test/dev_oidc/mock env
 Remaining: power-loss/crash injection, all role/state pairs, expiry/role revocation integration, all malformed optional fields, duplicate POST idempotency, multi-worker durable recovery and real PostgreSQL/Keycloak/LDAPS/SMTP tests. CI configuration is new and only locally equivalent commands were executed; hosted CI has not run.
 
 Additional executed loopback smoke: web/API proxy pages/health 200, six overlapping HTTP creates, cookie replay after logout 401; see day2-http-smoke.json. No browser visual inspection was performed on Day 2.
+
+## Final Day 2 verification
+
+The final remediation baseline contained 42 passing tests (four previously unexecuted follow-up cases are now executed). The expanded native suite and real Chromium E2E results are recorded in DAY2_FINAL_ACCEPTANCE_2026-11-09.md and evidence/day2-final. Runtime checking now includes actual tsc compilation, ESLint parsing/rules, locked pnpm installation, advisory audit and Prisma schema parity. All automation uses isolated synthetic datasets/loopback servers; tests/database.test.ts always creates its own cluster and ignores external DATABASE_URL. DB_REQUIRED=true prevents silent skip when PostgreSQL binaries are required. Tests cover process termination, partial writes, clean restore, session expiry/revocation, cookie CSRF, role/state matrix and current approved SBU grants. Production integrations/hosted billing remain separate gates.

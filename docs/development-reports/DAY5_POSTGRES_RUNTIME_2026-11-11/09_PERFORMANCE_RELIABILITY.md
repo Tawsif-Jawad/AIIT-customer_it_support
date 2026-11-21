@@ -1,0 +1,7 @@
+# Performance and reliability
+
+Measurements use disposable loopback PostgreSQL 18.6 on an Apple Silicon Mac (8 logical CPUs, 8 GiB RAM), Node 26.8.1 and pnpm 9.15.0. The runtime test measures in-process HTTP injection with real database queries, including 25 samples each of a paginated ticket list and a development session profile. It issues eight concurrent ticket requests across two API instances with separate Prisma clients. The worker sample measures consecutive successful runs without the idle poll delay. [Exact samples](evidence/performance.json)
+
+On the 14-ticket fixture, median and p95 list latency were 1.89 ms and 2.90 ms. The development session profile measured 1.12 ms and 1.22 ms. Eight creates completed in 32.19 ms with 4 retryable conflicts. The test observed 2 database connections. The worker processed 13 queued jobs in 23.22 ms in its no-idle loop.
+
+The request projection issues a fixed set of collection queries per route. Ticket detail limits history, comments, approvals and AI logs by ticket. There is no per-ticket database query loop. Ticket list, search and analytics still scan and filter their candidate rows in the API. Creating a ticket checks historical number suffixes. The API serializes work per process and a transactional request occupies one connection. The controlled fixture establishes behavior at small scale. Query pushdown, independent ingress limits, pool sizing and enterprise issuer latency under load remain future engineering work.

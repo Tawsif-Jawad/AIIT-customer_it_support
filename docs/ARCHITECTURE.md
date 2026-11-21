@@ -1,3 +1,11 @@
+> **Day 1–6 remediation update.** The implemented runtime uses native Node HTTP for the portal and API, shared TypeScript workflows, JSON by default, and opt-in development/test Prisma PostgreSQL with request-local serializable transactions and a durable notification worker. OIDC uses Code+PKCE, issuer/JWKS validation and opaque server-side sessions. The TLS edge and corporate identity/delivery topology remain deployment gates. Earlier milestone notes below describe the state at their recorded dates. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/01_EXECUTIVE_SUMMARY.md)
+
+> Day 6 adds authenticated ingress and shared PostgreSQL admission. PostgreSQL now handles scoped ticket pagination and analytics aggregation. JSON remains the default. [Day 6 acceptance](development-reports/DAY6_SECURITY_PERFORMANCE_2026-11-11/13_FINAL_ACCEPTANCE.md)
+
+> Day 4 local update (implemented 2026-11-10 for the 2026-11-11 milestone): optional enterprise Code+PKCE authentication now uses validated discovery/JWKS and opaque sessions; controlled-issuer HTTP/browser tests pass. Real Keycloak/AD and hosted acceptance remain pending. JSON stays the default store. See [authentication contract](security/ENTERPRISE_AUTHENTICATION.md) and [Day 4 report](development-reports/DAY4_DEVELOPMENT_REPORT_2026-11-11.md). Older implementation statements below are historical.
+
+> Day 3 update (2026-11-10): A tested isolated PostgreSQL repository/outbox slice now exists; the application still runs on JSON. See [repository contract](architecture/POSTGRES_REPOSITORY.md) and [Day 3 acceptance](development-reports/DAY3_ACCEPTANCE_2026-11-10.md). Earlier statuses below are historical. Hosted checks, independent review, prerequisite integrations and production cutover remain gates.
+
 # AIIT System Architecture
 
 > Verified runtime correction (2026-11-08): The running frontend and API use Node HTTP and local JSON storage. Next.js, NestJS, PostgreSQL/Prisma and BullMQ entries below describe intended/scaffolded architecture. Live RS256/JWKS OIDC and Redis are not implemented. Development HMAC authentication is disabled in production; see IMPLEMENTATION_STATUS.md.
@@ -9,9 +17,9 @@ The platform is organized as a modular TypeScript monorepo (`pnpm` workspaces) a
 ```
 Cutomer_IT_Support_System/
 ├── apps/
-│   ├── web/          # Enterprise Portal UI (Next.js App Router + Accessible Web Server & API Proxy)
+│   ├── web/          # Enterprise Portal HTML/CSS/JS and native HTTP proxy
 │   ├── api/          # Modular REST API, RBAC Guard, State Machine, OpenAPI 3.1, Prisma Schema
-│   └── worker/       # Background Notification & SLA Queue Processor (BullMQ / Resilient Local Queue)
+│   └── worker/       # PostgreSQL notification outbox worker (mock transport)
 ├── packages/
 │   ├── shared/       # Domain Models, RBAC Policies, Ticket State Machine, Schema Validators, Redactor
 │   └── connectors/   # AD Adapter, Self-Hosted Mail & Mailbox Provisioning Adapters, AI Policy Engine
@@ -35,7 +43,7 @@ Cutomer_IT_Support_System/
 4. **Resilience & Graceful Degradation**:
    - If the AI provider, Redis broker, or SMTP server is unreachable, ticket creation and state transitions still succeed transactionally; notifications remain safely `QUEUED` for retry.
 
-## Day 2 authoritative runtime update (2026-11-09)
+## Historical Day 2 runtime update (2026-11-09)
 
 Earlier descriptions of live Keycloak, resilient retry and production transactional persistence remain target requirements. Implemented runtime:
 
@@ -55,3 +63,7 @@ flowchart LR
 Request body listeners attach before serial queueing; transaction loads current storage, captures business mutation/history/audit/notification intent, buffers response then atomically replaces the file before sending success. Storage failures discard state and return failure. Standalone JSON worker exits without storage access. All requests contend on the same local filesystem lease; no multi-host or high-availability claim. Restart reload and injected write-failure tests pass; crash/power-loss durability is not certified.
 
 See architecture/PERSISTENCE_RECOVERY.md, architecture/DATABASE_DESIGN.md, architecture/AUTHENTICATION_AUTHORIZATION.md and security/ROLE_PERMISSION_MATRIX.md for implemented vs designed vs blocked boundaries. Integrations remain simulated; AD/mail privileged writes remain disabled. Existing Role.permissions is descriptive, not a universal permission evaluator. Real outbox/worker, scoped support memberships, CSRF/TLS/BFF, enterprise IdP and immutable audit remain release work.
+
+## Final Day 2 foundation status
+
+Native Node API/web and transaction-contained JSON remain the runtime. The database migration/importer is now implemented and tested against disposable PostgreSQL, with schema parity and populated UUID-to-TEXT preservation. It is not wired into API storage. A locked toolchain now runs actual tsc/ESLint, native tests and Chromium; browser session tokens are no longer persisted in localStorage. Origin checks protect cookie writes, explicit organizational grants remain unchanged, and high/critical triage always enters IT. Hosted CI has four separated jobs but cannot schedule until GitHub account billing/spending restriction is resolved. See final acceptance evidence for details.

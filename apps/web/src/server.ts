@@ -3,21 +3,26 @@
  * Serves the responsive, accessible Enterprise Portal UI and proxies /api/* to the Backend API.
  */
 
+import { randomBytes } from 'node:crypto';
 import http from 'node:http';
+import { isLoopbackDestination } from '../../../packages/shared/src/isolation.ts';
+import https from 'node:https';
 import fs from 'node:fs';
+import { authenticatedForwarders, configuredOrigin, proxyTokenHeader, validateProxyToken } from '../../../packages/shared/src/ingress.ts';
 import { getLandingHtml } from './landing.ts';
 
 const WEB_PORT = Number(process.env.WEB_PORT || 3000);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
 
-export function getPortalHtml(apiBaseUrl = ''): string {
+export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
+  const nonceAttribute = nonce ? ` nonce="${nonce}"` : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIIT — AI-Powered Enterprise IT Support & Management System</title>
-  <style>
+  <style${nonceAttribute}>
     :root {
       --bg-primary: #0b0f19;
       --bg-card: #131b2e;
@@ -225,8 +230,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
     <!-- LOGIN VIEW -->
     <section id="login-section" class="card" style="max-width: 640px; margin: 2rem auto;">
       <div class="login-art" aria-hidden="true">✧</div><div class="eyebrow" style="margin-bottom:14px">Welcome to your workspace</div><h2>Sign in to AIIT</h2>
-      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
-        Artificial Intelligence for Information Technology. Development mode: select a seeded test identity. This is not live corporate authentication.
+      <p id="auth-mode-notice" style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+        Checking authentication mode…
       </p>
       <div class="form-group">
         <label for="login-identity-select">Development test identity</label>
@@ -234,9 +239,10 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       </div>
       <div class="form-group">
         <label for="login-email-input">Corporate Email Address</label>
-        <input type="email" id="login-email-input" placeholder="e.g., tawsif.zawad@upstra.com" />
+        <input type="email" id="login-email-input" placeholder="e.g., employee@example.test" />
       </div>
-      <button id="login-submit-btn" class="btn-primary" type="button">Sign in to development environment ↗</button>
+      <a id="enterprise-login-btn" class="btn-primary" href="/api/auth/oidc/login" style="display:none">Sign in with enterprise identity ↗</a>
+      <button id="login-submit-btn" class="btn-primary" type="button" disabled>Sign in to development environment ↗</button>
     </section>
 
     <!-- AUTHENTICATED WORKSPACE -->
@@ -249,12 +255,13 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         <button class="tab-btn" data-tab="catalog" type="button">Service catalog</button><button class="tab-btn" data-tab="notifications" type="button">Notifications</button><button class="tab-btn" data-tab="assets" type="button">IT Assets & Handover</button>
         <button class="tab-btn" data-tab="kb" type="button">Knowledge Base</button>
         <button class="tab-btn" data-tab="approvals" id="tab-btn-approvals" type="button" style="display:none;">Approvals Queue</button>
+        <button class="tab-btn" data-tab="sla" id="tab-btn-sla" type="button" style="display:none;">SLA & reporting</button>
         <button class="tab-btn" data-tab="cto" id="tab-btn-cto" type="button" style="display:none;">CTO Escalation Dashboard</button>
         <button class="tab-btn" data-tab="audit" id="tab-btn-audit" type="button" style="display:none;">Security Audit & Health</button>
       </nav>
 
 <section id="tab-dashboard" class="tab-panel" style="display:none"><div class="overview-grid"><div class="card"><h2>Recent requests</h2><div id="overview-tickets"></div><button class="btn-secondary" data-go="tickets">View all requests ↗</button></div><div class="card"><div class="eyebrow">A little guidance goes a long way</div><h2 style="font-size:29px;margin:24px 0">Your next step,<br>made clearer.</h2><p>Describe an issue to get knowledge-assisted recommendations, or browse the service catalog.</p><button class="btn-primary" style="margin-top:24px" data-go="assistant">Ask AIIT ✧</button><button class="btn-secondary" style="margin-top:12px" data-go="catalog">Explore services ↗</button></div></div><div class="card"><h2>Authorized ticket distribution</h2><div id="overview-distribution" class="catalog-grid" style="margin-top:20px"></div></div></section>
-      <section id="tab-assistant" class="tab-panel" style="display:none"><div class="assistant-layout"><div class="card"><div class="eyebrow">Knowledge-assisted support</div><h2 style="font-size:27px;margin:20px 0">Let's work through it.</h2><div class="assistant-messages" id="assistant-messages" role="log" aria-live="polite"><div class="bubble"><strong>AIIT · MOCK AI</strong><p>Tell me what isn't working. I'll create a support request and return the configured provider's guidance. I do not access your mailbox or execute infrastructure changes.</p></div></div><form id="assistant-form"><label for="assistant-category">Service category</label><select id="assistant-category" required></select><label for="assistant-input" style="margin-top:14px">Describe your IT issue</label><div class="assistant-compose"><textarea id="assistant-input" minlength="10" maxlength="5000" placeholder="For example: Outlook cannot connect to my mail server…" required></textarea><button class="btn-primary" type="submit">Create request & ask ↗</button></div></form></div><aside class="card"><h2>In context</h2><p style="font-size:13px;color:var(--muted);margin:20px 0">Recommendations are generated by the deterministic mock provider from approved, accessible knowledge.</p><div id="assistant-context"><span class="badge badge-status">No request selected</span></div><button class="btn-secondary" data-go="kb" style="margin-top:25px">Browse knowledge ↗</button></aside></div></section>
+      <section id="tab-assistant" class="tab-panel" style="display:none"><div class="assistant-layout"><div class="card"><div class="eyebrow">Knowledge-assisted support</div><h2 style="font-size:27px;margin:20px 0">Let's work through it.</h2><div class="assistant-messages" id="assistant-messages" role="log" aria-live="polite"><div class="bubble"><strong>AIIT · MOCK AI</strong><p>Tell me what isn't working. I'll create a support request and return the configured provider's guidance. I do not access your mailbox or execute infrastructure changes.</p></div></div><form id="assistant-form"><label for="assistant-category">Service category</label><select id="assistant-category" required></select><div id="assistant-service-fields"></div><label for="assistant-input" style="margin-top:14px">Describe your IT issue</label><div class="assistant-compose"><textarea id="assistant-input" minlength="10" maxlength="5000" placeholder="For example: Outlook cannot connect to my mail server…" required></textarea><button class="btn-primary" type="submit">Create request & ask ↗</button></div></form></div><aside class="card"><h2>In context</h2><p style="font-size:13px;color:var(--muted);margin:20px 0">Recommendations are generated by the deterministic mock provider from approved, accessible knowledge.</p><div id="assistant-context"><span class="badge badge-status">No request selected</span></div><button class="btn-secondary" data-go="kb" style="margin-top:25px">Browse knowledge ↗</button></aside></div></section>
       <section id="tab-catalog" class="tab-panel" style="display:none"><div class="card"><h2>What can we help with?</h2><p style="font-size:13px;color:var(--muted);margin:14px 0 25px">Choose a configured service to start a request. Directory and email changes require review; production writes remain disabled.</p><div id="catalog-grid" class="catalog-grid"></div></div></section>
       <section id="tab-notifications" class="tab-panel" style="display:none"><div class="card"><h2>Your updates</h2><p style="font-size:12px;color:var(--muted);margin:12px 0">Updates returned by your authorized notification feed. Email transport remains in development mode.</p><button class="btn-secondary" id="refresh-notifications">Refresh updates</button><div id="notifications-list"></div></div></section>
       <!-- TAB: TICKETS & QUEUE -->
@@ -269,7 +276,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             <option value="ESCALATED_TO_CTO">Escalated to CTO</option>
             <option value="CLOSED">Closed</option>
           </select>
-          <select id="filter-severity" aria-label="Filter by priority" style="max-width:170px"><option value="">All priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select><button id="refresh-tickets-btn" class="btn-secondary" type="button">Filter / Refresh</button>
+          <select id="filter-severity" aria-label="Filter by priority" style="max-width:170px"><option value="">All priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select><label id="assigned-to-me-filter" hidden><input type="checkbox" id="filter-assigned-to-me" style="width:auto" /> Assigned to me</label><button id="refresh-tickets-btn" class="btn-secondary" type="button">Filter / Refresh</button>
         </div>
 
         <div class="layout-split">
@@ -292,6 +299,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
               <label for="ticket-category">IT Service Category</label>
               <select id="ticket-category" required></select>
             </div>
+            <div id="ticket-service-fields"></div>
             <div class="form-group">
               <label for="ticket-title">Request Summary / Title</label>
               <input type="text" id="ticket-title" required minlength="5" placeholder="Describe the issue or request concisely" />
@@ -338,6 +346,16 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         </div>
       </section>
 
+      <!-- TAB: SLA AND REPORTING -->
+      <section id="tab-sla" class="tab-panel" style="display: none;">
+        <div class="card">
+          <h2>SLA policies, overdue tickets and reporting</h2>
+          <button class="btn-secondary" id="sla-review-btn" type="button">Review overdue tickets</button>
+          <div id="sla-status-container" style="margin-top:20px"></div>
+          <div id="reports-container" style="margin-top:20px"></div>
+        </div>
+      </section>
+
       <!-- TAB: CTO ESCALATION DASHBOARD -->
       <section id="tab-cto" class="tab-panel" style="display: none;">
         <div class="card">
@@ -354,7 +372,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         <div class="card">
           <h2>System Integration Health & Security Audit Trail</h2>
           <div id="connector-health-box" style="margin-bottom: 1.25rem;"></div>
-          <h3>Immutable Administrative & Security Audit Events</h3>
+          <h3>Administrative & Security Audit Events (local JSON; not tamper-proof)</h3>
           <div id="audit-logs-container" style="margin-top: 0.75rem;"></div>
         </div>
       </section>
@@ -363,9 +381,12 @@ export function getPortalHtml(apiBaseUrl = ''): string {
   </main>
   <noscript>AIIT requires JavaScript. Enable JavaScript to sign in and access support.</noscript>
 
-  <script>
+  <script${nonceAttribute}>
     const API_BASE = '${apiBaseUrl}';
-    let authToken = localStorage.getItem('itsupport_token') || '';
+    localStorage.removeItem('itsupport_token'); // Remove historical persisted bearer tokens.
+    let authToken = '';
+    let csrfToken = '';
+    let sessionEpoch = 0;
     let currentUser = null;
     let catalogCategories = [];
     let currentTickets = [];
@@ -389,8 +410,9 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
     async function apiFetch(path, options = {}) {
       const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
-      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+      if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
       const requestToken = authToken;
+      const requestEpoch = sessionEpoch;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
       let res, data;
@@ -402,9 +424,19 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       } finally {
         clearTimeout(timeout);
       }
-      if (requestToken !== authToken) throw new Error('Session changed. Refresh this view.');
+      if (requestEpoch !== sessionEpoch || requestToken !== authToken) throw new Error('Session changed. Refresh this view.');
+      if (res.status === 401 && !path.startsWith('/api/auth/')) {
+        sessionEpoch++; authToken = ''; csrfToken = ''; currentUser = null;
+        if (typeof resetPrivateViews === 'function') resetPrivateViews();
+        document.getElementById('workspace-section').style.display = 'none';
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('user-header-controls').innerHTML = '';
+        document.body.classList.remove('authenticated', 'nav-open');
+        throw new Error('Session expired or invalid. Sign in again.');
+      }
       if (!res.ok && !options.acceptError) {
-        throw new Error((data.error && data.error.message) || 'Request failed with status ' + res.status);
+        throw Object.assign(new Error((data.error && data.error.message) ||
+          'Request failed with status ' + res.status), { status: res.status });
       }
       return data;
     }
@@ -427,28 +459,42 @@ export function getPortalHtml(apiBaseUrl = ''): string {
     }
 
     async function initAuth() {
+      const developmentButton = document.getElementById('login-submit-btn');
+      developmentButton.disabled = true;
       void loadHealth();
-      const idData = await apiFetch('/api/auth/identities').catch(error => { showFeedback(error.message, 'error'); return { identities: [] }; });
+      const config = await apiFetch('/api/auth/config').catch(() => null);
+      const development = config?.mode === 'development';
+      const enterpriseButton = document.getElementById('enterprise-login-btn');
+      enterpriseButton.style.display = config?.mode === 'enterprise' && config.ready ? 'inline-block' : 'none';
+      developmentButton.style.display = development ? 'inline-block' : 'none';
+      document.getElementById('login-email-input').parentElement.style.display = development ? 'block' : 'none';
+      document.getElementById('login-identity-select').parentElement.style.display = development ? 'block' : 'none';
+      document.getElementById('auth-mode-notice').textContent = !config ? 'Sign-in is temporarily unavailable. Retry after the API reconnects.' : development ? 'Development mode: select a seeded test identity. This is not live corporate authentication.' : config.ready ? 'Enterprise sign-in uses your configured identity provider. Application permissions remain managed by AIIT.' : 'Authentication is not configured. Contact your administrator; development sign-in is disabled.';
+      const idData = development ? await apiFetch('/api/auth/identities').catch(error => { showFeedback(error.message, 'error'); return { identities: [] }; }) : {identities:[]};
       const select = document.getElementById('login-identity-select');
       select.innerHTML = idData.identities.map(u =>
         '<option value="' + escapeHtml(u.email) + '">' + escapeHtml(u.displayName) + ' [' + escapeHtml(u.roleName) + ' | ' + escapeHtml(u.sbuCode) + ']</option>'
       ).join('');
-      if (idData.identities.length > 0) {
-        document.getElementById('login-email-input').value = idData.identities[0].email;
+      const emailInput = document.getElementById('login-email-input');
+      if (idData.identities.length > 0 && !emailInput.value.trim()) {
+        emailInput.value = idData.identities[0].email;
       }
       select.onchange = () => {
         document.getElementById('login-email-input').value = select.value;
       };
 
-      if (authToken) {
+      {
         try {
           const me = await apiFetch('/api/auth/me');
+          csrfToken = me.csrfToken || '';
           currentUser = me.user;
           await renderAuthenticatedWorkspace();
           return;
         } catch {
           localStorage.removeItem('itsupport_token');
           authToken = '';
+        } finally {
+          developmentButton.disabled = !development;
         }
       }
       if (typeof resetPrivateViews === 'function') resetPrivateViews();
@@ -458,7 +504,14 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       document.getElementById('user-header-controls').innerHTML = '';
     }
 
-    document.getElementById('retry-health').onclick = loadHealth;
+    document.getElementById('retry-health').onclick = async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        if (currentUser) await loadHealth();
+        else await initAuth();
+      } finally { button.disabled = false; }
+    };
     document.getElementById('login-submit-btn').onclick = async () => {
       const button = document.getElementById('login-submit-btn');
       button.disabled = true;
@@ -468,8 +521,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
           method: 'POST',
           body: JSON.stringify({ email })
         });
-        authToken = res.token;
-        localStorage.setItem('itsupport_token', authToken);
+        authToken = ''; csrfToken = res.csrfToken || ''; sessionEpoch++;
+        // Authentication stays in the HttpOnly cookie; upstream tokens never enter JavaScript.
         currentUser = res.user;
         showFeedback('Authenticated as ' + currentUser.displayName + ' (' + currentUser.roleName + ')');
         await renderAuthenticatedWorkspace();
@@ -480,8 +533,9 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 
     async function renderAuthenticatedWorkspace() {
       document.getElementById('login-section').style.display = 'none';
-      document.getElementById('workspace-section').style.display = 'block';
-      document.body.classList.add('authenticated');
+      // Keep navigation hidden until initial data and the default tab are ready.
+      // Otherwise the final dashboard switch can discard a user's early form navigation.
+      document.getElementById('workspace-section').style.display = 'none';
       document.getElementById('workspace-greeting').textContent = currentUser.roleName === 'CTO' ? 'Clarity for the decisions that matter.' : currentUser.roleName === 'IT_ADMIN' ? 'Let’s keep work moving.' : 'How can AIIT help you today?';
       document.getElementById('workspace-context').textContent = currentUser.displayName + ' · ' + currentUser.roleName.replace('_', ' ') + ' · ' + currentUser.sbuCode; 
 
@@ -491,15 +545,17 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         '<button id="logout-btn" class="btn-secondary" type="button">Sign Out</button>';
 
       document.getElementById('logout-btn').onclick = async () => {
-        await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }); }
+        catch (error) { showFeedback('Sign out failed: ' + error.message + ' Your session is still active; retry sign out.', 'error'); return; }
         localStorage.removeItem('itsupport_token');
-        authToken = '';
+        authToken = ''; csrfToken = ''; sessionEpoch++;
         currentUser = null;
         await initAuth();
       };
 
       const isAdminOrCto = currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO';
       document.getElementById('tab-btn-approvals').style.display = isAdminOrCto ? 'inline-block' : 'none';
+      document.getElementById('tab-btn-sla').style.display = isAdminOrCto ? 'inline-block' : 'none';
       document.getElementById('tab-btn-cto').style.display = isAdminOrCto ? 'inline-block' : 'none';
       document.getElementById('tab-btn-audit').style.display = isAdminOrCto ? 'inline-block' : 'none';
 
@@ -512,13 +568,20 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       await refreshAllData();
       if (typeof setupWorkspace === 'function') setupWorkspace();
       switchTab('dashboard');
+      document.getElementById('workspace-section').style.display = 'block';
+      document.body.classList.add('authenticated');
     }
 
     async function refreshAllData() {
+      const isItAdmin = currentUser?.roleName === 'IT_ADMIN';
+      const assignmentFilter = document.getElementById('filter-assigned-to-me');
+      document.getElementById('assigned-to-me-filter').hidden = !isItAdmin;
+      if (!isItAdmin) assignmentFilter.checked = false;
       const [summary, ticketsRes] = await Promise.all([
         apiFetch('/api/analytics/summary'),
         apiFetch('/api/tickets?status=' + encodeURIComponent(document.getElementById('filter-status').value) +
-          '&search=' + encodeURIComponent(document.getElementById('filter-search').value) + '&severity=' + encodeURIComponent(document.getElementById('filter-severity').value) + '&page=' + ticketPage)
+          '&search=' + encodeURIComponent(document.getElementById('filter-search').value) + '&severity=' + encodeURIComponent(document.getElementById('filter-severity').value) + '&page=' + ticketPage +
+          (assignmentFilter.checked ? '&assignedToMe=true' : ''))
       ]);
 
       document.getElementById('metrics-container').innerHTML =
@@ -574,11 +637,20 @@ export function getPortalHtml(apiBaseUrl = ''): string {
     }
 
     async function inspectTicket(ticketId) {
+      const box = document.getElementById('ticket-detail-container');
+      if (selectedTicketId !== ticketId) {
+        box.textContent = 'Loading ticket…';
+      }
       selectedTicketId = ticketId;
       renderTicketList();
-      const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId));
+      const detail = await apiFetch('/api/tickets/' + encodeURIComponent(ticketId)).catch(error => {
+        if (selectedTicketId === ticketId) {
+          box.textContent = 'Unable to load ticket. Select it again to retry.';
+          throw error;
+        }
+      });
+      if (!detail || selectedTicketId !== ticketId) return; // discard superseded detail requests
       const t = detail.ticket;
-      const box = document.getElementById('ticket-detail-container');
 
       let actionsHtml = '';
       if (t.status === 'RESOLVED_PENDING_CONFIRMATION' && (t.requesterId === currentUser.id || currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO')) {
@@ -596,6 +668,18 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         actionsHtml += '<button class="btn-success" id="btn-cto-resolve" type="button">CTO Authorize & Resolve</button>';
       }
 
+      const assignment = detail.assignment;
+      const assignmentForm = assignment && assignment.candidates.length
+        ? '<form id="ticket-assignment-form">' +
+          '<label for="assignment-assignee">Assign to IT administrator</label>' +
+          '<select id="assignment-assignee" required><option value="">Select an administrator</option>' +
+          assignment.candidates.map(user => '<option value="' + escapeHtml(user.id) + '"' +
+            (user.id === t.assigneeId ? ' selected' : '') + '>' +
+            escapeHtml(user.displayName) + '</option>').join('') + '</select>' +
+          '<label for="assignment-reason">Assignment reason</label>' +
+          '<textarea id="assignment-reason" required minlength="10" maxlength="500"></textarea>' +
+          '<button type="submit" class="btn-secondary">Save assignment</button></form>' : '';
+
       box.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">' +
           '<div>' +
@@ -608,16 +692,53 @@ export function getPortalHtml(apiBaseUrl = ''): string {
         (t.aiSuggestedFix ? '<div class="ai-box" data-testid="ai-decision-box"><strong>' + escapeHtml(t.aiSummary || 'AI Evaluation') + '</strong>\\n\\n' + escapeHtml(t.aiSuggestedFix) + '</div>' : '') +
         (t.escalationReason ? '<div class="alert-error"><strong>Escalation / Routing Reason:</strong> ' + escapeHtml(t.escalationReason) + '</div>' : '') +
         '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:1rem 0;">' + actionsHtml + '</div>' +
-        '<h3 style="font-size:0.95rem;margin-top:1.25rem;margin-bottom:0.5rem;">State Transition & Audit Event History</h3>' +
+        (detail.assigneeName !== undefined ? '<p>Assigned to ' +
+          escapeHtml(detail.assigneeName || (t.assigneeId ? 'Unavailable administrator' : 'No administrator')) +
+          (detail.assigneeIsActive === false ? ' (inactive)' : '') + '</p>' : '') +
+        assignmentForm +
+        '<h3 style="font-size:0.95rem;margin-top:1.25rem;margin-bottom:0.5rem;">Ticket History</h3>' +
         '<div>' + detail.events.map(ev =>
           '<div class="timeline-item">' +
             '<strong>' + escapeHtml(ev.eventType) + '</strong> ' +
-            (ev.fromStatus ? '(' + escapeHtml(ev.fromStatus) + ' &rarr; ' + escapeHtml(ev.toStatus) + ')' : '') +
+            (ev.fromStatus && ev.fromStatus !== ev.toStatus ? '(' + escapeHtml(ev.fromStatus) + ' &rarr; ' + escapeHtml(ev.toStatus) + ')' : '') +
+            (ev.eventType === 'TICKET_REASSIGNED' && ev.metadata?.reason
+              ? '<div>' + escapeHtml(ev.metadata.reason) + '</div>' : '') +
             '<div style="color:var(--text-muted);font-size:0.76rem;">By ' + escapeHtml(ev.actorName || 'System') + ' at ' + new Date(ev.createdAt).toLocaleTimeString() + '</div>' +
           '</div>'
         ).join('') + '</div>';
 
       if (typeof renderTicketExtras === 'function') renderTicketExtras(detail);
+
+      const assignmentElement = document.getElementById('ticket-assignment-form');
+      if (assignmentElement) assignmentElement.onsubmit = async event => {
+        event.preventDefault();
+        const submit = assignmentElement.querySelector('button');
+        if (submit.disabled) return;
+        submit.disabled = true;
+        try {
+          const result = await apiFetch('/api/tickets/' + encodeURIComponent(t.id) + '/assign', {
+            method: 'POST',
+            body: JSON.stringify({
+              assigneeId: document.getElementById('assignment-assignee').value,
+              expectedAssigneeId: t.assigneeId,
+              expectedRevision: assignment.revision,
+              reason: document.getElementById('assignment-reason').value,
+            }),
+          });
+          showFeedback(result.changed ? 'Assignment saved.' : 'Ticket already assigned to this administrator.');
+          if (result.changed) await refreshAllData();
+        } catch (error) {
+          showFeedback(error.message, 'error');
+          if (error.status === 409 && selectedTicketId === t.id) {
+            const reason = assignmentElement.querySelector('textarea').value;
+            await inspectTicket(t.id).catch(() => {});
+            if (selectedTicketId === t.id) {
+              const refreshedReason = document.getElementById('assignment-reason');
+              if (refreshedReason) refreshedReason.value = reason;
+            }
+          }
+        } finally { submit.disabled = false; }
+      };
 
       const bindTransition = (btnId, targetStatus, notesPrompt) => {
         const el = document.getElementById(btnId);
@@ -679,11 +800,13 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             '<td>' + escapeHtml(t.escalationReason || '') + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
+
     }
 
     document.getElementById('create-ticket-form').onsubmit = async (e) => {
       e.preventDefault();
       const submitButton = document.getElementById('submit-ticket-btn');
+      if (submitButton.disabled || !e.currentTarget.reportValidity()) return;
       submitButton.disabled = true;
       try {
         const res = await apiFetch('/api/tickets', {
@@ -693,11 +816,14 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             title: document.getElementById('ticket-title').value,
             severity: document.getElementById('ticket-severity').value,
             description: document.getElementById('ticket-description').value,
+            customFormPayload: collectServiceFields('ticket'),
           })
         });
         document.getElementById('ticket-title').value = '';
         document.getElementById('ticket-description').value = '';
+        renderServiceFields('ticket');
         selectedTicketId = res.ticket.id;
+        document.getElementById('ticket-detail-container').textContent = 'Loading ticket…';
         showFeedback('Created ' + res.ticket.ticketNumber + ' -> Status: ' + res.ticket.status);
         switchTab('tickets');
         await refreshAllData();
@@ -706,7 +832,35 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       } finally { submitButton.disabled = false; }
     };
 
+    document.getElementById('filter-assigned-to-me').onchange = () => {
+      ticketPage = 1;
+      refreshAllData().catch(error => showFeedback(error.message, 'error'));
+    };
     document.getElementById('refresh-tickets-btn').onclick = () => { ticketPage = 1; refreshAllData().catch(error => showFeedback(error.message, 'error')); };
+
+    async function loadSlaAndReportTab() {
+      const [sla, report] = await Promise.all([
+        apiFetch('/api/sla/status'),
+        apiFetch('/api/reports/summary'),
+      ]);
+      document.getElementById('sla-status-container').innerHTML =
+        '<div class="catalog-grid">' +
+        '<div><strong>Response breaches</strong><div class="metric-value">' + sla.summary.responseBreaches + '</div></div>' +
+        '<div><strong>Resolution breaches</strong><div class="metric-value">' + sla.summary.resolutionBreaches + '</div></div>' +
+        '<div><strong>Escalated</strong><div class="metric-value">' + sla.summary.escalated + '</div></div>' +
+        '</div>' +
+        (sla.items.filter(item => item.responseBreached || item.resolutionBreached).map(item =>
+          '<div class="activity-row"><div><strong>' + escapeHtml(item.ticketNumber) + '</strong><p>' + escapeHtml(item.status) + '</p></div><span class="badge badge-cto">' + escapeHtml(item.resolutionBreached ? 'Resolution breach' : 'Response breach') + '</span></div>'
+        ).join('') || '<p class="empty-state">No overdue tickets in your authorized scope.</p>');
+      document.getElementById('reports-container').innerHTML =
+        '<h3>Authorized operational report</h3>' +
+        '<div class="catalog-grid">' +
+        '<div><strong>Open tickets</strong><div class="metric-value">' + report.openTickets + '</div></div>' +
+        '<div><strong>SLA breaches</strong><div class="metric-value">' + report.slaBreaches + '</div></div>' +
+        '<div><strong>Pending approvals</strong><div class="metric-value">' + report.pendingApprovals + '</div></div>' +
+        '<div><strong>Assets assigned</strong><div class="metric-value">' + report.assignedAssets + '</div></div>' +
+        '</div>';
+    }
 
     async function loadAssetsTab() {
       const data = await apiFetch('/api/assets');
@@ -722,9 +876,54 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             '<td>' + escapeHtml(a.handoverAckStatus) + '</td>' +
             '<td>' + (a.handoverAckStatus === 'PENDING_EMPLOYEE_ACK'
               ? '<button class="btn-success btn-ack-asset" data-id="' + escapeHtml(a.id) + '" type="button">Acknowledge Custody</button>'
-              : 'Verified') + '</td>' +
+              : (a.handoverAckStatus === 'ACKNOWLEDGED' ? 'Acknowledged' : 'No acknowledgement pending')) + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
+
+      if (currentUser.roleName === 'IT_ADMIN') {
+        box.insertAdjacentHTML('beforeend',
+          '<details style="margin-top:20px"><summary>Register or manage equipment</summary>' +
+          '<form id="asset-register-form" class="card" style="margin-top:12px">' +
+          '<input name="assetTag" required placeholder="Asset tag" /><input name="serialNumber" required placeholder="Serial number" />' +
+          '<input name="category" required placeholder="Category" /><input name="modelName" required placeholder="Model" />' +
+          '<input name="location" placeholder="Location" />' +
+          '<button class="btn-primary" type="submit">Register asset</button></form>' +
+          '</details>');
+        const registerForm = box.querySelector('#asset-register-form');
+        registerForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(registerForm);
+          try {
+            await apiFetch('/api/assets', { method: 'POST', body: JSON.stringify({
+              assetTag: form.get('assetTag'), serialNumber: form.get('serialNumber'),
+              category: form.get('category'), modelName: form.get('modelName'),
+              location: form.get('location'), sbuId: currentUser.sbuId,
+            }) });
+            showFeedback('Asset registered.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+
+        box.insertAdjacentHTML('beforeend',
+          '<form id="asset-lifecycle-form" class="card" style="margin-top:12px">' +
+          '<h3>Asset lifecycle</h3><select name="assetId" required>' +
+          data.items.map(asset => '<option value="' + escapeHtml(asset.id) + '">' + escapeHtml(asset.assetTag) + ' — ' + escapeHtml(asset.status) + '</option>').join('') +
+          '</select><select name="action" required><option value="assign">Assign</option><option value="reassign">Reassign</option><option value="handover">Start handover</option><option value="takeover">Start takeover</option><option value="return">Return</option><option value="maintenance">Maintenance</option><option value="retire">Retire</option></select>' +
+          '<input name="assigneeId" placeholder="Assignee employee ID" /><input name="notes" placeholder="Lifecycle notes" /><button class="btn-secondary" type="submit">Apply lifecycle action</button></form>');
+        const lifecycleForm = box.querySelector('#asset-lifecycle-form');
+        lifecycleForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(lifecycleForm);
+          try {
+            await apiFetch('/api/assets/' + encodeURIComponent(form.get('assetId')) + '/lifecycle', {
+              method: 'POST',
+              body: JSON.stringify({ action: form.get('action'), assigneeId: form.get('assigneeId'), notes: form.get('notes') }),
+            });
+            showFeedback('Asset lifecycle updated.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+      }
 
       box.querySelectorAll('.btn-ack-asset').forEach(btn => {
         btn.onclick = async () => {
@@ -762,8 +961,8 @@ export function getPortalHtml(apiBaseUrl = ''): string {
             '<td>' + escapeHtml(a.justification) + '</td>' +
             '<td>' + escapeHtml(a.status) + '</td>' +
             '<td>' + (a.status === 'PENDING' && (a.requiredRole === currentUser.roleName || currentUser.roleName === 'CTO')
-              ? '<button class="btn-success btn-decide" data-id="' + escapeHtml(a.id) + '" data-decision="APPROVED" type="button">Approve</button> ' +
-                '<button class="btn-danger btn-decide" data-id="' + escapeHtml(a.id) + '" data-decision="REJECTED" type="button">Reject</button>'
+              ? '<button class="btn-success btn-decide" data-id="' + escapeHtml(a.id) + '" data-action-params="' + escapeHtml(JSON.stringify(a.actionParams || {})) + '" data-expected-version="' + escapeHtml(String(a.expectedVersion || 0)) + '" data-decision="APPROVED" type="button">Approve</button> ' +
+                '<button class="btn-danger btn-decide" data-id="' + escapeHtml(a.id) + '" data-action-params="' + escapeHtml(JSON.stringify(a.actionParams || {})) + '" data-expected-version="' + escapeHtml(String(a.expectedVersion || 0)) + '" data-decision="REJECTED" type="button">Reject</button>'
               : escapeHtml(a.decisionNotes || '')) + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
@@ -776,7 +975,9 @@ export function getPortalHtml(apiBaseUrl = ''): string {
               method: 'POST',
               body: JSON.stringify({
                 decision: btn.getAttribute('data-decision'),
-                decisionNotes: document.getElementById('approval-reason').value.trim()
+                decisionNotes: document.getElementById('approval-reason').value.trim(),
+                actionParams: btn.dataset.actionParams ? JSON.parse(btn.dataset.actionParams) : null,
+                expectedVersion: Number(btn.dataset.expectedVersion || 0)
               })
             });
             showFeedback('Approval decision recorded.');
@@ -825,6 +1026,7 @@ export function getPortalHtml(apiBaseUrl = ''): string {
       if (tabName === 'assets') loadPanel(loadAssetsTab, 'assets-container');
       if (tabName === 'kb') loadPanel(loadKbTab, 'kb-container');
       if (tabName === 'approvals') loadPanel(loadApprovalsTab, 'approvals-container');
+      if (tabName === 'sla') loadPanel(loadSlaAndReportTab, 'sla-status-container');
       if (tabName === 'cto') renderCtoDashboard().catch(error => showFeedback(error.message, 'error'));
       if (tabName === 'audit') loadPanel(loadAuditTab, 'audit-logs-container');
     }
@@ -840,8 +1042,33 @@ export function getPortalHtml(apiBaseUrl = ''): string {
 </html>`;
 }
 
+function htmlSecurityHeaders(nonce?: string) {
+  const nonceSource = nonce ? ` 'nonce-${nonce}'` : '';
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': [
+      "default-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'",
+      "form-action 'self'", "connect-src 'self'", "img-src 'self' data:",
+      "script-src 'self'" + nonceSource, "style-src 'self'" + nonceSource, "style-src-attr 'unsafe-inline'",
+    ].join('; '),
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+  };
+}
+
 export function createWebServer(apiTargetUrl = API_URL): http.Server {
   const target = new URL(apiTargetUrl);
+  const upstream = authenticatedForwarders(process.env.WEB_TRUSTED_PROXY_IPS, process.env.WEB_PROXY_TOKEN);
+  const apiProxyToken = validateProxyToken(process.env.WEB_API_PROXY_TOKEN);
+  if (process.env.NODE_ENV === 'production') {
+    const origin = configuredOrigin(process.env.APP_PUBLIC_URL);
+    if (!origin?.startsWith('https://') || !upstream.enabled) throw new Error('PRODUCTION_REQUIRES_HTTPS_INGRESS');
+  }
+  if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Unsupported API proxy protocol');
+  if (!isLoopbackDestination(target) || target.pathname !== '/' || target.search || target.hash) {
+    throw new Error('WEB_API_DESTINATION_DENIED');
+  }
 
   return http.createServer((req, res) => {
     const url = req.url || '/';
@@ -861,24 +1088,38 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
       return;
     }
     if (pathname === '/') {
-      res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff'});
+      res.writeHead(200, htmlSecurityHeaders());
       res.end(getLandingHtml());
       return;
     }
     if (!pathname.startsWith('/api/') && pathname !== '/app') {
-      res.writeHead(404, {'Content-Type':'text/html; charset=utf-8'});
+      res.writeHead(404, htmlSecurityHeaders());
       res.end('<h1>Page not found</h1><a href="/">Return to AIIT</a>');
       return;
     }
     // Proxy /api/* requests to the backend API server
     if (url.startsWith('/api/')) {
-      const proxyReq = http.request(
+      let client: string;
+      try { client = upstream.resolve(req.socket.remoteAddress, req.headers); }
+      catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { code: 'INVALID_INGRESS' } }));
+        return;
+      }
+      const hopHeaders = new Set(['connection', 'keep-alive', 'proxy-authorization', 'proxy-authenticate',
+        'te', 'trailer', 'transfer-encoding', 'upgrade', ...((req.headers.connection ?? '').toLowerCase().split(',').map(name => name.trim()))]);
+      const headers = Object.fromEntries(Object.entries(req.headers).filter(([name]) =>
+        !hopHeaders.has(name) && name !== proxyTokenHeader && name !== 'forwarded' && !name.startsWith('x-forwarded-') && name !== 'x-real-ip'));
+      headers['x-forwarded-for'] = client;
+      if (apiProxyToken) headers[proxyTokenHeader] = apiProxyToken;
+      const proxyReq = (target.protocol === 'https:' ? https : http).request(
         {
-          hostname: target.hostname,
+          hostname: target.hostname === '[::1]' ? '::1' : target.hostname,
           port: target.port,
           path: url,
           method: req.method,
-          headers: req.headers,
+          agent: false,
+          headers,
         },
         (proxyRes) => {
           res.writeHead(proxyRes.statusCode || 500, proxyRes.headers);
@@ -886,20 +1127,17 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
         }
       );
       proxyReq.setTimeout(10000, () => proxyReq.destroy(new Error('Backend request timed out')));
-      proxyReq.on('error', (err) => {
+      proxyReq.on('error', () => {
         res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { code: 'BAD_GATEWAY', message: `API proxy error: ${err.message}` } }));
+        res.end(JSON.stringify({ error: { code: 'BAD_GATEWAY', message: 'Backend API is unavailable.' } }));
       });
       req.pipe(proxyReq, { end: true });
       return;
     }
 
-    res.writeHead(200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'X-Frame-Options': 'DENY',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(getPortalHtml(''));
+    const nonce = randomBytes(18).toString('base64');
+    res.writeHead(200, { ...htmlSecurityHeaders(nonce), 'Cache-Control': 'no-store' });
+    res.end(getPortalHtml('', nonce));
   });
 }
 

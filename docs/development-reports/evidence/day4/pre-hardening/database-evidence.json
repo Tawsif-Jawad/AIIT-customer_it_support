@@ -1,0 +1,68 @@
+{
+  "postgres": "postgres (PostgreSQL) 18.6 (Homebrew)",
+  "migrationCount": 4,
+  "sourceManifest": {
+    "sbus": {
+      "count": 3,
+      "checksum": "5bd72f0b590b485b33417631e21322ee3b34968756f4829ab0f5aa4d837997c4"
+    },
+    "roles": {
+      "count": 5,
+      "checksum": "bddcda7d05d75b2a9456ca790b2a35a45c2d6ff62990139c8d8db238c59f5eab"
+    },
+    "users": {
+      "count": 5,
+      "checksum": "0ad6396ff26327ab29c7890befd5a1f7acd3725039758601ee3cbabd8145ab3b"
+    },
+    "serviceCategories": {
+      "count": 6,
+      "checksum": "4ff6e85f278da9223fcb9c4b21e99560c8eceb427f5fb3f8f9348be7b8c979fc"
+    },
+    "tickets": {
+      "count": 3,
+      "checksum": "222ee409589013752a40dd75df5ff6788bc7a799ebb4cad4f97b47a347eb9479"
+    },
+    "ticketEvents": {
+      "count": 4,
+      "checksum": "fe4bb57ee6fbf1a0dacf242faa6c5df9ee309917f0bd10311d030e2e93718945"
+    },
+    "ticketComments": {
+      "count": 1,
+      "checksum": "44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"
+    },
+    "assets": {
+      "count": 3,
+      "checksum": "ca65c3e46c55dc0536b80d28f7889e0507fe8f02dbce9c9fe8a3726c0c159066"
+    },
+    "approvals": {
+      "count": 2,
+      "checksum": "48a4b4d6d06285ddd7f8511ccf01fcb4fe704f4e0c0e035103c37f76a9a24bea"
+    },
+    "notifications": {
+      "count": 1,
+      "checksum": "fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"
+    },
+    "aiActionLogs": {
+      "count": 2,
+      "checksum": "64413f1b76af69562304c68019fb4a32f1315c75733f0e61bc94f6ed349e40f0"
+    },
+    "auditLogs": {
+      "count": 1,
+      "checksum": "1a906e34662266a36c4e425f0efcc3bfa6628ed09832c97c78e73579151dabb5"
+    },
+    "knowledgeArticles": {
+      "count": 3,
+      "checksum": "3e8b87ed0e5e9d34b469d0d8e9939e5dfab4b2f5308fdeb15ff0a8b3f9406246"
+    },
+    "authSessions": {
+      "count": 2,
+      "checksum": "009d12fd08830fddbeef40bcbee606dbf4641fe9e2de08dc594386152923561d"
+    }
+  },
+  "concurrentIdenticalImports": 2,
+  "sourceRestoreChecksumMatch": true,
+  "repositoryRestoreMatch": true,
+  "prismaSchemaParity": true,
+  "populatedUuidUpgrade": true,
+  "operationalTargetUsed": false
+}

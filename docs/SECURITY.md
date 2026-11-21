@@ -1,10 +1,18 @@
+> **Day 1–6 remediation update.** Current authentication verifies persisted sessions and current identity grants. Enterprise OIDC uses server-side sessions, an exact public origin, and CSRF protection. The portal enforces CSP and frame denial. The TLS edge owns HSTS, as exercised in a disposable fixture. Real federation, capacity, audit export and retention remain deployment gates. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/01_EXECUTIVE_SUMMARY.md)
+
+> Day 6 verifies authenticated proxy trust, shared PostgreSQL rate budgets and one-time OIDC state across independent API processes. Public exposure requires approval and verification of the real ingress. [Day 6 acceptance](development-reports/DAY6_SECURITY_PERFORMANCE_2026-11-11/13_FINAL_ACCEPTANCE.md)
+
+> Day 4 local update (implemented 2026-11-10 for the 2026-11-11 milestone): optional enterprise Code+PKCE authentication now uses validated discovery/JWKS and opaque sessions; controlled-issuer HTTP/browser tests pass. Real Keycloak/AD and hosted acceptance remain pending. JSON stays the default store. See [authentication contract](security/ENTERPRISE_AUTHENTICATION.md) and [Day 4 report](development-reports/DAY4_DEVELOPMENT_REPORT_2026-11-11.md). Older implementation statements below are historical.
+
+> Final Day 2 status (2026-11-09): local compiler/ESLint/locked install, 54 native tests, 4 Chromium E2E cases and disposable PostgreSQL migration/import/restore verification pass. Hosted Actions is blocked by its explicit account payment/spending-limit diagnostic. See [final acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md). Historical statuses below must be read with this update; production integrations and runtime database cutover remain incomplete.
+
 > Day 2 status: only explicitly opted-in development HMAC sessions are implemented. Session digests persist server-side; logout revokes them. Production OIDC/LDAPS, CSRF/TLS, immutable audit, scoped support memberships and exact-action approvals remain unimplemented. See architecture/AUTHENTICATION_AUTHORIZATION.md and security/ROLE_PERMISSION_MATRIX.md. Historical production claims below are requirements, not verification.
 
 # Security, Governance & Privacy Controls
 **Project:** Enterprise Multi-SBU IT Support System
 
 ## 1. Access Control & Multi-SBU Isolation
-- **Backend-Enforced RBAC**: Every REST API route extracts and verifies the signed OIDC JWT (`apps/api/src/auth.ts`). Unauthenticated calls receive `401 UNAUTHORIZED`.
+- **Backend-Enforced RBAC**: Protected routes check the persisted session and current active application identity. The development adapter uses an opt-in signed token, while enterprise OIDC verifies the provider response before establishing an opaque session.
 - **Resource-Level SBU Scoping**: `canAccessTicket(user, ticket)` in `packages/shared/src/index.ts` enforces that `EMPLOYEE` and `CUSTOMER` identities can only read or update tickets where `ticket.requesterId === user.id && ticket.sbuId === user.sbuId`. Cross-user or cross-SBU access attempts return `403 FORBIDDEN_RESOURCE` and generate an `UNAUTHORIZED_TICKET_ACCESS_BLOCKED` audit event.
 - **Role-Gated State Transitions**: Only `IT_ADMIN`, `CTO`, or policy-governed `SYSTEM_SERVICE` can transition tickets to `ESCALATED_TO_CTO`.
 
@@ -19,4 +27,4 @@
 - **Zero Hardcoded Secrets**: All credentials in `.env.example` and `infra/docker-compose.yml` are clearly marked local development placeholders (`CHANGE_ME_*`).
 - **HTTP Security Headers & Rate Limiting**: API responses enforce `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cache-Control: no-store`, `HttpOnly; SameSite=Lax` session cookies, 1MB body size limits, and per-IP rate limiting (250 req/min).
 - **Network Binding**: All Docker Compose ports (`5432`, `6379`, `8080`, `1025`, `8025`) and local Node services bind strictly to `127.0.0.1` so databases, Redis, and admin consoles are never exposed to external networks.
-- **Audit Retention**: All authentication events, ticket creations, status changes, approval decisions, asset acknowledgments, and blocked access attempts are logged to `AuditLog`. Production deployments should retain immutable audit logs in append-only storage/SIEM for a minimum of 365 days.
+- **Audit Retention**: All authentication events, ticket creations, status changes, approval decisions, asset acknowledgments, and blocked access attempts are logged to `AuditLog`. Production audit export, retention, and deletion require owner-approved policy and independent operational verification.

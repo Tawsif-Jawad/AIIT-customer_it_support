@@ -1,0 +1,27 @@
+{
+  "scope": "TASK_WIDE_OBSERVATION",
+  "operationalUnchangedSinceTaskStart": false,
+  "configurationUnchangedSinceTaskStart": true,
+  "operationalStartHash": "8f96e42404ce2a7db8e359bafbaf4620804c8a524df0f7b7a92f318a65538115",
+  "operationalObservedHash": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+  "liveAuditObservation": [
+    {
+      "action": "AUTH_LOGIN_SUCCESS",
+      "createdAt": "2026-11-10T05:09:23.779Z"
+    },
+    {
+      "action": "AUTH_LOGIN_SUCCESS",
+      "createdAt": "2026-11-10T04:47:27.852Z"
+    }
+  ],
+  "agentLiveActions": "Read-only HTTP GET and landing-to-login browser navigation only; no live sign-in, mutation, restart or restore",
+  "testMutationTargets": "Explicit temporary JSON files and disposable loopback PostgreSQL",
+  "attribution": "Live login activity observed; initial hash alone cannot establish a full record-level diff or attribute every external change",
+  "restoredOrOverwritten": false,
+  "verificationIntervalPreservation": {
+    "operationalUnchanged": true,
+    "configurationUnchanged": true,
+    "operationalBefore": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+    "operationalAfter": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94"
+  }
+}

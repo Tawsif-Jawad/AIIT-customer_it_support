@@ -1,0 +1,20 @@
+[
+  {
+    "id": "workspace-greeting",
+    "ratio": 14.21980598346653,
+    "fontSize": "36px",
+    "scope": "opaque/inherited background sample only"
+  },
+  {
+    "id": "workspace-context",
+    "ratio": 4.868680969902822,
+    "fontSize": "12px",
+    "scope": "opaque/inherited background sample only"
+  },
+  {
+    "id": "quick-create",
+    "ratio": 5.400102082373574,
+    "fontSize": "13px",
+    "scope": "opaque/inherited background sample only"
+  }
+]

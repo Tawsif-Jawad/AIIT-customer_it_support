@@ -1,0 +1,21 @@
+{
+  "startingBranch": "codex/day3-transactional-postgres",
+  "startingCommit": "41f267eb1f52476706bac5e3c87edcd575f4838b",
+  "startingTree": "clean",
+  "remoteFetched": true,
+  "day3PolicyCodeCommit": "b3c4412",
+  "day4BaseCommit": "e8145e258e848e5c98e8a6e9b769259040a27f70",
+  "day4Branch": "codex/day4-enterprise-auth-security",
+  "testedImplementationCommit": "b17bf01ccc72ec576057cad5521a93114aa2f51e",
+  "taskWidePreservation": {
+    ".data/enterprise-db.json": true,
+    ".env": true
+  },
+  "defaultStore": "JSON unchanged",
+  "newDependencies": false,
+  "operationalServerRestarted": false,
+  "day5Started": false,
+  "productionChanged": false,
+  "initialDay4ImplementationCommit": "71427fff17bf0b51e6838b720f28215e175d8dfb",
+  "constraintRegression": "Explicit non-null mode for enterprise bindings; legacy rows retained"
+}

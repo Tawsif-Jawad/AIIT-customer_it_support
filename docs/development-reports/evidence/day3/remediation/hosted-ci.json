@@ -1,0 +1,51 @@
+{
+  "pullRequest": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/4",
+  "headRevision": "9908a66bfa53673f6c2bf547d287575840e87d62",
+  "runId": 42760455464,
+  "runUrl": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42760455464",
+  "jobs": [
+    {
+      "id": 129644646099,
+      "name": "tests",
+      "conclusion": "failure",
+      "executedSteps": 0,
+      "message": "The job was not started because your account is locked due to a billing issue."
+    },
+    {
+      "id": 129644646060,
+      "name": "database",
+      "conclusion": "failure",
+      "executedSteps": 0,
+      "message": "The job was not started because your account is locked due to a billing issue."
+    },
+    {
+      "id": 129644646016,
+      "name": "browser",
+      "conclusion": "failure",
+      "executedSteps": 0,
+      "message": "The job was not started because your account is locked due to a billing issue."
+    },
+    {
+      "id": 129644645784,
+      "name": "quality",
+      "conclusion": "failure",
+      "executedSteps": 0,
+      "message": "The job was not started because your account is locked due to a billing issue."
+    }
+  ],
+  "review": {
+    "submissions": 0,
+    "requestedByUser": "Tawsif-Jawad",
+    "pullRequestAuthor": "Tawsif-Jawad",
+    "requestSent": false,
+    "reason": "The requested account is the PR author and cannot provide an independent review. No eligible alternative was supplied.",
+    "selfApproved": false
+  },
+  "dependencyChain": [
+    2,
+    3,
+    4
+  ],
+  "hostedCiPassed": false,
+  "merged": false
+}

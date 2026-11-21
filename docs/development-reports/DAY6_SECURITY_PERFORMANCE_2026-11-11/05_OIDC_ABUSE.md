@@ -1,0 +1,7 @@
+# OIDC abuse protection
+
+The default initiation budget is 12 per client and 128 globally per 300 seconds. The callback default is 30 per client per 60 seconds. API configuration can set the counts, and the global initiation limit is capped at 256 per 300 seconds. A process permits up to four concurrent provider operations and caps total in-flight HTTP work. The existing five-second OIDC upstream timeout remains enforced. A stalled provider left readiness responsive and created no authenticated session or success audit.
+
+PostgreSQL stores short-lived pending state under the browser-flow cookie digest. It consumes the record atomically before contacting the issuer. This permits callbacks on another process and prevents replay even if the session write later rolls back. The verifier and nonce are transient authentication material and access to the table and backups must be restricted. Expired rows are purged when new flows are stored. JSON retains the bounded local flow map.
+
+The verified token identity is bound to an active application identity, and session persistence and the success audit share a transaction. Existing PKCE, state, nonce, issuer, audience, RS256/JWKS, cookie, CSRF, role/SBU, expiry, fixation, and revocation checks still apply. A failed exchange or audit write cannot release a successful session cookie. Authorization codes, tokens and hop credentials are excluded from diagnostic output.

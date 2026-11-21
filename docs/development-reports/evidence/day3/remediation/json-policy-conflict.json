@@ -1,0 +1,11 @@
+{
+  "scope": "DISPOSABLE_JSON_FIXTURE_ONLY",
+  "finding": "Existing generic JSON transition route bypasses dedicated escalation reason/severity rules",
+  "httpStatus": 200,
+  "resultingStatus": "ESCALATED_TO_CTO",
+  "resultingSeverity": "MEDIUM",
+  "escalationReasonPresent": true,
+  "providedReasonLength": 1,
+  "operationalDataUsed": false,
+  "apiSourceModified": false
+}

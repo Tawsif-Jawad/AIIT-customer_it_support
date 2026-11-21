@@ -1,0 +1,37 @@
+
+> it-support-system@1.0.0 test:security /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/day2.test.ts tests/security.test.ts
+
+✔ F01 stale independent writer cannot overwrite a committed record (61.588584ms)
+✔ F14 invalid collections and duplicate IDs fail closed (7.93725ms)
+✔ F05 requester cannot close unresolved escalation or approval (0.11625ms)
+✔ F04 approvals require rationale and cannot be replayed (37.578834ms)
+✔ F03 logout invalidates bearer session (25.33675ms)
+✔ parallel ticket requests preserve tickets, audit and unique numbers after restart (139.511833ms)
+✔ failed replacement returns failure, rolls back memory and preserves exact file (19.857084ms)
+✔ cross-process transaction lease blocks a second writer without losing first commit (120.789042ms)
+✔ opposing approval decisions serialize to one immutable decision (14.015958ms)
+✔ malformed collections, broken references, and stale lease never overwrite data (6.503208ms)
+✔ reset is disabled and service identity cannot bypass ticket ownership (4.6925ms)
+✔ object authorization, approval roles, CTO state and sensitive notes are enforced (45.546583ms)
+✔ missing development opt-in fails closed and disabled accounts lose existing access (13.013458ms)
+✔ read-only migration dry run preserves source bytes and reports counts (110.608625ms)
+✔ F05 employee/customer cannot advance reopened ticket into IT-controlled work (0.100625ms)
+✔ F10 requested LOW cannot downgrade critical infrastructure classification (14.644791ms)
+✔ F10 user-reported HIGH priority is preserved and cannot auto-resolve (13.699834ms)
+✔ F05 API denies employee IT-controlled work while allowing IT to resume it (22.747292ms)
+✔ independent API instances preserve concurrent updates through explicit contention retry (20.390291ms)
+✔ cookie writes reject missing/foreign Origin; same-origin logout revokes cookie and bearer (95.511042ms)
+✔ expired signed tokens and expired stored sessions fail closed across restart (39.722417ms)
+✔ role revocation and service conversion apply to existing sessions immediately (42.480958ms)
+✔ customer ownership and employee asset SBU boundaries do not change global IT grant (55.179875ms)
+✔ all role/state pairs obey requester, CTO-review, closure and service boundaries (0.647833ms)
+✔ JSON arrays/null and oversized bodies fail without changing ticket state (26.128625ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 833.022625

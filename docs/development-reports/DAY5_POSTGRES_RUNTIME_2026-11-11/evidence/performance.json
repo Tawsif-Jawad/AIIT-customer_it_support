@@ -1,0 +1,28 @@
+{
+  "api": {
+    "connectionsObserved": 2,
+    "postgres": "postgres (PostgreSQL) 18.6 (Homebrew)",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "ticketCount": 14,
+    "createEightMs": 32.18733300000031,
+    "conflicts": 4,
+    "listMs": {
+      "median": 1.8915000000001783,
+      "p95": 2.9005839999999807
+    },
+    "sessionMs": {
+      "median": 1.1183750000000146,
+      "p95": 1.222458000000188
+    }
+  },
+  "worker": {
+    "processed": 13,
+    "durationMs": 23.215250000000196
+  },
+  "samplesPerRoute": 25,
+  "logicalCpus": 8,
+  "memoryGiB": 8,
+  "machine": "Mac15,3"
+}

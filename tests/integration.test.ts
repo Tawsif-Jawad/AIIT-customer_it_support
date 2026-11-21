@@ -60,7 +60,7 @@ describe('Milestone 1 Full-Stack Acceptance & Integration Suite', () => {
 
   it('2. Authenticates development OIDC identities across roles and SBUs', async () => {
     const tawsifLogin = await apiRequest('POST', '/api/auth/login', undefined, {
-      email: 'tawsif.zawad@upstra.com',
+      email: 'employee@example.test',
     });
     assert.equal(tawsifLogin.status, 200);
     employeeTawsifToken = tawsifLogin.data.token;
@@ -68,21 +68,21 @@ describe('Milestone 1 Full-Stack Acceptance & Integration Suite', () => {
     assert.equal(tawsifLogin.data.user.sbuCode, 'SBU-TECH');
 
     const nadiaLogin = await apiRequest('POST', '/api/auth/login', undefined, {
-      email: 'nadia.islam@upstra.local',
+      email: 'second-employee@example.test',
     });
     assert.equal(nadiaLogin.status, 200);
     employeeNadiaToken = nadiaLogin.data.token;
     assert.equal(nadiaLogin.data.user.sbuCode, 'SBU-FIN');
 
     const kamalLogin = await apiRequest('POST', '/api/auth/login', undefined, {
-      email: 'kamal.hossain@upstra.local',
+      email: 'it@example.test',
     });
     assert.equal(kamalLogin.status, 200);
     itAdminKamalToken = kamalLogin.data.token;
     assert.equal(kamalLogin.data.user.roleName, 'IT_ADMIN');
 
     const farhanaLogin = await apiRequest('POST', '/api/auth/login', undefined, {
-      email: 'farhana.ahmed@upstra.local',
+      email: 'cto@example.test',
     });
     assert.equal(farhanaLogin.status, 200);
     ctoFarhanaToken = farhanaLogin.data.token;
@@ -217,7 +217,7 @@ describe('Milestone 1 Full-Stack Acceptance & Integration Suite', () => {
 
     try {
       const degradedRes = await apiRequest('POST', '/api/tickets', employeeTawsifToken, {
-        serviceCategoryId: 'cat-internet-conn',
+        serviceCategoryId: 'cat-internet-conn', customFormPayload: { connectionType: 'Corporate Wi-Fi', floorLocation: 'Floor 2' },
         title: 'VPN gateway timeout during simulated integration outage',
         description: 'Testing that ticket creation succeeds even when AI, Redis, and SMTP are unavailable.',
         severity: 'MEDIUM',

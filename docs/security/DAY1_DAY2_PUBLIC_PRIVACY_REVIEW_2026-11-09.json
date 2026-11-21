@@ -1,0 +1,12 @@
+{
+  "scope": "All reachable Git blobs at b671519 including binary pattern scan; exact values never emitted",
+  "reachableObjects": 531,
+  "blobObjects": 316,
+  "credentialPatternHits": [],
+  "trackedSensitiveFilePaths": [],
+  "businessIdentifierPathCount": 19,
+  "directoryExamplePathCount": 8,
+  "scanner": "Repository-local Python regex scan; gitleaks and trufflehog unavailable; no entropy or exhaustive OCR scan",
+  "privacy": "Business mailbox/name/domain examples and screenshots remain public in current files/history. Confidentiality and consent unconfirmed. Owner must classify, approve retention or authorize minimization; no owner acceptance inferred. No high-confidence credential confirmed.",
+  "historyRewritten": false
+}

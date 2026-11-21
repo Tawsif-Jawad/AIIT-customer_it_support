@@ -1,0 +1,61 @@
+
+> it-support-system@1.0.0 test:db /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> node --test tests/database.test.ts
+
+Environment variables loaded from .env
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (21.164083ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (7.42575ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (3.780583ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (27.958125ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (8.885417ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (12.820375ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (6.337667ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (6.98275ms)
+  ✔ Day3 independent client restart reloads committed records (6.020416ms)
+  ✖ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (7.909709ms)
+  ✔ remediation valid IT escalation is CRITICAL, redacted and atomic (8.954667ms)
+  ✔ remediation valid CTO escalation is CRITICAL, redacted and atomic (6.164875ms)
+  ✔ remediation escalation rejects missing reason without writes (5.8535ms)
+  ✔ remediation escalation rejects blank reason without writes (4.495583ms)
+  ✔ remediation escalation rejects short reason without writes (6.986667ms)
+  ✔ remediation escalation rejects trimmed short reason without writes (5.046459ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (18.413834ms)
+  ✔ remediation concurrent escalations preserve one complete version and intent (12.736791ms)
+  ✔ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (9.398208ms)
+  ✔ remediation CTO APPROVED audit names the Approval and preserves rationale (8.339041ms)
+  ✔ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (9.600208ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (9.69575ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (5.783ms)
+  ✔ remediation opposing approvals produce exactly one correctly attributed audit (6.314375ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (15.715375ms)
+  ✔ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (1116.794041ms)
+Environment variables loaded from .env
+Environment variables loaded from .env
+✖ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (5613.556417ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":3,"sourceManifest":{"sbus":{"count":3,"checksum":"f70ec6592e00dc104d9ce51519864f97506253ad7ab52f163a748171b6e263f2"},"roles":{"count":5,"checksum":"9c4e2f89b12cfdc68071835b6520a50f67245c665afe5310a44ae1e2955ad5dc"},"users":{"count":5,"checksum":"0e1ade2cbd4b1ebd1051dc49013d2525b5466623688a7e69221d5d7e19826f1c"},"serviceCategories":{"count":6,"checksum":"50a8e8848fb0a7ac205ba4cde6731948d51088bf101714971dbb5d371a87af74"},"tickets":{"count":3,"checksum":"c7cac573bc6eee316047eda1ffa0b4984d5034822bdb8b76dc3b683ac8831cdd"},"ticketEvents":{"count":4,"checksum":"36b6dd6544c3484d7665904ec4705503e73710a2e2b04a916ad0e66f4264d0a3"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"3e24c6f72167554ed6a396d277055150a53f93217e9f6e3585eb3777f69745c3"},"approvals":{"count":2,"checksum":"8586c85a719539e870bc23bd1418cd90d337b0ad588a5541f0a7e4bc7407a435"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"8f7626c0f6df6022a7796924f6e88cb9b5ab202e9dcfc8c9c97c0cbfbc55b522"},"auditLogs":{"count":1,"checksum":"909713632b22745a1a429f2b34abfe58126582be4c42284b2dc1c1f02aa1c11f"},"knowledgeArticles":{"count":3,"checksum":"0d6eed432b90c60ffe60ca88fd000fb1fddde4cbdc89eb685681a47f91c1a3fc"},"authSessions":{"count":1,"checksum":"ca9d0134f9fd7af31fe89211dc299d6e1cd366ebeea762386943551ff6064c3e"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+ℹ tests 27
+ℹ suites 0
+ℹ pass 25
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5744.110208
+
+✖ failing tests:
+
+test at tests/support/day3-postgres.ts:386:11
+✖ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (7.909709ms)
+  TypeError: Date.clock_timestamp is not a function
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/postgres-outbox.ts:75:18
+      at async Proxy._transactionWithCallback (/Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client/runtime/library.js:130:8120)
+      at async PostgresOutbox.finish (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/postgres-outbox.ts:50:5)
+      at async PostgresOutbox.retry (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/apps/api/src/postgres-outbox.ts:47:5)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-postgres.ts:417:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async exerciseDay3 (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/support/day3-postgres.ts:386:3)
+      at async TestContext.<anonymous> (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/database.test.ts:73:4)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+ ELIFECYCLE  Command failed with exit code 1.

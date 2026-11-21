@@ -1,3 +1,13 @@
+> **Day 1–6 remediation update.** The next gate is independent and hosted verification of the Day 1–6 remediation. The 10 December target is conditional on a private pilot boundary and operational evidence. Privileged execution, live integrations and LLM rollout require their own approvals. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/14_REMAINING_RELEASE_BLOCKERS.md)
+
+> Audit remediation M1 addresses active CTO notification routing, PostgreSQL ticket creation parity, catalog form validation and ticket numbering. See the [M1 acceptance report](development-reports/AUDIT_REMEDIATION_M1_2026-11-11/10_FINAL_ACCEPTANCE.md) and [remaining source-truth findings and owner decisions](development-reports/AUDIT_REMEDIATION_M1_2026-11-11/09_REMAINING_FINDINGS.md). DEF-001 remains the next integration milestone.
+
+> Day 4 local update (implemented 2026-11-10 for the 2026-11-11 milestone): optional enterprise Code+PKCE authentication now uses validated discovery/JWKS and opaque sessions; controlled-issuer HTTP/browser tests pass. Real Keycloak/AD and hosted acceptance remain pending. JSON stays the default store. See [authentication contract](security/ENTERPRISE_AUTHENTICATION.md) and [Day 4 report](development-reports/DAY4_DEVELOPMENT_REPORT_2026-11-11.md). Older implementation statements below are historical.
+
+> Day 3 update (2026-11-10): A tested isolated PostgreSQL repository/outbox slice now exists; the application still runs on JSON. See [repository contract](architecture/POSTGRES_REPOSITORY.md) and [Day 3 acceptance](development-reports/DAY3_ACCEPTANCE_2026-11-10.md). Earlier statuses below are historical. Hosted checks, independent review, prerequisite integrations and production cutover remain gates.
+
+> Final Day 2 status (2026-11-09): local compiler/ESLint/locked install, 54 native tests, 4 Chromium E2E cases and disposable PostgreSQL migration/import/restore verification pass. Hosted Actions is blocked by its explicit account payment/spending-limit diagnostic. See [final acceptance](development-reports/DAY2_FINAL_ACCEPTANCE_2026-11-09.md). Historical statuses below must be read with this update; production integrations and runtime database cutover remain incomplete.
+
 # AIIT — Week 1 enterprise foundation backlog
 
 Baseline date: Sunday, 8 November 2026. Production-readiness planning target: **10 December 2026**, not a promise or evidence of readiness. The Day 1 audit is complete; failed/blocked verification and release blockers are explicit in [audits/WEEK1_BASELINE.md](audits/WEEK1_BASELINE.md).
@@ -42,3 +52,7 @@ Production directory/mail writes require explicit approval and verified infrastr
 ## UI redesign update
 
 Public landing, original interactive dot footer, responsive role-aware shell, API-backed assistant requests, catalog, notifications, comments, filters and pagination are implemented. See `UI_REDESIGN.md` for evidence and limits. Remaining production foundations above are unchanged.
+
+## Day 9 release-gate update
+
+For the 10 December 2026 planning target, sequence independent review and the prerequisite stack, Day 10 decisions on capacity and notification recovery, an authorized noncorporate staging rehearsal, then integrated-main verification and stakeholder acceptance. Office infrastructure remains off-limits under the [isolation policy](security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md). See the [Day 9 readiness register](development-reports/DAY9_RELIABILITY_PERFORMANCE_2026-11-19.md).

@@ -1,0 +1,37 @@
+> it-support-system@1.0.0 test:e2e <checkout>
+> npx playwright test
+
+[WebServer] (node:9407) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 23 tests using 1 worker
+
+(node:9408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:48:1 › portal CSP blocks an injected inline script while the application signs in (703ms)
+  ✓   2 tests/e2e/audit.spec.ts:59:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (1.9s)
+  ✓   3 tests/e2e/audit.spec.ts:73:1 › browser customer creates and rejects mock resolution without IT privileges (897ms)
+  ✓   4 tests/e2e/audit.spec.ts:77:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (2.3s)
+  ✓   5 tests/e2e/audit.spec.ts:89:1 › AU08 logout failure remains signed in and shows retry feedback (610ms)
+  ✓   6 tests/e2e/audit.spec.ts:93:1 › assistant creates a mock request; catalog start and recoverable panel errors work (596ms)
+  ✓   7 tests/e2e/audit.spec.ts:98:39 › responsive landing/workspace, menu and keyboard at 320px (982ms)
+  ✓   8 tests/e2e/audit.spec.ts:98:39 › responsive landing/workspace, menu and keyboard at 390px (989ms)
+  ✓   9 tests/e2e/audit.spec.ts:98:39 › responsive landing/workspace, menu and keyboard at 768px (379ms)
+  ✓  10 tests/e2e/audit.spec.ts:98:39 › responsive landing/workspace, menu and keyboard at 1440px (406ms)
+  ✓  11 tests/e2e/audit.spec.ts:106:1 › AU09 a delayed older detail response cannot replace the selected ticket (867ms)
+  ✓  12 tests/e2e/audit.spec.ts:117:1 › ticket filters, pagination, keyboard activation and required form fields work (795ms)
+  ✓  13 tests/e2e/audit.spec.ts:129:1 › sampled text contrast is measured without assuming whole-app accessibility (278ms)
+  ✓  14 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (688ms)
+  ✓  15 tests/e2e/portal.spec.ts:32:13 › Rahim Chowdhury dashboard, navigation and session restoration (375ms)
+  ✓  16 tests/e2e/portal.spec.ts:32:13 › Kamal Hossain dashboard, navigation and session restoration (402ms)
+  ✓  17 tests/e2e/portal.spec.ts:32:13 › Farhana Ahmed dashboard, navigation and session restoration (469ms)
+  ✓  18 tests/e2e/portal.spec.ts:45:1 › slow initial data cannot reset an early support-form navigation (330ms)
+  ✓  19 tests/e2e/portal.spec.ts:60:3 › M1 catalog fields validate and retain unrelated input at 390px (1.0s)
+  ✓  20 tests/e2e/portal.spec.ts:60:3 › M1 catalog fields validate and retain unrelated input at 1280px (875ms)
+(node:9468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  21 tests/e2e/oidc.spec.ts:29:1 › enterprise sign-in restores a cookie session, creates an authorized request and logs out (722ms)
+  ✓  22 tests/e2e/oidc.spec.ts:76:1 › enterprise provider failure stays fail-closed and never offers development identity selection (268ms)
+  ✓  23 tests/e2e/oidc.spec.ts:89:1 › expired enterprise session clears private workspace and gives sign-in feedback (294ms)
+
+  23 passed (19.5s)

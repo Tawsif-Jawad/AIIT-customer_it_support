@@ -24,8 +24,12 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:3000/*"],
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "redirectUris": ["http://localhost:3000/api/auth/oidc/callback"],
       "webOrigins": ["http://localhost:3000"]
     }
   ],

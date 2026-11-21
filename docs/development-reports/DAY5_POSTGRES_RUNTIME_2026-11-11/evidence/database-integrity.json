@@ -1,0 +1,77 @@
+{
+  "migrationAndImport": {
+    "postgres": "postgres (PostgreSQL) 18.6 (Homebrew)",
+    "migrationCount": 5,
+    "sourceManifest": {
+      "sbus": {
+        "count": 3,
+        "checksum": "199bc33a6fe6744a991c4a9d3b855d18c556164d7e3f8f5f150f5defef036526"
+      },
+      "roles": {
+        "count": 5,
+        "checksum": "eddadd65f1c0d90f750a49e209df0e60e56781be3367759d05eaf17f7185b747"
+      },
+      "users": {
+        "count": 5,
+        "checksum": "17dcf5c2a6a77196d960f41b41e9c47f2003f290df6380e9a66ddbfa9072770a"
+      },
+      "serviceCategories": {
+        "count": 6,
+        "checksum": "c7321ea384e6bd30b5ba739633a7d97f10cefd72a1a5f4371f95afd96ac30fe3"
+      },
+      "tickets": {
+        "count": 3,
+        "checksum": "2880182830a93d4eae215503f472cf28144d67de4e8e98946445606a5d9762fb"
+      },
+      "ticketEvents": {
+        "count": 4,
+        "checksum": "d6da7b354e2c62c5b057c94e938917503af0ab7f54b8c5ce18a0c8f14685c47b"
+      },
+      "ticketComments": {
+        "count": 1,
+        "checksum": "44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"
+      },
+      "assets": {
+        "count": 3,
+        "checksum": "08fe64265abf9d2c3c070556a9f86743adc1eac0ce775faa9717245dbbf3b0dd"
+      },
+      "approvals": {
+        "count": 2,
+        "checksum": "df775477a97b9a4deecef850c01fd237cefdb019de7143dab6c8c0f6e82ace36"
+      },
+      "notifications": {
+        "count": 1,
+        "checksum": "fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"
+      },
+      "aiActionLogs": {
+        "count": 2,
+        "checksum": "004d9290fb52796f8f92aa2733e163459e46eb88609ba11cdcd10b9e1f760374"
+      },
+      "auditLogs": {
+        "count": 1,
+        "checksum": "a8797bfc0df5a94b39da19572b6d8322ff375f25edc42c8d78fc36eb20d2010e"
+      },
+      "knowledgeArticles": {
+        "count": 3,
+        "checksum": "d33cb1a3c2d8962682c2be07da8bebfba293243e1fbec764ea569afc79542bb7"
+      },
+      "authSessions": {
+        "count": 2,
+        "checksum": "beed35ad2db7792bfcf487505d3bf2524fba82375d1f17681bf0b141e3dc878d"
+      }
+    },
+    "concurrentIdenticalImports": 2,
+    "sourceRestoreChecksumMatch": true,
+    "repositoryRestoreMatch": true,
+    "prismaSchemaParity": true,
+    "populatedUuidUpgrade": true,
+    "operationalTargetUsed": false
+  },
+  "httpRuntimeRestore": {
+    "ticketCount": 16,
+    "jobCount": 17,
+    "auditCount": 32,
+    "sessionCount": 5,
+    "relationshipsMatched": true
+  }
+}

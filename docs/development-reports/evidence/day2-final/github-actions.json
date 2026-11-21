@@ -1,0 +1,28 @@
+{
+  "runId": 42593975536,
+  "sourceRevision": "5c9777d810b7e8fcdfabff2918ec390b09aa4568",
+  "url": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42593975536",
+  "conclusion": "startup_failure",
+  "jobs": [],
+  "workflowPathReported": "BuildFailed",
+  "repositoryActions": {
+    "enabled": true,
+    "allowed_actions": "all",
+    "sha_pinning_required": false
+  },
+  "registeredWorkflow": {
+    "id": 411862282,
+    "path": ".github/workflows/verify.yml",
+    "state": "active"
+  },
+  "visibleRunAnnotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings.",
+  "annotationEvidence": "Read from authenticated GitHub run page via browser, 9 November 2026; API job list independently returns []",
+  "billingAPI": "404 Not Found; no billing account change attempted",
+  "requiredAction": "Account owner resolves Billing & plans payment/spending restriction, then reruns actual hosted jobs.",
+  "latestSourceRun": {
+    "id": 42594581042,
+    "revision": "05b67f75be2cb8f5c553687f103ab9aa04188307",
+    "conclusion": "startup_failure",
+    "url": "https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/42594581042"
+  }
+}

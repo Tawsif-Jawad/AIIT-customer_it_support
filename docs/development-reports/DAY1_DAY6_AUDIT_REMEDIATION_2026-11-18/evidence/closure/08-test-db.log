@@ -1,0 +1,84 @@
+> it-support-system@1.0.0 test:db <checkout>
+> node --test tests/database.test.ts tests/postgres-runtime.test.ts tests/postgres-abuse.test.ts
+
+▶ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts
+  ✔ Day4 enterprise session bindings reject partial NULL tuples while legacy sessions remain valid (6.961583ms)
+  ✔ Day3 create/read, schema validation, references, IDs and atomic initial history (22.042208ms)
+  ✔ Day3 cross-user/SBU, disabled identity, internal comment and CTO restrictions (8.262542ms)
+  ✔ Day3 simultaneous stale-version updates yield one commit and one conflict (4.297333ms)
+  ✔ Day3 concurrent comments retain every event and audit; ticket allocation is unique (59.577917ms)
+  ✔ Day3 opposing approval decisions commit once and historical records reject mutation (10.440417ms)
+  ✔ Day3 escalation and requester reopen preserve workflow routing (20.171791ms)
+  ✔ Day3 outbox insertion failure rolls back ticket, event, audit and counter (19.20725ms)
+  ✔ Day3 invalid custody denied and valid acknowledgment is idempotent (18.2885ms)
+  ✔ Day3 independent client restart reloads committed records (13.9695ms)
+  ✔ Day3 durable claims exclude workers, expire, fence old tokens and bound retries (30.54925ms)
+  ✔ remediation valid IT escalation is CRITICAL, redacted and atomic (15.219584ms)
+  ✔ remediation valid CTO escalation is CRITICAL, redacted and atomic (7.552708ms)
+  ✔ remediation escalation accepts exactly five trimmed reason characters (5.8665ms)
+  ✔ remediation escalation rejects missing reason without writes (6.689291ms)
+  ✔ remediation escalation rejects blank reason without writes (11.745708ms)
+  ✔ remediation escalation rejects short reason without writes (8.318333ms)
+  ✔ remediation escalation rejects trimmed short reason without writes (6.464167ms)
+  ✔ remediation requester escalation, cross-resource access and invalid state fail without writes (19.579208ms)
+  ✔ remediation concurrent escalations preserve one complete version and intent (19.792542ms)
+  ✔ remediation IT_ADMIN APPROVED audit names the Approval and preserves rationale (19.96275ms)
+  ✔ remediation CTO APPROVED audit names the Approval and preserves rationale (21.430167ms)
+  ✔ remediation IT_ADMIN REJECTED audit names the Approval and preserves rationale (21.839875ms)
+  ✔ remediation approval reloads current role and denies unauthorized identities (18.464375ms)
+  ✔ remediation invalid approval decision and absent rationale produce no successful history (9.583917ms)
+  ✔ remediation opposing approvals produce exactly one correctly attributed audit (8.435166ms)
+  ✔ remediation injected notification failure rolls back escalation and approval with their complete histories (22.807791ms)
+  ✔ remediation outbox rejects acknowledgment whose lease expires while waiting for a row lock (1112.171833ms)
+  ✔ M1 storage parity — low-risk Outlook proposal (20.00325ms)
+  ✔ M1 storage parity — standard hardware incident and boolean false (13.886ms)
+  ✔ M1 storage parity — explicit high-severity Outlook (12.595042ms)
+  ✔ M1 storage parity — classifier severity floor on outage (12.959375ms)
+  ✔ M1 storage parity — privileged AD (10.908541ms)
+  ✔ M1 storage parity — privileged mailbox (12.289417ms)
+  ✔ M1 storage parity — catalog approval gate overrides low-risk AI proposal (12.153958ms)
+  ✔ M1 storage parity — restricted prompt refusal (12.964917ms)
+  ✔ M1 storage parity — mock AI outage fallback (53.44075ms)
+  ✔ M1 storage parity — invalid submissions leave no business records or sequence changes (31.500208ms)
+  ✔ M1 storage parity — CTO intent, SBU authorization, disabled, missing and ambiguous recipients (118.757375ms)
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.3 -> 8.0.0-rc.34                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+✔ PostgreSQL migrations preserve IDs, match Prisma, import idempotently and roll back conflicts (6202.316916ms)
+ℹ DAY3_DATABASE_EVIDENCE {"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","migrationCount":9,"sourceManifest":{"sbus":{"count":3,"checksum":"ecac46ab0396f952fdea2ccfc44458318defe9bacefa29e461e9e745b9388f24"},"roles":{"count":5,"checksum":"3e6b52a73e00236642cfd574617b45af4cbc10df20f398c44904602953ef0ab1"},"users":{"count":5,"checksum":"dcca29acb46260b9f3cadf6c73245a7e6bbaf312f4d94f410867280e7cfa196c"},"serviceCategories":{"count":6,"checksum":"44f254002a3a7ac6bc6ab916ce3cfc9f1adb052ba57a54b5906b466b68316ea2"},"tickets":{"count":3,"checksum":"cd5b7bbcae85776c0e0232d7233c6454ecac0a2bc4478298333f252ac5af178a"},"ticketEvents":{"count":4,"checksum":"b66bc214f17486c66db5b152c8d0be0635aa219a9c052e938982f3c66a6c55bc"},"ticketComments":{"count":1,"checksum":"44af5020a28b8386ffde64d5e8a90ace37d422c6e05392d65adcc9c01889d839"},"assets":{"count":3,"checksum":"2f25327ed0dafe39fdcc0653dfaf8403335a8b60a82329efde26b914b53c4a98"},"approvals":{"count":2,"checksum":"cac08790417a74f6920db07175a0f91d2eb89042a3eaedf9de54cb56e49c11ce"},"notifications":{"count":1,"checksum":"fa1255d6eb86e89e4a0c2a4fdd670fb250952f4be956e079e7428930bb3e2f26"},"aiActionLogs":{"count":2,"checksum":"089500f5f519e3011782ace80d13d93e8ab8a86282d28f96946197f8cfd6802d"},"auditLogs":{"count":1,"checksum":"280710810580ed3e2f1671573422add7884338f2371c602372277dee4d5bb2ca"},"knowledgeArticles":{"count":3,"checksum":"f683471e9602be574bf3def03f3c806b28bf1535365d1c43f88327db67401b4e"},"authSessions":{"count":2,"checksum":"c613df2695d905e3337a1a6dcc0c8d6e923e95cc4102b5acbf7f5a4365e7e9db"}},"concurrentIdenticalImports":2,"sourceRestoreChecksumMatch":true,"repositoryRestoreMatch":true,"prismaSchemaParity":true,"populatedUuidUpgrade":true,"operationalTargetUsed":false}
+✔ shared PostgreSQL budgets and one-time OIDC state across independent API processes (3042.640292ms)
+✔ PostgreSQL explicit startup rejects missing, unavailable, production and unsupported mail configuration (211.033833ms)
+▶ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery
+  ✔ paired JSON and PostgreSQL HTTP journeys (323.204833ms)
+  ✔ Both stores redact new ticket prose across persistence, search, approvals and notifications (35.713708ms)
+  ✔ a blocked, failing write neither queues a read nor exposes an uncommitted ticket (42.576375ms)
+  ✔ API process restart restores and then enforces revocation of a development session (501.594416ms)
+  ✔ zero or multiple eligible CTOs block without creating an intent (15.10675ms)
+  ✔ two same-process ticket creates commit without a numbering retry (8.948916ms)
+  ✔ two API instances allocate unique numbers with retryable conflicts and bounded pagination (114.135666ms)
+  ✔ parallel decisions, escalations and sessions preserve single-winner and isolation rules (24.05975ms)
+  ✔ connection loss inside business write rolls back ticket, history, audit and outbox (350.066666ms)
+  ✔ worker claims exclusively, recovers expired leases, retries and persists mock results (1348.5395ms)
+  ✔ SIGKILL after claim leaves a recoverable job for a new worker (176.483084ms)
+  ✔ backup and restore preserve the exercised HTTP dataset and its relationships (257.954334ms)
+✔ PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and recovery (5079.269292ms)
+ℹ DAY5_HTTP_PARITY {"live":[200,["environment","status","storageMode"],null],"ready":[200,["status","storageMode"],null],"health":[200,["components","service","status","timestamp","version"],null],"openapi.json":[200,["info","openapi","paths"],null],"auth/config":[200,["loginUrl","mode","ready"],null],"auth/identities":[200,["authMode","identities","keycloakRealm"],null],"dev mode OIDC login":[503,["error"],"OIDC_NOT_CONFIGURED"],"dev mode OIDC callback":[503,["error"],"OIDC_NOT_CONFIGURED"],"login invalid":[401,["error"],"INVALID_IDENTITY"],"session profile":[200,["permissions","sbu","user"],null],"unauthenticated":[401,["error"],"UNAUTHORIZED"],"catalog":[200,["categories","sbus"],null],"KB requires authentication":[401,["error"],"UNAUTHORIZED"],"KB search":[200,["items"],null],"invalid category fields":[400,["error"],"VALIDATION_ERROR"],"ticket creation":[201,["aiDecision","ticket"],null],"triage":["RESOLVED_PENDING_CONFIRMATION","LOW","ALLOWED_LOW_RISK",{"osPlatform":"macOS"}],"filtered pagination":[200,["items","pagination"],null],"pagination":{"page":1,"pageSize":1,"total":1,"totalPages":1},"invalid pagination":[400,["error"],"VALIDATION_ERROR"],"category filter":[200,["items","pagination"],null],"invalid enum filter":[200,["items","pagination"],null],"literal substring filter":[200,["items","pagination"],null],"safe deep pagination":[200,["items","pagination"],null],"cross-SBU deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer deny":[403,["error"],"FORBIDDEN_RESOURCE"],"customer approvals deny":[403,["error"],"FORBIDDEN"],"invalid comment":[400,["error"],"VALIDATION_ERROR"],"internal note":[201,["comment"],null],"ticket detail by number":[200,["aiLogs","approvals","comments","events","ticket"],null],"history":["AI_HANDLING_STARTED","AI_PROPOSED_RESOLUTION","INTERNAL_NOTE_ADDED","TICKET_CREATED","TICKET_TRIAGED"],"resolution confirmation":[200,["ticket"],null],"reopen":[200,["ticket"],null],"create approval":[201,["aiDecision","ticket"],null],"approval list":[200,["items"],null],"approval decision":[200,["approval"],null],"approval replay":[409,["error"],"APPROVAL_ALREADY_DECIDED"],"IT transition":[200,["ticket"],null],"CTO escalation":[200,["ticket"],null],"notifications":[200,["deliveredTransportCount","items"],null],"escalation":["cto@example.test","EMAIL_AND_IN_APP"],"notification recipient restriction":[404,["error"],"NOTIFICATION_NOT_FOUND"],"mark notification read":[200,["notification"],null],"mark notification replay":[200,["notification"],null],"assets":[200,["items"],null],"custody scope":[403,["error"],"FORBIDDEN"],"custody acknowledgement":[200,["asset"],null],"custody replay":[200,["asset"],null],"analytics":[200,["aiResolvedPendingConfirmation","assignedToIT","bySbu","byStatus","escalatedToCTO","pendingApprovals","totalAccessibleTickets"],null],"analyticsCounts":{"totalAccessibleTickets":3,"aiResolvedPendingConfirmation":1,"assignedToIT":0,"escalatedToCTO":1,"pendingApprovals":0,"byStatus":{"RESOLVED_PENDING_CONFIRMATION":1,"ESCALATED_TO_CTO":1,"REOPENED":1},"bySbu":{"SBU-TECH":3}},"audit":[200,["items"],null],"audit deny":[403,["error"],"FORBIDDEN"],"mock directory lookup":[200,["groups","provider","record"],null],"directory deny":[403,["error"],"FORBIDDEN"],"logout":[200,["loggedOut"],null],"revoked profile":[401,["error"],"UNAUTHORIZED"]}
+ℹ DAY5_PERFORMANCE {"connectionsObserved":9,"postgres":"postgres (PostgreSQL) 18.6 (Homebrew)","node":"v26.8.1","platform":"darwin","arch":"arm64","ticketCount":17,"createEightMs":34.70841699999983,"conflicts":4,"listMs":{"median":1.4051670000003469,"p95":2.545292000000245},"sessionMs":{"median":1.2337499999998727,"p95":1.4389999999998508}}
+ℹ DAY5_WORKER {"processed":18,"durationMs":26.27862499999992}
+ℹ DAY5_RUNTIME_RESTORE {"ticketCount":20,"jobCount":22,"auditCount":41,"sessionCount":7,"relationshipsMatched":true}
+✔ PostgreSQL OIDC persists digest sessions, revokes and rolls back login audit failures (1656.96025ms)
+ℹ tests 56
+ℹ suites 0
+ℹ pass 56
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7125.517375

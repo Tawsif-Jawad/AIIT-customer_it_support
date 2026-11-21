@@ -1,3 +1,20 @@
+> **Day 1–6 remediation update.** Use the current feature matrix alongside Day 1 traceability. FR-D2-07 covers an exact-action binding that remains pending. Existing approval record and decision behavior were verified locally under contention. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/14_REMAINING_RELEASE_BLOCKERS.md)
+
+## Day 1–9 consolidated remediation status
+
+The dedicated remediation branch consolidates the verified PR #2–#12 implementation stack. The matrix below separates implementation evidence from formal acceptance.
+
+| Requirement | Consolidated status | Evidence | Remaining gate |
+|---|---|---|---|
+| Authentication and sessions | IMPLEMENTED_LOCALLY | `tests/oidc-security.test.ts`, controlled OIDC tests | Real tenant federation, revocation and stakeholder acceptance |
+| Ticket workflow, assignment and escalation | IMPLEMENTED_LOCALLY | `tests/m1-workflows.test.ts`, `tests/day7-assignment.test.ts`, `tests/escalation-parity.test.ts` | Independent review and exact action/privilege approval |
+| PostgreSQL transactions and migrations | IMPLEMENTED_LOCALLY | `tests/database.test.ts`, `tests/postgres-runtime.test.ts` | Target migration, backup, RPO/RTO and cutover approval |
+| Notifications and worker recovery | IMPLEMENTED_LOCALLY | Outbox and worker tests; synthetic staging rehearsal | External SMTP acceptance and queue alert ownership |
+| Trusted ingress and abuse controls | IMPLEMENTED_LOCALLY | `tests/ingress-security.test.ts`, `tests/postgres-abuse.test.ts` | Target proxy topology and capacity approval |
+| Office isolation | PRESERVED_AND_ENFORCED | `docs/security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md`, `tests/isolation.test.ts` | No office access permitted |
+| CI and staged verification | HOSTED_SUITE_PASSING_OR_RECORDED | PR stack checks and `docs/development-reports/DAY9...` | Main-chain integration and formal review |
+| Production readiness | NOT_READY | Consolidated completion report | Independent approval, target infrastructure and stakeholder UAT |
+
 # AIIT requirements traceability — Day 1
 
 Sources: the supplied Day 1 execution request, the earlier AIIT master requirements, and the current repository `docs/SRS.md`. The SRS describes cross-SBU IT/CTO roles, but its “approved/implemented” labels are not independent proof of stakeholder approval or runtime completion. No separate office IT task list was found. Day 2 must reconcile the sources without silently rewriting business policy.

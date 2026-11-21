@@ -1,0 +1,29 @@
+✖ AU11 requester notification metrics never expose another user mock-delivery count (42.492792ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 218.602875
+
+✖ failing tests:
+
+test at tests/audit.test.ts:124:1
+✖ AU11 requester notification metrics never expose another user mock-delivery count (42.492792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:127:130
+      at async fixture (file:///Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System/tests/audit.test.ts:11:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -20,11 +20,11 @@ try {
   assert.equal(login.status,200);
   const cookie = login.headers.get('set-cookie').split(';')[0];
   await login.json();
-  assert.equal((await fetch(origin+'/api/auth/me',{headers:{cookie}})).status,200);
-  const parallel = await Promise.all(Array.from({length:6},(_,i) => fetch(origin+'/api/tickets',{method:'POST',headers:{cookie,'content-type':'application/json'},body:JSON.stringify({serviceCategoryId:'cat-outlook-config',title:`HTTP Outlook request ${i}`,description:'Help with secure Outlook configuration on a laptop'})})));
+  assert.equal((await fetch(origin+'/api/auth/me',{headers:{cookie,origin}})).status,200);
+  const parallel = await Promise.all(Array.from({length:6},(_,i) => fetch(origin+'/api/tickets',{method:'POST',headers:{cookie,origin,'content-type':'application/json'},body:JSON.stringify({serviceCategoryId:'cat-outlook-config',title:`HTTP Outlook request ${i}`,description:'Help with secure Outlook configuration on a laptop'})})));
   assert.ok(parallel.every(r=>r.status===201));
   await Promise.all(parallel.map(r=>r.json()));
-  assert.equal((await fetch(origin+'/api/auth/logout',{method:'POST',headers:{cookie}})).status,200);
+  assert.equal((await fetch(origin+'/api/auth/logout',{method:'POST',headers:{cookie,origin}})).status,200);
   assert.equal((await fetch(origin+'/api/auth/me',{headers:{cookie}})).status,401);
   console.log(JSON.stringify({result:'PASS',statuses,parallelCreates:6,cookieReplayAfterLogout:401,browserVisualInspection:false}));
 } finally {

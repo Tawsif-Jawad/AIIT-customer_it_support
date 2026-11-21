@@ -1,0 +1,13 @@
+
+> it-support-system@1.0.0 db:generate /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> prisma generate --schema apps/api/prisma/schema.prisma
+
+Environment variables loaded from .env
+Prisma schema loaded from apps/api/prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client in 233ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+

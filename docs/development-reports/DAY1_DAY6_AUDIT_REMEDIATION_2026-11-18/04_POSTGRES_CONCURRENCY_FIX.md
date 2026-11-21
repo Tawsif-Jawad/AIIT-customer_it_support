@@ -1,0 +1,9 @@
+# PostgreSQL request concurrency
+
+Day 6 chained every ordinary request through one promise queue per process, so one business request could run at a time even with an idle pool. Liveness and pre-transaction OIDC work had separate paths. Two processes could run two transactions independently and conceal the per-process queue in aggregate results.
+
+A disposable trigger holds a ticket transaction at the outbox insertion after earlier business writes. The baseline times out waiting for ticket search and an admin session lookup. The revised test completes both while the lock is held, finds zero visible matching tickets, and verifies the failed write rolls back. A separate connection-loss fixture verifies rollback of ticket, history, audit and outbox together. The existing recovery suite exercises stale connection and process restart behavior.
+
+The Prisma client stays pooled. AsyncLocalStorage binds the serializable transaction and projected state to the async route execution, including the authentication repository. PostgreSQL parses the body before opening the transaction. Responses remain buffered through commit. Failed probes may recycle the pool only when the probe is the sole admitted request, preventing recovery from aborting unrelated work. JSON retains the existing queue, lease and source-version checks.
+
+Regression coverage includes parallel creation and numbering with retryable conflicts, same-record approval and escalation races, session issuance/revocation and reads, and two API processes against a common database. Only ticket creation waits in a dedicated per-process queue to avoid taking competing snapshots of the single ticket counter. Cross-process or same-resource writes can still see serializable conflicts, which return 409. Clients must retry only operations safe to replay. Worker leasing and recovery retain their existing contract. See [benchmark evidence](11_PERFORMANCE_COMPARISON.md).

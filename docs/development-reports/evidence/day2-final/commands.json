@@ -1,0 +1,97 @@
+[
+  {
+    "command": "npm test (remediation baseline 6c9eb93)",
+    "exit": 0,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm --dir TEMP install --offline --frozen-lockfile --ignore-scripts",
+    "exit": 0,
+    "context": "clean disposable manifests-only workspace"
+  },
+  {
+    "command": "npm run db:generate",
+    "exit": 0
+  },
+  {
+    "command": "npm run typecheck",
+    "exit": 0
+  },
+  {
+    "command": "npm run lint",
+    "exit": 0
+  },
+  {
+    "command": "npm run build",
+    "exit": 0
+  },
+  {
+    "command": "npm run test:unit",
+    "exit": 0,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm run test:integration",
+    "exit": 0,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm run test:security",
+    "exit": 0,
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm test (final)",
+    "exit": 0,
+    "passed": 54,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm run test:e2e",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "npm run test:db (also included in final full suite)",
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  {
+    "command": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test --test-name-pattern=\"F10 user-reported HIGH\" tests/day2.test.ts (before consistency fix)",
+    "exit": 1,
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0
+  },
+  {
+    "command": "node scripts/validate-json-migration.ts .data/enterprise-db.json",
+    "exit": 0,
+    "context": "read-only; source file unchanged"
+  },
+  {
+    "command": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node docs/development-reports/evidence/day2-http-smoke.mjs",
+    "exit": 0
+  },
+  {
+    "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm audit --json",
+    "exit": 0,
+    "advisories": 0
+  },
+  {
+    "command": "git diff --check",
+    "exit": 0
+  }
+]

@@ -24,7 +24,7 @@ test('production rejects development identity enumeration and email-only sign-in
     process.env.NODE_ENV = 'production';
     const app = createApiServer(path.join(dir, 'db.json'));
     for (const [method, url] of [['GET', '/api/auth/identities'], ['POST', '/api/auth/login']]) {
-      const result = await app.inject({method, url, body: {email: 'tawsif.zawad@upstra.com'}});
+      const result = await app.inject({method, url, body: {email: 'employee@example.test'}});
       assert.equal(result.status, 503);
       assert.equal(result.data.error.code, 'IDENTITY_PROVIDER_NOT_CONFIGURED');
     }

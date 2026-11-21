@@ -4,19 +4,23 @@
  * with DevelopmentEmailTransport (Mock / Mailpit).
  */
 
-import { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
-import { EnterpriseDataStore } from './store.ts';
+import { randomUUID } from 'node:crypto';
+import type { DevelopmentEmailTransport } from '../../../packages/connectors/src/index.ts';
+import type { RequestStore } from './store.ts';
 
 export class NotificationQueueProcessor {
   private isProcessing = false;
   private simulateRedisOutage = false;
-  private readonly store: EnterpriseDataStore;
+  private readonly durable: boolean;
+  private readonly store: RequestStore;
   private readonly emailTransport: DevelopmentEmailTransport;
 
   constructor(
-    store: EnterpriseDataStore,
-    emailTransport: DevelopmentEmailTransport
+    store: RequestStore,
+    emailTransport: DevelopmentEmailTransport,
+    durable = false,
   ) {
+    this.durable = durable;
     this.store = store;
     this.emailTransport = emailTransport;
   }
@@ -26,10 +30,11 @@ export class NotificationQueueProcessor {
   }
 
   public getQueueHealth() {
+    if (this.durable) return { status: 'DURABLE_OUTBOX', details: 'PostgreSQL queue. Worker readiness is reported by the worker.' };
     if (this.simulateRedisOutage) {
       return {
         status: 'DEGRADED_FALLBACK' as const,
-        details: 'Redis/BullMQ broker unreachable; notifications persisted safely in database as QUEUED without losing tickets.',
+        details: 'Simulated broker outage: local JSON notifications remain QUEUED. No real Redis/BullMQ connection or durable retry is configured.',
       };
     }
     return {
@@ -47,7 +52,7 @@ export class NotificationQueueProcessor {
   }) {
     const state = this.store.getState();
     const notification = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: this.durable ? randomUUID() : `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       ticketId: params.ticketId,
       recipientId: params.recipientId,
       recipientEmail: params.recipientEmail,
@@ -64,7 +69,7 @@ export class NotificationQueueProcessor {
     this.store.persist();
 
     // If Redis/Queue is healthy, trigger immediate background processing
-    if (!this.simulateRedisOutage) {
+    if (!this.durable && !this.simulateRedisOutage) {
       await this.processPendingJobs();
     }
 
@@ -72,7 +77,7 @@ export class NotificationQueueProcessor {
   }
 
   public async processPendingJobs(): Promise<{ processedCount: number; sentCount: number; failedCount: number }> {
-    if (this.isProcessing || this.simulateRedisOutage) {
+    if (this.durable || this.isProcessing || this.simulateRedisOutage) {
       return { processedCount: 0, sentCount: 0, failedCount: 0 };
     }
     this.isProcessing = true;
@@ -82,18 +87,21 @@ export class NotificationQueueProcessor {
 
     try {
       const state = this.store.getState();
-      const pending = state.notifications.filter((n) => n.status === 'QUEUED');
+      const pending = state.notifications.filter((n) => n.status === 'QUEUED' || n.status === 'FAILED');
 
       for (const notif of pending) {
         processedCount++;
         notif.status = 'PROCESSING';
 
-        const delivery = await this.emailTransport.sendEmail({
+        let delivery;
+        try { delivery = await this.emailTransport.sendEmail({
           to: notif.recipientEmail,
           subject: notif.subject,
           textBody: notif.body,
           ticketNumber: notif.ticketId || undefined,
-        });
+        }); } catch {
+          notif.status = 'FAILED'; notif.errorDetails = 'Transport raised an error; local notification retained for explicit processing retry.'; failedCount++; continue;
+        }
 
         if (delivery.delivered) {
           notif.status = 'SENT';

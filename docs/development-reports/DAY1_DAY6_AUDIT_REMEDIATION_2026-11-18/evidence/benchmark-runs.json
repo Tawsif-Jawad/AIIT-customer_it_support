@@ -1,0 +1,44 @@
+[
+  {
+    "command": "AIIT_BENCH_API_PROCESSES=1 node scripts/benchmark-postgres.ts",
+    "exitCode": 0,
+    "revision": "f0fd3a1fb682e7eec17b0345280a19207678f02a",
+    "evidence": "benchmark-day6-one-process.json"
+  },
+  {
+    "command": "AIIT_BENCH_API_PROCESSES=2 node scripts/benchmark-postgres.ts",
+    "exitCode": 0,
+    "revision": "f0fd3a1fb682e7eec17b0345280a19207678f02a",
+    "evidence": "benchmark-day6-two-processes.json"
+  },
+  {
+    "command": "AIIT_BENCH_API_PROCESSES=1 node scripts/benchmark-postgres.ts",
+    "exitCode": 0,
+    "revision": "28d3bb2fb2544bec84d295d448f34ff20426ec76",
+    "evidence": "benchmark-remediated-one-process.json"
+  },
+  {
+    "command": "AIIT_BENCH_API_PROCESSES=2 node scripts/benchmark-postgres.ts",
+    "exitCode": 0,
+    "revision": "28d3bb2fb2544bec84d295d448f34ff20426ec76",
+    "evidence": "benchmark-remediated-two-processes.json"
+  },
+  {
+    "command": "AIIT_BENCH_API_PROCESSES=1 node scripts/benchmark-postgres.ts",
+    "exitCode": 0,
+    "revision": "f98f00c2e228791839cbed7e7c37745e58d2c49f",
+    "evidence": "benchmark-preliminary-contention.json"
+  },
+  {
+    "command": "node /absolute/path/to/evidence/projection-probe.mjs",
+    "exitCode": 0,
+    "revision": "f0fd3a1fb682e7eec17b0345280a19207678f02a",
+    "evidence": "projection-day6.json"
+  },
+  {
+    "command": "node /absolute/path/to/evidence/projection-probe.mjs",
+    "exitCode": 0,
+    "revision": "28d3bb2fb2544bec84d295d448f34ff20426ec76",
+    "evidence": "projection-remediated.json"
+  }
+]

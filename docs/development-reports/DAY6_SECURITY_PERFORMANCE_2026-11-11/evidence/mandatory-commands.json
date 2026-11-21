@@ -1,0 +1,140 @@
+{
+  "scope": "LOCAL_DEVELOPMENT_ONLY",
+  "hostedCiPassed": false,
+  "alternativeCiActive": false,
+  "node": "26.8.1",
+  "pnpm": "pnpm@9.15.0",
+  "results": [
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm install --frozen-lockfile --ignore-scripts",
+      "exitCode": 0,
+      "signal": null,
+      "log": "01-install.log",
+      "counts": {},
+      "outputExcerpt": [
+        "Lockfile is up to date, resolution step is skipped"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm db:generate",
+      "exitCode": 0,
+      "signal": null,
+      "log": "02-db-generate.log",
+      "counts": {},
+      "outputExcerpt": [
+        "\u2714 Generated Prisma Client (v6.19.3) to ./node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.7.2__typescript@5.7.2/node_modules/@prisma/client in 170ms"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm typecheck",
+      "exitCode": 0,
+      "signal": null,
+      "log": "03-typecheck.log",
+      "counts": {},
+      "outputExcerpt": []
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm lint",
+      "exitCode": 0,
+      "signal": null,
+      "log": "04-lint.log",
+      "counts": {},
+      "outputExcerpt": []
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm build",
+      "exitCode": 0,
+      "signal": null,
+      "log": "05-build.log",
+      "counts": {},
+      "outputExcerpt": []
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test",
+      "exitCode": 0,
+      "signal": null,
+      "log": "06-test.log",
+      "counts": {
+        "tests": 167,
+        "pass": 167,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outputExcerpt": [
+        "\u2139 tests 167",
+        "\u2139 pass 167",
+        "\u2139 fail 0",
+        "\u2139 skipped 0"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:security",
+      "exitCode": 0,
+      "signal": null,
+      "log": "07-test-security.log",
+      "counts": {
+        "tests": 49,
+        "pass": 49,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outputExcerpt": [
+        "\u2139 tests 49",
+        "\u2139 pass 49",
+        "\u2139 fail 0",
+        "\u2139 skipped 0"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:db",
+      "exitCode": 0,
+      "signal": null,
+      "log": "08-test-db.log",
+      "counts": {
+        "tests": 53,
+        "pass": 53,
+        "fail": 0,
+        "skipped": 0
+      },
+      "outputExcerpt": [
+        "\u2139 tests 53",
+        "\u2139 pass 53",
+        "\u2139 fail 0",
+        "\u2139 skipped 0"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm test:e2e",
+      "exitCode": 0,
+      "signal": null,
+      "log": "09-test-e2e.log",
+      "counts": {
+        "pass": 22,
+        "fail": 0,
+        "skipped": 0,
+        "tests": 22
+      },
+      "outputExcerpt": [
+        "  22 passed (20.8s)"
+      ]
+    },
+    {
+      "command": "npm exec --yes --package=pnpm@9.15.0 -- pnpm audit --audit-level=moderate",
+      "exitCode": 0,
+      "signal": null,
+      "log": "10-audit.log",
+      "counts": {},
+      "outputExcerpt": [
+        "No known vulnerabilities found"
+      ]
+    }
+  ],
+  "preservation": {
+    "operationalUnchanged": true,
+    "configurationUnchanged": true,
+    "operationalBefore": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94",
+    "operationalAfter": "26b564bdf590ebac229215051176a9a64d03f865b9720007126c690bab76bc94"
+  },
+  "exitCode": 0,
+  "verifiedSource": "80cac9b0bff9b6243f36056a74cb7eb0ce2bd7e7"
+}

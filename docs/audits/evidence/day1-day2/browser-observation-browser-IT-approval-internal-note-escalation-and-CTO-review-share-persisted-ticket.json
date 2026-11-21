@@ -1,0 +1,19 @@
+{
+  "test": "browser IT approval/internal note/escalation and CTO review share persisted ticket",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

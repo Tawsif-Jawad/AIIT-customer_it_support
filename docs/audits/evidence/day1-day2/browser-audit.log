@@ -1,0 +1,30 @@
+
+> it-support-system@1.0.0 test:e2e
+> npx playwright test
+
+[WebServer] (node:12021) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 17 tests using 1 worker
+
+(node:12026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/audit.spec.ts:32:1 › browser employee full lifecycle, comments, assets, KB, notifications and signout (3.0s)
+  ✓   2 tests/e2e/audit.spec.ts:44:1 › browser customer creates and rejects mock resolution without IT privileges (787ms)
+  ✓   3 tests/e2e/audit.spec.ts:48:1 › browser IT approval/internal note/escalation and CTO review share persisted ticket (2.4s)
+  ✓   4 tests/e2e/audit.spec.ts:60:1 › AU08 logout failure remains signed in and shows retry feedback (640ms)
+  ✓   5 tests/e2e/audit.spec.ts:64:1 › assistant creates a mock request; catalog start and recoverable panel errors work (564ms)
+  ✓   6 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 320px (1.1s)
+  ✓   7 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 390px (1.0s)
+  ✓   8 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 768px (485ms)
+  ✓   9 tests/e2e/audit.spec.ts:69:39 › responsive landing/workspace, menu and keyboard at 1440px (444ms)
+  ✓  10 tests/e2e/audit.spec.ts:77:1 › AU09 a delayed older detail response cannot replace the selected ticket (725ms)
+  ✓  11 tests/e2e/audit.spec.ts:88:1 › ticket filters, pagination, keyboard activation and required form fields work (779ms)
+  ✓  12 tests/e2e/audit.spec.ts:100:1 › sampled text contrast is measured without assuming whole-app accessibility (245ms)
+  ✓  13 tests/e2e/portal.spec.ts:4:3 › Enterprise IT Support Portal Browser Workflows › Employee uses development sign-in, submits a ticket, and views mock AI guidance (663ms)
+  ✓  14 tests/e2e/portal.spec.ts:31:13 › Rahim Chowdhury dashboard, navigation and session restoration (376ms)
+  ✓  15 tests/e2e/portal.spec.ts:31:13 › Kamal Hossain dashboard, navigation and session restoration (423ms)
+  ✓  16 tests/e2e/portal.spec.ts:31:13 › Farhana Ahmed dashboard, navigation and session restoration (468ms)
+  ✓  17 tests/e2e/portal.spec.ts:44:1 › slow initial data cannot reset an early support-form navigation (289ms)
+
+  17 passed (15.6s)

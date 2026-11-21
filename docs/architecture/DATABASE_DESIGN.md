@@ -1,3 +1,5 @@
+> Day 3: see [transactional repository and recovery contract](POSTGRES_REPOSITORY.md) for the new additive schema, isolated transaction/outbox implementation and tested restoration. JSON remains the active runtime; historical text below is retained.
+
 # Persistence target schema and migration design — Day 2
 
 Status: PostgreSQL/Prisma is the existing target in ADR-002, not a connected runtime. Existing Prisma and initial SQL were inspected; no SQL was executed. Their UUID/native-type mismatch still blocks applying the scaffold to current prefixed JSON IDs. The following refinements are a **proposal awaiting schema review**, not an applied migration. Keep the existing unexecuted migration unchanged until reviewed replacement sequencing is chosen.
@@ -38,3 +40,11 @@ Current one-role/one-SBU user fields remain source truth until multi-membership 
 8. Pre-cutover failures discard isolated target. Post-cutover rollback stops writes and reconciles DB-only changes; never copy an older JSON over newer committed records. Define RPO/RTO, monitoring, backup retention and recovery owner before cutover.
 
 Implemented today: JSON containment, reset denial and read-only validator. Designed: schema refinements/cutover. Blocked: full importer, migration execution, Prisma parity, real database tests and backups/restore. Do not represent this document as a completed database migration.
+
+## Final Day 2 verification update
+
+Implemented compatibility migration `20261109000000_preserve_text_identifiers` transactionally converts the original UUID keys/references to TEXT without changing values. Prisma now matches raw SQL, including timestamptz/defaults, historical actor/comment labels, required approval requester reference, session table and queue/ticket lookup indexes. The original migration remains unchanged. Existing PostgreSQL direction is preserved; this user-authorized development compatibility work is not approval for operational cutover.
+
+`tests/database.test.ts` creates a disposable PostgreSQL cluster, applies both migrations, imports all 13 seed collections plus synthetic sessions, reimports identically without duplicates, rejects conflicting rows/invalid FKs/duplicate ticket numbers, verifies transaction rollback, performs pg_dump/restore, and tests upgrade of populated UUID-backed records. Prisma migrate diff reports no schema difference. These commands were executed locally on PostgreSQL 18; CI targets a disposable PostgreSQL 16 cluster and remains blocked by GitHub billing before jobs schedule. The application still uses JSON; this is verified database foundation/import work, not a runtime cutover.
+
+`persistence-schema.ts` now validates every declared source record field type and nested attachment/custody/form structures. Store validation adds natural-key uniqueness and historical/current foreign-key checks. The read-only validator reports whole-file and canonical per-record checksums. `scripts/json-import.ts` imports in a database transaction, retains historical fields, derives current role/SBU labels from relations, checks existing records for equality and refuses overwrites. Its CLI requires explicit source, explicit loopback aiit_test target and AIIT_IMPORT_DISPOSABLE=true; no production import was executed. SQL-level audit immutability, exact-action approvals, durable outbox claims and operational cutover remain Day 3+ work.

@@ -1,11 +1,14 @@
 /**
  * Enterprise Repository & Persistence Store
- * Provides development-only atomic JSON-file persistence. PostgreSQL is not connected.
+ * Defines the request store contract and development JSON persistence.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {validateRecordSchemas} from './persistence-schema.ts';
+import { MAX_TICKET_SEQUENCE } from '../../../packages/shared/src/index.ts';
+import { approvalParamsForAction, bindApproval } from './functional-extension.ts';
 import type {
   AIActionLog,
   Approval,
@@ -18,12 +21,14 @@ import type {
   ServiceCategory,
   Ticket,
   TicketComment,
+  TicketAttachment,
   TicketEvent,
   User,
 } from '../../../packages/shared/src/index.ts';
 
 export interface DatabaseState {
-  authSessions?: { id: string; userId: string; expiresAt: number }[];
+  ticketNumberHighWatermark?: number;
+  authSessions?: { id: string; userId: string; expiresAt: number; kind?: 'oidc'; issuer?: string; subject?: string }[];
   sbus: SBU[];
   roles: Role[];
   users: User[];
@@ -31,12 +36,53 @@ export interface DatabaseState {
   tickets: Ticket[];
   ticketEvents: TicketEvent[];
   ticketComments: TicketComment[];
+  ticketAttachments: TicketAttachment[];
   assets: Asset[];
   approvals: Approval[];
   notifications: Notification[];
   aiActionLogs: AIActionLog[];
   auditLogs: AuditLog[];
   knowledgeArticles: KnowledgeArticle[];
+}
+
+export interface RequestScope {
+  pathname: string;
+  method: string;
+  developmentSessionDigest?: string;
+}
+
+export interface TicketPageFilters {
+  status: string | null;
+  severity: string | null;
+  sbuId: string | null;
+  category: string | null;
+  assigneeId?: string;
+  search: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface TicketAnalytics {
+  totalAccessibleTickets: number;
+  aiResolvedPendingConfirmation: number;
+  assignedToIT: number;
+  escalatedToCTO: number;
+  pendingApprovals: number;
+  byStatus: Record<string, number>;
+  bySbu: Record<string, number>;
+}
+
+export interface RequestStore {
+  ticketPage?(user: User, filters: TicketPageFilters): Promise<{ items: unknown[]; total: number }>;
+  approvedKnowledgeItems?(): Promise<KnowledgeArticle[]>;
+  approvalItems?(): Promise<unknown[]>;
+  assetItems?(user: User): Promise<unknown[]>;
+  notificationFeed?(user: User): Promise<{ items: unknown[]; deliveredTransportCount: number }>;
+  ticketAnalytics?(user: User): Promise<TicketAnalytics>;
+  getState(): DatabaseState;
+  persist(): void;
+  isHealthy(recycleIdlePool?: () => boolean): boolean | Promise<boolean>;
+  transaction(operation: () => Promise<boolean>, scope?: RequestScope): Promise<void>;
 }
 
 /** Local JSON containment only: exclusive transaction lease + stale-snapshot rejection.
@@ -46,6 +92,7 @@ export class EnterpriseDataStore {
   private state: DatabaseState;
   private readonly filePath: string;
   private baseline = '';
+  private baselineCanonical = '';
   private transactionActive = false;
   private simulateDatabaseOutage = false;
 
@@ -79,11 +126,13 @@ export class EnterpriseDataStore {
     catch { throw new Error('PERSISTENCE_CORRUPT: Restore a verified backup; existing file is untouched.'); }
     validateDatabaseState(state);
     this.baseline = raw;
+    this.baselineCanonical = JSON.stringify(state, null, 2);
     return state;
   }
   private replace(state: DatabaseState) {
     validateDatabaseState(state);
     const raw = JSON.stringify(state, null, 2);
+    if (raw === this.baselineCanonical) return; // no mutation: no fsync/rename
     const temp = this.filePath + '.' + crypto.randomUUID() + '.tmp';
     let fd: number | undefined;
     try {
@@ -91,6 +140,7 @@ export class EnterpriseDataStore {
       fs.writeFileSync(fd, raw); fs.fsyncSync(fd); fs.closeSync(fd); fd = undefined;
       fs.renameSync(temp, this.filePath);
       this.baseline = raw;
+      this.baselineCanonical = raw;
     } finally {
       if (fd !== undefined) fs.closeSync(fd);
       if (fs.existsSync(temp)) fs.unlinkSync(temp);
@@ -131,36 +181,27 @@ export class EnterpriseDataStore {
 }
 
 export function validateDatabaseState(state: DatabaseState): void {
-  const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
+  validateRecordSchemas(state);
+  if (state.ticketNumberHighWatermark !== undefined &&
+      (!Number.isSafeInteger(state.ticketNumberHighWatermark) || state.ticketNumberHighWatermark < 1000 || state.ticketNumberHighWatermark > MAX_TICKET_SEQUENCE)) {
+    throw new Error('PERSISTENCE_INVALID: Invalid ticket number watermark');
+  }
+  const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','ticketAttachments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
   for (const name of collections) {
-    if (!state || !Array.isArray(state[name])) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
+    if (!state || (!Array.isArray(state[name]) && name !== 'ticketAttachments')) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
+    if (name === 'ticketAttachments' && state.ticketAttachments === undefined) continue;
     const ids = new Set<string>();
     for (const row of state[name]) {
       if (!row || typeof row.id !== 'string' || !row.id || ids.has(row.id)) throw new Error('PERSISTENCE_INVALID: Invalid or duplicate ID in ' + name);
       ids.add(row.id);
     }
   }
-  const requiredText: Record<string, string[]> = {
-    sbus: ['code','name'], roles: ['name'], users: ['email','displayName','sbuId','roleId','roleName'],
-    serviceCategories: ['slug','name'], tickets: ['ticketNumber','title','description','status','severity','requesterId','sbuId','serviceCategoryId'],
-    ticketEvents: ['ticketId','eventType'], ticketComments: ['ticketId','authorId','body'], assets: ['assetTag','serialNumber','sbuId','status'],
-    approvals: ['ticketId','actionType','requiredRole','status','requestedById'], notifications: ['recipientId','recipientEmail','subject','body','status'],
-    aiActionLogs: ['ticketId','provider','classification','policyDecision'], auditLogs: ['action','resource'], knowledgeArticles: ['slug','title','content'],
-  };
-  for (const name of collections) for (const row of state[name]) {
-    for (const key of requiredText[name]) if (typeof (row as any)[key] !== 'string' || !(row as any)[key]) throw new Error('PERSISTENCE_INVALID: Missing required field in ' + name);
-    if (typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))) throw new Error('PERSISTENCE_INVALID: Invalid creation timestamp');
-  }
-  const statuses = ['NEW','TRIAGED','AI_HANDLING','RESOLVED_PENDING_CONFIRMATION','CLOSED','ASSIGNED_TO_IT','IN_PROGRESS','ESCALATED_TO_CTO','REOPENED','AWAITING_USER','AWAITING_APPROVAL','FAILED_RETRY'];
-  for (const t of state.tickets) if (!statuses.includes(t.status) || !['LOW','MEDIUM','HIGH','CRITICAL'].includes(t.severity)) throw new Error('PERSISTENCE_INVALID: Invalid ticket lifecycle');
-  for (const a of state.approvals) if (!['PENDING','APPROVED','REJECTED'].includes(a.status) || !['IT_ADMIN','CTO'].includes(a.requiredRole)) throw new Error('PERSISTENCE_INVALID: Invalid approval lifecycle');
-  for (const n of state.notifications) if (!['QUEUED','PROCESSING','SENT','FAILED'].includes(n.status)) throw new Error('PERSISTENCE_INVALID: Invalid notification lifecycle');
-  for (const u of state.users) if (typeof u.isActive !== 'boolean' || !['CUSTOMER','EMPLOYEE','IT_ADMIN','CTO','SYSTEM_SERVICE'].includes(u.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user');
-  if (state.authSessions !== undefined && (!Array.isArray(state.authSessions) || state.authSessions.some(s => !s || !/^[a-f0-9]{64}$/.test(s.id) || !Number.isFinite(s.expiresAt) || !state.users.some(u => u.id === s.userId)))) throw new Error('PERSISTENCE_INVALID: Invalid session');
-  const has = (name: Exclude<keyof DatabaseState, 'authSessions'>, id: string) => state[name].some(row => row.id === id);
+  const has = (name: (typeof collections)[number], id: string) => state[name].some(row => row.id === id);
   for (const user of state.users) {
     if (!has('sbus', user.sbuId) || !has('roles', user.roleId) || !state.roles.some(r => r.id === user.roleId && r.name === user.roleName)) throw new Error('PERSISTENCE_INVALID: Invalid user scope/role');
   }
+  const identityBindings=state.users.filter(u=>u.oidcIssuer).map(u=>JSON.stringify([u.oidcIssuer,u.oidcSubject]));
+  if(new Set(identityBindings).size!==identityBindings.length) throw new Error('PERSISTENCE_INVALID: Duplicate enterprise identity binding');
   const numbers = new Set<string>();
   for (const ticket of state.tickets) {
     if (!has('users', ticket.requesterId) || !has('sbus', ticket.sbuId) || !has('serviceCategories', ticket.serviceCategoryId) || typeof ticket.title !== 'string' || !ticket.title || numbers.has(ticket.ticketNumber)) throw new Error('PERSISTENCE_INVALID: Invalid ticket reference or number');
@@ -168,6 +209,25 @@ export function validateDatabaseState(state: DatabaseState): void {
   }
   for (const name of ['ticketEvents','ticketComments','approvals','aiActionLogs','notifications'] as const)
     for (const row of state[name]) if (row.ticketId && !has('tickets', row.ticketId)) throw new Error('PERSISTENCE_INVALID: Broken ticket reference in ' + name);
+  for (const attachment of state.ticketAttachments || [])
+    if (!has('tickets', attachment.ticketId) || !has('users', attachment.uploaderId)) throw new Error('PERSISTENCE_INVALID: Broken attachment reference');
+  if(new Set((state.authSessions || []).map(s=>s.id)).size!==(state.authSessions || []).length) throw new Error('PERSISTENCE_INVALID: Duplicate session ID');
+  type Collection = (typeof collections)[number] | "authSessions";
+  const references: [Collection, string, Collection][] = [
+    ['tickets','assigneeId','users'],['ticketEvents','actorId','users'],['ticketComments','authorId','users'],
+    ['assets','sbuId','sbus'],['assets','assignedUserId','users'],['approvals','requestedById','users'],['approvals','approverId','users'],
+    ['notifications','recipientId','users'],['auditLogs','actorId','users'],['auditLogs','sbuId','sbus'],['authSessions','userId','users'],
+  ];
+  for(const [source,field,target] of references) for(const row of state[source] || []) {
+    const id=(row as unknown as Record<string,unknown>)[field];
+    if(id!==null&&id!==undefined&&!(state[target] || []).some(r=>r.id===id)) throw new Error('PERSISTENCE_INVALID: Orphaned '+source+'.'+field);
+  }
+  for(const [collection,field] of [['users','email'],['sbus','code'],['roles','name'],['serviceCategories','slug'],['assets','assetTag'],['assets','serialNumber'],['knowledgeArticles','slug']] as const) {
+    const values=state[collection].map(row=>String((row as unknown as Record<string,unknown>)[field]).toLowerCase());
+    if(new Set(values).size!==values.length) throw new Error('PERSISTENCE_INVALID: Duplicate '+collection+'.'+field);
+  }
+  for(const user of state.users) if(!state.sbus.some(s=>s.id===user.sbuId&&s.code===user.sbuCode)) throw new Error('PERSISTENCE_INVALID: Inconsistent SBU mapping');
+
 }
 
 export function createInitialSeedState(): DatabaseState {
@@ -267,10 +327,10 @@ export function createInitialSeedState(): DatabaseState {
   const users: User[] = [
     {
       id: 'user-emp-tawsif',
-      email: 'tawsif.zawad@upstra.com',
-      displayName: 'Tawsif Zawad (SBU-TECH Employee)',
+      email: 'employee@example.test',
+      displayName: 'Synthetic Employee (SBU-TECH Employee)',
       oidcSubject: 'kc-sub-tawsif-zawad',
-      adDistinguishedName: 'CN=Tawsif Zawad,OU=SBU-TECH,DC=directory,DC=local',
+      adDistinguishedName: 'CN=Synthetic Employee,OU=SBU-TECH,DC=directory,DC=local',
       sbuId: 'sbu-tech-001',
       sbuCode: 'SBU-TECH',
       roleId: 'role-employee',
@@ -281,10 +341,10 @@ export function createInitialSeedState(): DatabaseState {
     },
     {
       id: 'user-emp-nadia',
-      email: 'nadia.islam@upstra.local',
-      displayName: 'Nadia Islam (SBU-FIN Employee)',
+      email: 'second-employee@example.test',
+      displayName: 'Synthetic Other Employee (SBU-FIN Employee)',
       oidcSubject: 'kc-sub-nadia-islam',
-      adDistinguishedName: 'CN=Nadia Islam,OU=SBU-FIN,DC=directory,DC=local',
+      adDistinguishedName: 'CN=Synthetic Other Employee,OU=SBU-FIN,DC=directory,DC=local',
       sbuId: 'sbu-fin-002',
       sbuCode: 'SBU-FIN',
       roleId: 'role-employee',
@@ -295,8 +355,8 @@ export function createInitialSeedState(): DatabaseState {
     },
     {
       id: 'user-cust-rahim',
-      email: 'rahim.chowdhury@client.upstra.local',
-      displayName: 'Rahim Chowdhury (SBU-FIN Customer)',
+      email: 'customer@example.test',
+      displayName: 'Synthetic Customer (SBU-FIN Customer)',
       oidcSubject: 'kc-sub-rahim-customer',
       sbuId: 'sbu-fin-002',
       sbuCode: 'SBU-FIN',
@@ -308,10 +368,10 @@ export function createInitialSeedState(): DatabaseState {
     },
     {
       id: 'user-it-kamal',
-      email: 'kamal.hossain@upstra.local',
-      displayName: 'Kamal Hossain (Lead IT Administrator)',
+      email: 'it@example.test',
+      displayName: 'Synthetic IT Administrator (Lead IT Administrator)',
       oidcSubject: 'kc-sub-kamal-itadmin',
-      adDistinguishedName: 'CN=Kamal Hossain,OU=IT-Admins,DC=directory,DC=local',
+      adDistinguishedName: 'CN=Synthetic IT Administrator,OU=IT-Admins,DC=directory,DC=local',
       sbuId: 'sbu-corp-003',
       sbuCode: 'SBU-CORP',
       roleId: 'role-it-admin',
@@ -322,10 +382,10 @@ export function createInitialSeedState(): DatabaseState {
     },
     {
       id: 'user-cto-farhana',
-      email: 'farhana.ahmed@upstra.local',
-      displayName: 'Farhana Ahmed (Chief Technology Officer)',
+      email: 'cto@example.test',
+      displayName: 'Synthetic CTO (Chief Technology Officer)',
       oidcSubject: 'kc-sub-farhana-cto',
-      adDistinguishedName: 'CN=Farhana Ahmed,OU=Executive,DC=directory,DC=local',
+      adDistinguishedName: 'CN=Synthetic CTO,OU=Executive,DC=directory,DC=local',
       sbuId: 'sbu-corp-003',
       sbuCode: 'SBU-CORP',
       roleId: 'role-cto',
@@ -443,7 +503,7 @@ export function createInitialSeedState(): DatabaseState {
       category: 'outlook-configuration',
       tags: ['outlook', 'imap', 'smtp', 'tls', 'email', 'autodiscover'],
       content:
-        '1. Launch Microsoft Outlook and navigate to File > Account Settings > Manage Profiles.\n2. Choose Manual setup or additional server types > POP or IMAP.\n3. Enter your full corporate email address (e.g., firstname.lastname@upstra.com) and the verified SBU mail server hostname provided in your onboarding sheet.\n4. Under More Settings > Advanced, set Incoming Server (IMAP) to require SSL/TLS (Port 993) and Outgoing Server (SMTP) to STARTTLS (Port 587).\n5. Never disable certificate verification.',
+        '1. Launch Microsoft Outlook and navigate to File > Account Settings > Manage Profiles.\n2. Choose Manual setup or additional server types > POP or IMAP.\n3. Enter your full corporate email address (e.g., user@example.test) and the verified SBU mail server hostname provided in your onboarding sheet.\n4. Under More Settings > Advanced, set Incoming Server (IMAP) to require SSL/TLS (Port 993) and Outgoing Server (SMTP) to STARTTLS (Port 587).\n5. Never disable certificate verification.',
       isApproved: true,
       createdAt: now,
       updatedAt: now,
@@ -490,8 +550,8 @@ export function createInitialSeedState(): DatabaseState {
         {
           date: now,
           action: 'HANDOVER_COMPLETED',
-          actorEmail: 'kamal.hossain@upstra.local',
-          notes: 'Initial handover acknowledged by Tawsif Zawad',
+          actorEmail: 'it@example.test',
+          notes: 'Initial handover acknowledged by Synthetic Employee',
         },
       ],
       createdAt: now,
@@ -512,7 +572,7 @@ export function createInitialSeedState(): DatabaseState {
         {
           date: now,
           action: 'ISSUED_PENDING_ACK',
-          actorEmail: 'kamal.hossain@upstra.local',
+          actorEmail: 'it@example.test',
           notes: 'Issued monitor for dual-display workstation setup',
         },
       ],
@@ -534,8 +594,8 @@ export function createInitialSeedState(): DatabaseState {
         {
           date: now,
           action: 'HANDOVER_COMPLETED',
-          actorEmail: 'kamal.hossain@upstra.local',
-          notes: 'Handed over to Nadia Islam',
+          actorEmail: 'it@example.test',
+          notes: 'Handed over to Synthetic Other Employee',
         },
       ],
       createdAt: now,
@@ -612,7 +672,7 @@ export function createInitialSeedState(): DatabaseState {
       aiSummary: 'Classified as CRITICAL_INFRASTRUCTURE_INCIDENT (95% confidence).',
       aiSuggestedFix: 'Immediate escalation to IT Operations and CTO required per critical SLA policy.',
       aiConfidence: 0.95,
-      escalationReason: 'Escalated by IT Admin Kamal Hossain: Emergency core switch failover requires CTO sign-off.',
+      escalationReason: 'Escalated by IT Admin Synthetic IT Administrator: Emergency core switch failover requires CTO sign-off.',
       slaDueAt: slaFuture,
       resolvedAt: null,
       closedAt: null,
@@ -626,7 +686,7 @@ export function createInitialSeedState(): DatabaseState {
       id: crypto.randomUUID(),
       ticketId: 'ticket-seed-1001',
       actorId: 'user-emp-tawsif',
-      actorName: 'Tawsif Zawad (SBU-TECH Employee)',
+      actorName: 'Synthetic Employee (SBU-TECH Employee)',
       eventType: 'TICKET_CREATED',
       fromStatus: null,
       toStatus: 'NEW',
@@ -659,7 +719,7 @@ export function createInitialSeedState(): DatabaseState {
       id: crypto.randomUUID(),
       ticketId: 'ticket-seed-1003',
       actorId: 'user-it-kamal',
-      actorName: 'Kamal Hossain (Lead IT Administrator)',
+      actorName: 'Synthetic IT Administrator (Lead IT Administrator)',
       eventType: 'ESCALATED_TO_CTO',
       fromStatus: 'IN_PROGRESS',
       toStatus: 'ESCALATED_TO_CTO',
@@ -677,7 +737,7 @@ export function createInitialSeedState(): DatabaseState {
       status: 'PENDING',
       requestedById: 'user-emp-nadia',
       approverId: null,
-      justification: 'Add user nadia.islam@upstra.local to CN=SBU-FIN-Audit-Readers (Dry-Run Mode)',
+      justification: 'Add user second-employee@example.test to CN=SBU-FIN-Audit-Readers (Dry-Run Mode)',
       decisionNotes: null,
       decidedAt: null,
       createdAt: now,
@@ -696,6 +756,17 @@ export function createInitialSeedState(): DatabaseState {
       createdAt: now,
     },
   ];
+  for (let i = 0; i < approvals.length; i++) {
+    const ticket = tickets.find((item) => item.id === approvals[i].ticketId);
+    if (ticket) {
+      approvals[i] = bindApproval(
+        approvals[i],
+        approvalParamsForAction(approvals[i].actionType, ticket),
+        new Date(now),
+        60,
+      );
+    }
+  }
 
   const aiActionLogs: AIActionLog[] = [
     {
@@ -736,7 +807,7 @@ export function createInitialSeedState(): DatabaseState {
     {
       id: crypto.randomUUID(),
       actorId: 'user-it-kamal',
-      actorEmail: 'kamal.hossain@upstra.local',
+      actorEmail: 'it@example.test',
       actorRole: 'IT_ADMIN',
       sbuId: 'sbu-corp-003',
       action: 'TICKET_ESCALATED_TO_CTO',
@@ -756,6 +827,7 @@ export function createInitialSeedState(): DatabaseState {
     tickets,
     ticketEvents,
     ticketComments: [],
+    ticketAttachments: [],
     assets,
     approvals,
     notifications: [],

@@ -12,7 +12,18 @@ test('public presentation, application and allowlisted assets are served separat
   const base='http://127.0.0.1:'+address.port;
   try{
     const landing=await fetch(base+'/');assert.equal(landing.status,200);const html=await landing.text();assert.match(html,/dot-wordmark/);assert.match(html,/Illustrative workflow/);assert.doesNotMatch(html,/login-email-input/);
-    const app=await fetch(base+'/app');assert.match(await app.text(),/login-email-input/);
+    const app=await fetch(base+'/app');
+    const portal=await app.text();
+    assert.match(portal,/login-email-input/);
+    const csp=app.headers.get('content-security-policy')!;
+    const nonce=/script-src 'self' 'nonce-([^']+)'/.exec(csp)?.[1];
+    assert.ok(nonce);
+    assert.ok(portal.includes('<script nonce="' + nonce + '">'));
+    assert.ok(portal.includes('<style nonce="' + nonce + '">'));
+    assert.match(csp,/frame-ancestors 'none'/);
+    assert.doesNotMatch(csp,/script-src[^;]*unsafe-inline/);
+    assert.notEqual((await fetch(base+'/app')).headers.get('content-security-policy'),csp);
+    assert.equal(app.headers.get('strict-transport-security'),null);
     for(const asset of ['design.css','public.js','portal.js','grain.svg','atmosphere.svg']){const res=await fetch(base+'/assets/'+asset);assert.equal(res.status,200);assert.equal(res.headers.get('x-content-type-options'),'nosniff');}
     assert.equal((await fetch(base+'/assets/unknown.js')).status,404);
     assert.equal((await fetch(base+'/missing')).status,404);
@@ -28,7 +39,7 @@ test('browser scripts and landing markup maintain original signature and safe de
 test('a response from an earlier session cannot populate the next user workspace',async()=>{
   let complete:(value:any)=>void=()=>{};
   const pending=new Promise(resolve=>complete=resolve);
-  const context=vm.createContext({document:{getElementById:()=>({}),querySelectorAll:()=>[]},localStorage:{getItem:()=> 'old-token'},fetch:()=>pending,AbortController,setTimeout,clearTimeout});
+  const context=vm.createContext({document:{getElementById:()=>({}),querySelectorAll:()=>[]},localStorage:{getItem:()=> 'old-token',removeItem:()=>{}},fetch:()=>pending,AbortController,setTimeout,clearTimeout});
   const script=getPortalHtml().match(/<script>([\s\S]*?)<\/script>/)![1].replace("initAuth().catch(error => showFeedback(error.message, 'error'));",'');
   vm.runInContext(script,context);
   const request=vm.runInContext("apiFetch('/api/tickets')",context);

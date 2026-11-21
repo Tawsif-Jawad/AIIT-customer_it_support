@@ -1,0 +1,25 @@
+
+> it-support-system@1.0.0 test:unit /Users/tawsifjawad/Documents/Work/Cutomer_IT_Support_System
+> NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/unit.test.ts
+
+▶ Ticket Workflow State Machine & Role Guards
+  ✔ allows valid transition NEW -> TRIAGED -> AI_HANDLING -> RESOLVED_PENDING_CONFIRMATION -> CLOSED (0.605041ms)
+  ✔ prevents unauthorized status transitions and restricts ESCALATED_TO_CTO to IT_ADMIN / CTO (0.058208ms)
+✔ Ticket Workflow State Machine & Role Guards (1.128ms)
+▶ SBU & Resource-Level Authorization (RBAC)
+  ✔ permits owner in same SBU and blocks employee from another SBU or non-owner (0.061667ms)
+✔ SBU & Resource-Level Authorization (RBAC) (0.12075ms)
+▶ AI Orchestration Safety, Redaction & Policy Governance
+  ✔ redacts passwords and bearer tokens before external/model prompt logging (0.375542ms)
+  ✔ blocks prompt injection / privileged command override attempts (0.1675ms)
+  ✔ requires human approval for Active Directory and Mailbox Provisioning requests (0.108625ms)
+  ✔ validates ticket creation payloads and rejects malformed input (0.174ms)
+✔ AI Orchestration Safety, Redaction & Policy Governance (0.954125ms)
+ℹ tests 7
+ℹ suites 3
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.662209

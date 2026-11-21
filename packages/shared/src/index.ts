@@ -56,6 +56,7 @@ export interface User {
   email: string;
   displayName: string;
   oidcSubject: string;
+  oidcIssuer?: string;
   adDistinguishedName?: string;
   sbuId: string;
   roleId: string;
@@ -105,6 +106,11 @@ export interface Ticket {
   aiConfidence: number | null;
   escalationReason: string | null;
   slaDueAt: string;
+  slaResponseDueAt?: string;
+  slaResolutionDueAt?: string;
+  slaBreached?: boolean;
+  slaBreachedAt?: string | null;
+  slaEscalatedAt?: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
   createdAt: string;
@@ -135,6 +141,18 @@ export interface TicketComment {
   createdAt: string;
 }
 
+export interface TicketAttachment {
+  id: string;
+  ticketId: string;
+  uploaderId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  contentBase64: string;
+  sha256: string;
+  createdAt: string;
+}
+
 export interface Asset {
   id: string;
   assetTag: string;
@@ -147,6 +165,11 @@ export interface Asset {
   handoverAckStatus: 'PENDING_EMPLOYEE_ACK' | 'ACKNOWLEDGED' | 'RETURN_REQUESTED';
   handoverNotes: string | null;
   history: Array<{ date: string; action: string; actorEmail: string; notes: string }>;
+  location?: string | null;
+  condition?: 'GOOD' | 'DAMAGED' | 'NEEDS_REPAIR';
+  lifecycleNotes?: string | null;
+  lastMaintenanceAt?: string | null;
+  retiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -162,6 +185,11 @@ export interface Approval {
   justification: string;
   decisionNotes: string | null;
   decidedAt: string | null;
+  expiresAt?: string;
+  actionParams?: Record<string, unknown>;
+  actionParamsHash?: string;
+  consumedAt?: string | null;
+  expectedVersion?: number;
   createdAt: string;
 }
 
@@ -292,7 +320,8 @@ export function validateStatusTransition(
     if (!isTicketOwner) {
       return { valid: false, reason: 'Employees/Customers may only transition their own tickets.' };
     }
-    const employeeAllowedTargets: TicketStatus[] = ['CLOSED', 'REOPENED', 'IN_PROGRESS'];
+    // Employees and customers can confirm or reject a resolution, not advance IT work.
+    const employeeAllowedTargets: TicketStatus[] = ['CLOSED', 'REOPENED'];
     if (!employeeAllowedTargets.includes(to)) {
       return {
         valid: false,
@@ -315,12 +344,14 @@ export function validateStatusTransition(
 // RBAC & SBU Resource-Level Authorization Policy
 // ============================================================================
 
+export function ticketAccessScope(user: User): 'all' | 'owned' | 'none' {
+  if (user.roleName === 'SYSTEM_SERVICE') return 'none';
+  return user.roleName === 'CTO' || user.roleName === 'IT_ADMIN' ? 'all' : 'owned';
+}
+
 export function canAccessTicket(user: User, ticket: Ticket): boolean {
-  if (user.roleName === 'CTO' || user.roleName === 'IT_ADMIN' || user.roleName === 'SYSTEM_SERVICE') {
-    return user.roleName !== 'SYSTEM_SERVICE';
-  }
-  // Customers and Employees can only view their own tickets within their SBU
-  return ticket.requesterId === user.id && ticket.sbuId === user.sbuId;
+  const scope = ticketAccessScope(user);
+  return scope === 'all' || (scope === 'owned' && ticket.requesterId === user.id && ticket.sbuId === user.sbuId);
 }
 
 export function canModifyTicketStatus(user: User, ticket: Ticket, targetStatus: TicketStatus): {
@@ -408,3 +439,60 @@ export function redactSensitiveData(input: string): string {
     .replace(/\b(?:\d[ -]*?){13,16}\b/g, '[REDACTED_CARD]')
     .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED_TOKEN]');
 }
+
+/** Shared escalation input policy for both HTTP routes and PostgreSQL. */
+export function validateEscalationReason(value: unknown): string {
+  if (typeof value !== 'string' || value.replace(/\s/g, '').length < 5 || value.length > 2000) {
+    throw new ValidationError(['Escalation reason requires at least five non-whitespace characters (maximum 2000).']);
+  }
+  return redactSensitiveData(value.trim());
+}
+
+/** Existing single-recipient routing. An absent or ambiguous recipient blocks escalation. */
+export function selectEscalationRecipient<T extends Pick<User, 'roleName' | 'isActive'>>(users: readonly T[]): T | undefined {
+  const eligible = users.filter(user => user.isActive && user.roleName === 'CTO');
+  return eligible.length === 1 ? eligible[0] : undefined;
+}
+
+/** Validate the current catalog contract for new submissions only. */
+export function validateServicePayload(fields: ServiceFormField[], payload: Record<string, unknown> = {}): Record<string, unknown> {
+  const errors: string[] = [];
+  const values: [string, string | boolean][] = [];
+  const keys = new Set(fields.map(field => field.key));
+  if (Object.keys(payload).some(key => !keys.has(key))) errors.push('Unexpected service form field.');
+  for (const field of fields) {
+    const raw = Object.hasOwn(payload, field.key) ? payload[field.key] : undefined;
+    const value = typeof raw === 'string' ? raw.trim() : raw;
+    if (value === undefined || value === '') {
+      if (field.required) errors.push(`${field.label} is required.`);
+      continue;
+    }
+    if (field.type === 'boolean') {
+      if (typeof value === 'boolean') values.push([field.key, value]);
+      else errors.push(`${field.label} must be Yes or No.`);
+      continue;
+    }
+    if (typeof value !== 'string' || value.length > 5000) {
+      errors.push(`${field.label} must be text up to 5000 characters.`);
+      continue;
+    }
+    if (field.type === 'select' && !field.options?.includes(value)) {
+      errors.push(`Choose a valid option for ${field.label}.`);
+      continue;
+    }
+    if (field.key === 'managerEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      errors.push(`${field.label} must be a valid email address.`);
+      continue;
+    }
+    if (field.key === 'desiredEmailPrefix' && !/^[a-z0-9]+(?:[._+-][a-z0-9]+)*$/i.test(value)) {
+      errors.push(`${field.label} must be a mailbox prefix, without a domain.`);
+      continue;
+    }
+    values.push([field.key, value]);
+  }
+  if (errors.length) throw new ValidationError(errors);
+  return Object.fromEntries(values);
+}
+
+/** Largest sequence representable by the existing PostgreSQL ticket counter. */
+export const MAX_TICKET_SEQUENCE = 2_147_483_647;

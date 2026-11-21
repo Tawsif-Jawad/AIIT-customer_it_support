@@ -1,0 +1,11 @@
+{
+  "test": "sampled text contrast is measured without assuming whole-app accessibility",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}

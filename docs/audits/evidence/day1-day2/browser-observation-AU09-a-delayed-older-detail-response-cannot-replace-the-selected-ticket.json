@@ -1,0 +1,11 @@
+{
+  "test": "AU09 a delayed older detail response cannot replace the selected ticket",
+  "errors": [],
+  "failedRequests": [],
+  "httpErrors": [
+    {
+      "path": "/api/auth/me",
+      "status": 401
+    }
+  ]
+}
