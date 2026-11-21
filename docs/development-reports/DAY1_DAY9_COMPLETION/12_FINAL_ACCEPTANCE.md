@@ -6,6 +6,8 @@
 
 **Local engineering verdict:** PASS for the verified native, security, database, browser and staging surfaces.
 
+The exact implementation head must be recorded after the final commits. Application source, Prisma migration and browser/API regressions are included beyond prior documentation-only commits.
+
 **Formal acceptance:** PENDING_REVIEW.
 
 **Production-readiness verdict:** NO-GO.

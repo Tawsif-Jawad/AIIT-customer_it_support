@@ -9,7 +9,7 @@
     "typecheck": "PASS",
     "lint": "PASS",
     "build": "PASS",
-    "nativeTests": {"passed": 182, "failed": 0, "skipped": 0},
+    "nativeTests": {"passed": 188, "failed": 0, "skipped": 0},
     "securityTests": {"passed": 55, "failed": 0, "skipped": 0},
     "databaseTests": {"passed": 57, "failed": 0, "skipped": 0},
     "defaultChromium": {"passed": 29, "failed": 0, "skipped": 0},
