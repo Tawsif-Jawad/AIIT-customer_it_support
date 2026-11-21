@@ -246,7 +246,14 @@ export class PostgresRepository implements TicketRepository {
       await tx.ticketEvent.createMany({
         data: workflow.events.map(event => ({ ...event, metadata: event.metadata as Prisma.InputJsonObject })),
       });
-      if (workflow.approvals.length) await tx.approval.createMany({ data: workflow.approvals });
+      if (workflow.approvals.length) {
+        await tx.approval.createMany({ data: workflow.approvals.map(row => ({
+          ...row,
+          expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+          actionParams: row.actionParams ? row.actionParams as Prisma.InputJsonValue : Prisma.JsonNull,
+          consumedAt: row.consumedAt ? new Date(row.consumedAt) : null,
+        })) });
+      }
       await tx.aIActionLog.create({
         data: {
           ...workflow.aiLog,

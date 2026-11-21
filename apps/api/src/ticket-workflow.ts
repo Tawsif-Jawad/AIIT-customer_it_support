@@ -13,6 +13,7 @@ import {
   type User,
 } from "../../../packages/shared/src/index.ts";
 import type { DeterministicMockAIOrchestrator } from "../../../packages/connectors/src/index.ts";
+import { approvalParamsForAction, bindApproval, calculateSlaDeadlines } from "./functional-extension.ts";
 
 export function ticketNumberFor(
   slug: string,
@@ -32,6 +33,7 @@ export function planTicketCreation(
     | "name"
     | "formSchema"
     | "defaultSeverity"
+    | "slaResponseMinutes"
     | "slaResolutionMinutes"
     | "aiEligible"
     | "requiresApprovalRole"
@@ -46,9 +48,12 @@ export function planTicketCreation(
   const events: TicketEvent[] = [];
   const approvals: Approval[] = [];
 
-  const slaDue = new Date(
-    now.getTime() + category.slaResolutionMinutes * 60_000,
-  ).toISOString();
+  const slaDeadlines = calculateSlaDeadlines(
+    category.slaResponseMinutes,
+    category.slaResolutionMinutes,
+    now,
+  );
+  const slaDue = slaDeadlines.resolutionDueAt;
   const customFormPayload = validateServicePayload(category.formSchema, validInput.customFormPayload);
   for (const field of category.formSchema) {
     const value = customFormPayload[field.key];
@@ -74,6 +79,11 @@ export function planTicketCreation(
     aiConfidence: null,
     escalationReason: null,
     slaDueAt: slaDue,
+    slaResponseDueAt: slaDeadlines.responseDueAt,
+    slaResolutionDueAt: slaDeadlines.resolutionDueAt,
+    slaBreached: false,
+    slaBreachedAt: null,
+    slaEscalatedAt: null,
     resolvedAt: null,
     closedAt: null,
     createdAt: now.toISOString(),
@@ -244,7 +254,7 @@ export function planTicketCreation(
       category.requiresApprovalRole ||
       aiDecision.policyDecision === "REQUIRES_HUMAN_APPROVAL"
     ) {
-      const approval: Approval = {
+      const approval: Approval = bindApproval({
         id: `approval-${crypto.randomUUID()}`,
         ticketId: ticket.id,
         actionType: category.slug.toUpperCase().replace(/-/g, "_"),
@@ -256,7 +266,7 @@ export function planTicketCreation(
         decisionNotes: null,
         decidedAt: null,
         createdAt: now.toISOString(),
-      };
+      }, approvalParamsForAction(category.slug.toUpperCase().replace(/-/g, "_"), ticket), now, 60);
       approvals.push(approval);
     }
   }

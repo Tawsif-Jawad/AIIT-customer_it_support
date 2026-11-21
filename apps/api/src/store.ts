@@ -8,6 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {validateRecordSchemas} from './persistence-schema.ts';
 import { MAX_TICKET_SEQUENCE } from '../../../packages/shared/src/index.ts';
+import { approvalParamsForAction, bindApproval } from './functional-extension.ts';
 import type {
   AIActionLog,
   Approval,
@@ -20,6 +21,7 @@ import type {
   ServiceCategory,
   Ticket,
   TicketComment,
+  TicketAttachment,
   TicketEvent,
   User,
 } from '../../../packages/shared/src/index.ts';
@@ -34,6 +36,7 @@ export interface DatabaseState {
   tickets: Ticket[];
   ticketEvents: TicketEvent[];
   ticketComments: TicketComment[];
+  ticketAttachments: TicketAttachment[];
   assets: Asset[];
   approvals: Approval[];
   notifications: Notification[];
@@ -183,9 +186,10 @@ export function validateDatabaseState(state: DatabaseState): void {
       (!Number.isSafeInteger(state.ticketNumberHighWatermark) || state.ticketNumberHighWatermark < 1000 || state.ticketNumberHighWatermark > MAX_TICKET_SEQUENCE)) {
     throw new Error('PERSISTENCE_INVALID: Invalid ticket number watermark');
   }
-  const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
+  const collections = ['sbus','roles','users','serviceCategories','tickets','ticketEvents','ticketComments','ticketAttachments','assets','approvals','notifications','aiActionLogs','auditLogs','knowledgeArticles'] as const;
   for (const name of collections) {
-    if (!state || !Array.isArray(state[name])) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
+    if (!state || (!Array.isArray(state[name]) && name !== 'ticketAttachments')) throw new Error('PERSISTENCE_INVALID: Missing collection ' + name);
+    if (name === 'ticketAttachments' && state.ticketAttachments === undefined) continue;
     const ids = new Set<string>();
     for (const row of state[name]) {
       if (!row || typeof row.id !== 'string' || !row.id || ids.has(row.id)) throw new Error('PERSISTENCE_INVALID: Invalid or duplicate ID in ' + name);
@@ -205,6 +209,8 @@ export function validateDatabaseState(state: DatabaseState): void {
   }
   for (const name of ['ticketEvents','ticketComments','approvals','aiActionLogs','notifications'] as const)
     for (const row of state[name]) if (row.ticketId && !has('tickets', row.ticketId)) throw new Error('PERSISTENCE_INVALID: Broken ticket reference in ' + name);
+  for (const attachment of state.ticketAttachments || [])
+    if (!has('tickets', attachment.ticketId) || !has('users', attachment.uploaderId)) throw new Error('PERSISTENCE_INVALID: Broken attachment reference');
   if(new Set((state.authSessions || []).map(s=>s.id)).size!==(state.authSessions || []).length) throw new Error('PERSISTENCE_INVALID: Duplicate session ID');
   type Collection = (typeof collections)[number] | "authSessions";
   const references: [Collection, string, Collection][] = [
@@ -750,6 +756,17 @@ export function createInitialSeedState(): DatabaseState {
       createdAt: now,
     },
   ];
+  for (let i = 0; i < approvals.length; i++) {
+    const ticket = tickets.find((item) => item.id === approvals[i].ticketId);
+    if (ticket) {
+      approvals[i] = bindApproval(
+        approvals[i],
+        approvalParamsForAction(approvals[i].actionType, ticket),
+        new Date(now),
+        60,
+      );
+    }
+  }
 
   const aiActionLogs: AIActionLog[] = [
     {
@@ -810,6 +827,7 @@ export function createInitialSeedState(): DatabaseState {
     tickets,
     ticketEvents,
     ticketComments: [],
+    ticketAttachments: [],
     assets,
     approvals,
     notifications: [],

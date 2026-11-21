@@ -62,13 +62,22 @@ function setupWorkspace(){
   grid.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{document.getElementById('ticket-category').value=b.dataset.service;renderServiceFields('ticket');switchTab('create');document.getElementById('ticket-title').focus();});
 }
 function onWorkspaceTab(name){
-  const titles={dashboard:'Overview',tickets:'Tickets & queue',create:'New support request',assistant:'AI Assistant',catalog:'Service catalog',assets:'Equipment & custody',kb:'Knowledge base',notifications:'Notifications',approvals:'Approval center',cto:'CTO escalations',audit:'Audit & monitoring'};
+  const titles={dashboard:'Overview',tickets:'Tickets & queue',create:'New support request',assistant:'AI Assistant',catalog:'Service catalog',assets:'Equipment & custody',kb:'Knowledge base',notifications:'Notifications',approvals:'Approval center',sla:'SLA & reporting',cto:'CTO escalations',audit:'Audit & monitoring'};
   document.getElementById('workspace-breadcrumb').textContent='Workspace / '+(titles[name]||name);
   if(name==='notifications')loadNotifications();
+  if(name==='sla')loadSlaStatus();
 }
 async function loadNotifications(){
   const box=document.getElementById('notifications-list');box.innerHTML='<p class="loading-note">Loading your updates…</p>';
   try{const data=await apiFetch('/api/notifications');box.innerHTML=data.items.map(n=>'<article class="activity-row"><div><strong>'+escapeHtml(n.subject)+'</strong><p style="white-space:pre-wrap;font-size:12px;margin:10px 0">'+escapeHtml(n.body)+'</p><small>'+escapeHtml(new Date(n.createdAt).toLocaleString())+'</small></div><span class="badge badge-status">'+escapeHtml(n.status)+'</span></article>').join('')||'<div class="empty-state">You’re all caught up. New request updates will appear here.</div>';}catch(error){box.innerHTML='<div class="alert-error">'+escapeHtml(error.message)+' Use Refresh updates to retry.</div>';}
+}
+async function refreshAttachmentList(ticketId){
+  const box=document.getElementById('attachment-list-'+ticketId);
+  if(!box)return;
+  try{
+    const data=await apiFetch('/api/tickets/'+encodeURIComponent(ticketId)+'/attachments');
+    box.innerHTML=data.items.map(item=>'<div class="activity-row"><div><strong>'+escapeHtml(item.fileName)+'</strong><p>'+escapeHtml(item.mimeType)+' · '+item.sizeBytes+' bytes</p></div></div>').join('')||'<p class="empty-state">No attachments.</p>';
+  }catch(error){box.innerHTML='<div class="alert-error">'+escapeHtml(error.message)+'</div>';}
 }
 function renderTicketExtras(detail){
   const box=document.getElementById('ticket-detail-container');
@@ -77,12 +86,46 @@ function renderTicketExtras(detail){
   extras.innerHTML='<h3 style="font-size:16px;margin-bottom:15px">Conversation</h3><div>'+(detail.comments||[]).map(c=>'<div class="bubble" style="background:var(--paper);font-size:12px"><strong>'+escapeHtml(c.authorName)+(c.isInternal?' · INTERNAL NOTE':'')+'</strong><p style="white-space:pre-wrap">'+escapeHtml(c.body)+'</p><small class="muted">'+escapeHtml(new Date(c.createdAt).toLocaleString())+'</small></div>').join('')+'</div><form id="ticket-comment-form"><label for="ticket-comment">Add a comment</label><textarea id="ticket-comment" minlength="2" maxlength="2000" required placeholder="Share an update or ask a question…"></textarea>'+(admin?'<label style="display:flex;gap:10px;align-items:center;margin:12px 0"><input id="comment-internal" type="checkbox" style="width:18px;min-height:18px">Internal note · IT and CTO only</label>':'')+'<button class="btn-secondary" type="submit" style="margin-top:12px">Send update ↗</button></form>'+(detail.approvals?.length?'<h3 style="font-size:16px;margin:25px 0 15px">Approval history</h3>'+detail.approvals.map(a=>'<p style="font-size:12px;margin:10px 0">'+escapeHtml(a.actionType)+' · <strong>'+escapeHtml(a.status)+'</strong></p>').join(''):'');
   box.append(extras);
   extras.querySelector('form').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{await apiFetch('/api/tickets/'+encodeURIComponent(detail.ticket.id)+'/comments',{method:'POST',body:JSON.stringify({body:extras.querySelector('textarea').value,isInternal:extras.querySelector('#comment-internal')?.checked||false})});showFeedback('Your update was recorded.');await inspectTicket(detail.ticket.id);}catch(error){showFeedback(error.message,'error');}finally{button.disabled=false;}};
+  const attachmentSection=document.createElement('section');
+  attachmentSection.innerHTML='<h3 style="font-size:16px;margin:25px 0 15px">Attachments</h3><div id="attachment-list-'+escapeHtml(detail.ticket.id)+'"></div><form id="attachment-form-'+escapeHtml(detail.ticket.id)+'"><input type="file" accept=".txt,.pdf,.png,.jpg,.jpeg,.csv" required /><button class="btn-secondary" type="submit" style="margin-top:10px">Upload attachment</button></form>';
+  extras.append(attachmentSection);
+  const attachmentForm=attachmentSection.querySelector('form');
+  attachmentForm.onsubmit=async event=>{
+    event.preventDefault();
+    const file=attachmentForm.querySelector('input[type=file]').files?.[0];
+    if(!file)return;
+    if(file.size>1024*1024){showFeedback('Attachment exceeds 1 MiB.','error');return;}
+    const bytes=await file.arrayBuffer();
+    const contentBase64=btoa(String.fromCharCode(...new Uint8Array(bytes)));
+    try{
+      await apiFetch('/api/tickets/'+encodeURIComponent(detail.ticket.id)+'/attachments',{method:'POST',body:JSON.stringify({fileName:file.name,mimeType:file.type||'application/octet-stream',contentBase64})});
+      showFeedback('Attachment uploaded.');
+      await refreshAttachmentList(detail.ticket.id);
+    }catch(error){showFeedback(error.message,'error');}
+  };
+  refreshAttachmentList(detail.ticket.id);
 }
 document.getElementById('app-menu').onclick=()=>{const open=document.body.classList.toggle('nav-open');document.getElementById('app-menu').setAttribute('aria-expanded',String(open));};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('nav-open')){document.body.classList.remove('nav-open');document.getElementById('app-menu').setAttribute('aria-expanded','false');document.getElementById('app-menu').focus();syncNavigation();}});
 document.getElementById('quick-create').onclick=()=>switchTab('create');
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>switchTab(b.dataset.go));
 document.getElementById('refresh-notifications').onclick=loadNotifications;
+const slaReviewButton=document.getElementById('sla-review-btn');
+if(slaReviewButton)slaReviewButton.onclick=async()=>{
+  try{
+    const result=await apiFetch('/api/sla/review',{method:'POST',body:'{}'});
+    showFeedback(`SLA review: ${result.reviewed} reviewed, ${result.escalated} escalated.`);
+    await loadSlaStatus();
+  }catch(error){showFeedback(error.message,'error');}
+};
+async function loadSlaStatus(){
+  if(!document.getElementById('sla-status-container'))return;
+  try{
+    const [sla,report]=await Promise.all([apiFetch('/api/sla/status'),apiFetch('/api/reports/summary')]);
+    document.getElementById('sla-status-container').innerHTML=sla.items.filter(item=>item.responseBreached||item.resolutionBreached).map(item=>'<div class="activity-row"><div><strong>'+escapeHtml(item.ticketNumber)+'</strong><p>'+escapeHtml(item.status)+'</p></div><span class="badge badge-cto">'+escapeHtml(item.resolutionBreached?'Resolution breach':'Response breach')+'</span></div>').join('')||'<p class="empty-state">No overdue tickets in your authorized scope.</p>';
+    document.getElementById('reports-container').innerHTML='<h3>Authorized operational report</h3><div class="catalog-grid"><div><strong>Open tickets</strong><div class="metric-value">'+report.openTickets+'</div></div><div><strong>SLA breaches</strong><div class="metric-value">'+report.slaBreaches+'</div></div><div><strong>Pending approvals</strong><div class="metric-value">'+report.pendingApprovals+'</div></div><div><strong>Assets assigned</strong><div class="metric-value">'+report.assignedAssets+'</div></div></div>';
+  }catch(error){showFeedback(error.message,'error');}
+}
 document.getElementById('previous-page').onclick=()=>{if(ticketPage>1){ticketPage--;refreshAllData().catch(e=>showFeedback(e.message,'error'));}};
 document.getElementById('next-page').onclick=()=>{if(ticketPage<ticketPages){ticketPage++;refreshAllData().catch(e=>showFeedback(e.message,'error'));}};
 document.getElementById('previous-page').setAttribute('aria-label','Previous ticket page');document.getElementById('next-page').setAttribute('aria-label','Next ticket page');

@@ -255,6 +255,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         <button class="tab-btn" data-tab="catalog" type="button">Service catalog</button><button class="tab-btn" data-tab="notifications" type="button">Notifications</button><button class="tab-btn" data-tab="assets" type="button">IT Assets & Handover</button>
         <button class="tab-btn" data-tab="kb" type="button">Knowledge Base</button>
         <button class="tab-btn" data-tab="approvals" id="tab-btn-approvals" type="button" style="display:none;">Approvals Queue</button>
+        <button class="tab-btn" data-tab="sla" id="tab-btn-sla" type="button" style="display:none;">SLA & reporting</button>
         <button class="tab-btn" data-tab="cto" id="tab-btn-cto" type="button" style="display:none;">CTO Escalation Dashboard</button>
         <button class="tab-btn" data-tab="audit" id="tab-btn-audit" type="button" style="display:none;">Security Audit & Health</button>
       </nav>
@@ -342,6 +343,16 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
         <div class="card">
           <h2>Human-in-the-Loop Action Approvals (IT Admin & CTO)</h2>
           <label for="approval-reason">Decision justification</label><textarea id="approval-reason" minlength="5" maxlength="1000" placeholder="Explain the reason for your approval or rejection. Required for every decision."></textarea><div id="approvals-container" style="margin-top:22px"></div>
+        </div>
+      </section>
+
+      <!-- TAB: SLA AND REPORTING -->
+      <section id="tab-sla" class="tab-panel" style="display: none;">
+        <div class="card">
+          <h2>SLA policies, overdue tickets and reporting</h2>
+          <button class="btn-secondary" id="sla-review-btn" type="button">Review overdue tickets</button>
+          <div id="sla-status-container" style="margin-top:20px"></div>
+          <div id="reports-container" style="margin-top:20px"></div>
         </div>
       </section>
 
@@ -544,6 +555,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
 
       const isAdminOrCto = currentUser.roleName === 'IT_ADMIN' || currentUser.roleName === 'CTO';
       document.getElementById('tab-btn-approvals').style.display = isAdminOrCto ? 'inline-block' : 'none';
+      document.getElementById('tab-btn-sla').style.display = isAdminOrCto ? 'inline-block' : 'none';
       document.getElementById('tab-btn-cto').style.display = isAdminOrCto ? 'inline-block' : 'none';
       document.getElementById('tab-btn-audit').style.display = isAdminOrCto ? 'inline-block' : 'none';
 
@@ -714,7 +726,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
             }),
           });
           showFeedback(result.changed ? 'Assignment saved.' : 'Ticket already assigned to this administrator.');
-          await refreshAllData();
+          if (result.changed) await refreshAllData();
         } catch (error) {
           showFeedback(error.message, 'error');
           if (error.status === 409 && selectedTicketId === t.id) {
@@ -788,6 +800,52 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
             '<td>' + escapeHtml(t.escalationReason || '') + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
+
+      if (currentUser.roleName === 'IT_ADMIN') {
+        box.insertAdjacentHTML('beforeend',
+          '<details style="margin-top:20px"><summary>Register or manage equipment</summary>' +
+          '<form id="asset-register-form" class="card" style="margin-top:12px">' +
+          '<input name="assetTag" required placeholder="Asset tag" /><input name="serialNumber" required placeholder="Serial number" />' +
+          '<input name="category" required placeholder="Category" /><input name="modelName" required placeholder="Model" />' +
+          '<input name="location" placeholder="Location" /><input name="assigneeId" placeholder="Optional employee ID" />' +
+          '<button class="btn-primary" type="submit">Register asset</button></form>' +
+          '</details>');
+        const registerForm = box.querySelector('#asset-register-form');
+        registerForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(registerForm);
+          try {
+            await apiFetch('/api/assets', { method: 'POST', body: JSON.stringify({
+              assetTag: form.get('assetTag'), serialNumber: form.get('serialNumber'),
+              category: form.get('category'), modelName: form.get('modelName'),
+              location: form.get('location'), sbuId: currentUser.sbuId,
+              assignedUserId: form.get('assigneeId') || null,
+            }) });
+            showFeedback('Asset registered.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+
+        box.insertAdjacentHTML('beforeend',
+          '<form id="asset-lifecycle-form" class="card" style="margin-top:12px">' +
+          '<h3>Asset lifecycle</h3><select name="assetId" required>' +
+          data.items.map(asset => '<option value="' + escapeHtml(asset.id) + '">' + escapeHtml(asset.assetTag) + ' — ' + escapeHtml(asset.status) + '</option>').join('') +
+          '</select><select name="action" required><option value="assign">Assign</option><option value="reassign">Reassign</option><option value="handover">Start handover</option><option value="takeover">Start takeover</option><option value="return">Return</option><option value="maintenance">Maintenance</option><option value="retire">Retire</option></select>' +
+          '<input name="assigneeId" placeholder="Assignee employee ID" /><input name="notes" placeholder="Lifecycle notes" /><button class="btn-secondary" type="submit">Apply lifecycle action</button></form>');
+        const lifecycleForm = box.querySelector('#asset-lifecycle-form');
+        lifecycleForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const form = new FormData(lifecycleForm);
+          try {
+            await apiFetch('/api/assets/' + encodeURIComponent(form.get('assetId')) + '/lifecycle', {
+              method: 'POST',
+              body: JSON.stringify({ action: form.get('action'), assigneeId: form.get('assigneeId'), notes: form.get('notes') }),
+            });
+            showFeedback('Asset lifecycle updated.');
+            await loadAssetsTab();
+          } catch (error) { showFeedback(error.message, 'error'); }
+        };
+      }
     }
 
     document.getElementById('create-ticket-form').onsubmit = async (e) => {
@@ -824,6 +882,30 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       refreshAllData().catch(error => showFeedback(error.message, 'error'));
     };
     document.getElementById('refresh-tickets-btn').onclick = () => { ticketPage = 1; refreshAllData().catch(error => showFeedback(error.message, 'error')); };
+
+    async function loadSlaAndReportTab() {
+      const [sla, report] = await Promise.all([
+        apiFetch('/api/sla/status'),
+        apiFetch('/api/reports/summary'),
+      ]);
+      document.getElementById('sla-status-container').innerHTML =
+        '<div class="catalog-grid">' +
+        '<div><strong>Response breaches</strong><div class="metric-value">' + sla.summary.responseBreaches + '</div></div>' +
+        '<div><strong>Resolution breaches</strong><div class="metric-value">' + sla.summary.resolutionBreaches + '</div></div>' +
+        '<div><strong>Escalated</strong><div class="metric-value">' + sla.summary.escalated + '</div></div>' +
+        '</div>' +
+        (sla.items.filter(item => item.responseBreached || item.resolutionBreached).map(item =>
+          '<div class="activity-row"><div><strong>' + escapeHtml(item.ticketNumber) + '</strong><p>' + escapeHtml(item.status) + '</p></div><span class="badge badge-cto">' + escapeHtml(item.resolutionBreached ? 'Resolution breach' : 'Response breach') + '</span></div>'
+        ).join('') || '<p class="empty-state">No overdue tickets in your authorized scope.</p>');
+      document.getElementById('reports-container').innerHTML =
+        '<h3>Authorized operational report</h3>' +
+        '<div class="catalog-grid">' +
+        '<div><strong>Open tickets</strong><div class="metric-value">' + report.openTickets + '</div></div>' +
+        '<div><strong>SLA breaches</strong><div class="metric-value">' + report.slaBreaches + '</div></div>' +
+        '<div><strong>Pending approvals</strong><div class="metric-value">' + report.pendingApprovals + '</div></div>' +
+        '<div><strong>Assets assigned</strong><div class="metric-value">' + report.assignedAssets + '</div></div>' +
+        '</div>';
+    }
 
     async function loadAssetsTab() {
       const data = await apiFetch('/api/assets');
@@ -879,8 +961,8 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
             '<td>' + escapeHtml(a.justification) + '</td>' +
             '<td>' + escapeHtml(a.status) + '</td>' +
             '<td>' + (a.status === 'PENDING' && (a.requiredRole === currentUser.roleName || currentUser.roleName === 'CTO')
-              ? '<button class="btn-success btn-decide" data-id="' + escapeHtml(a.id) + '" data-decision="APPROVED" type="button">Approve</button> ' +
-                '<button class="btn-danger btn-decide" data-id="' + escapeHtml(a.id) + '" data-decision="REJECTED" type="button">Reject</button>'
+              ? '<button class="btn-success btn-decide" data-id="' + escapeHtml(a.id) + '" data-action-params="' + escapeHtml(JSON.stringify(a.actionParams || {})) + '" data-expected-version="' + escapeHtml(String(a.expectedVersion || 0)) + '" data-decision="APPROVED" type="button">Approve</button> ' +
+                '<button class="btn-danger btn-decide" data-id="' + escapeHtml(a.id) + '" data-action-params="' + escapeHtml(JSON.stringify(a.actionParams || {})) + '" data-expected-version="' + escapeHtml(String(a.expectedVersion || 0)) + '" data-decision="REJECTED" type="button">Reject</button>'
               : escapeHtml(a.decisionNotes || '')) + '</td>' +
           '</tr>'
         ).join('') + '</tbody></table>';
@@ -893,7 +975,9 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
               method: 'POST',
               body: JSON.stringify({
                 decision: btn.getAttribute('data-decision'),
-                decisionNotes: document.getElementById('approval-reason').value.trim()
+                decisionNotes: document.getElementById('approval-reason').value.trim(),
+                actionParams: btn.dataset.actionParams ? JSON.parse(btn.dataset.actionParams) : null,
+                expectedVersion: Number(btn.dataset.expectedVersion || 0)
               })
             });
             showFeedback('Approval decision recorded.');
@@ -942,6 +1026,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
       if (tabName === 'assets') loadPanel(loadAssetsTab, 'assets-container');
       if (tabName === 'kb') loadPanel(loadKbTab, 'kb-container');
       if (tabName === 'approvals') loadPanel(loadApprovalsTab, 'approvals-container');
+      if (tabName === 'sla') loadPanel(loadSlaAndReportTab, 'sla-status-container');
       if (tabName === 'cto') renderCtoDashboard().catch(error => showFeedback(error.message, 'error'));
       if (tabName === 'audit') loadPanel(loadAuditTab, 'audit-logs-container');
     }

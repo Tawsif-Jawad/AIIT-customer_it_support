@@ -147,6 +147,11 @@ model Ticket {
   aiConfidence       Float?
   escalationReason   String?
   slaDueAt           DateTime @db.Timestamptz(6)
+  slaResponseDueAt  DateTime? @db.Timestamptz(6)
+  slaResolutionDueAt DateTime? @db.Timestamptz(6)
+  slaBreached       Boolean @default(false)
+  slaBreachedAt     DateTime? @db.Timestamptz(6)
+  slaEscalatedAt    DateTime? @db.Timestamptz(6)
   resolvedAt         DateTime? @db.Timestamptz(6)
   closedAt           DateTime? @db.Timestamptz(6)
   createdAt          DateTime       @default(now()) @db.Timestamptz(6)
@@ -160,6 +165,7 @@ model Ticket {
   @@index([requesterId, createdAt])
   @@index([sbuId, status, slaDueAt])
   @@index([assigneeId, status])
+  @@index([status, slaBreached, slaResolutionDueAt], map: "Ticket_sla_lookup_idx")
 
   events             TicketEvent[]
   comments           TicketComment[]
@@ -213,6 +219,11 @@ model Asset {
   handoverAckStatus    String      @default("ACKNOWLEDGED")
   handoverNotes        String?
   history              Json @default("[]")
+  location             String?
+  condition            String @default("GOOD")
+  lifecycleNotes       String?
+  lastMaintenanceAt    DateTime? @db.Timestamptz(6)
+  retiredAt            DateTime? @db.Timestamptz(6)
   createdAt            DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
 
@@ -232,6 +243,11 @@ model Approval {
   justification  String
   decisionNotes  String?
   decidedAt      DateTime? @db.Timestamptz(6)
+  expiresAt      DateTime? @db.Timestamptz(6)
+  actionParams   Json?
+  actionParamsHash String?
+  consumedAt     DateTime? @db.Timestamptz(6)
+  expectedVersion Int @default(0)
   createdAt      DateTime       @default(now()) @db.Timestamptz(6)
 
   ticket         Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -365,4 +381,49 @@ model OidcLoginFlow {
 model AbuseKey {
   id String @id
   secret String
+}
+
+model SlaPolicy {
+  id String @id @default(dbgenerated("(uuid_generate_v4())::text"))
+  name String
+  severity TicketSeverity
+  responseMinutes Int
+  resolutionMinutes Int
+  escalationRole RoleName @default(IT_ADMIN)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([severity, isActive], map: "SlaPolicy_severity_active_key")
+}
+
+model SlaJob {
+  id String @id @default(dbgenerated("(uuid_generate_v4())::text"))
+  ticketId String
+  breachType String
+  state String @default("QUEUED")
+  attempts Int @default(0)
+  availableAt DateTime @default(now()) @db.Timestamptz(6)
+  leaseUntil DateTime? @db.Timestamptz(6)
+  leaseToken String?
+  processedAt DateTime? @db.Timestamptz(6)
+  lastError String?
+
+  @@unique([ticketId, breachType], map: "SlaJob_ticket_breach_key")
+  @@index([state, availableAt], map: "SlaJob_state_available_idx")
+  @@index([ticketId], map: "SlaJob_ticketId_idx")
+}
+
+model TicketAttachment {
+  id String @id @default(dbgenerated("(uuid_generate_v4())::text"))
+  ticketId String
+  uploaderId String
+  fileName String
+  mimeType String
+  sizeBytes Int
+  contentBase64 String
+  sha256 String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ticketId, createdAt], map: "TicketAttachment_ticket_created_idx")
 }

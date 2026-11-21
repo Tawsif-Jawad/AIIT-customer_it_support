@@ -44,14 +44,16 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   let ticketKey: string | undefined;
   try { if (ticketDetail) ticketKey = decodeURIComponent(ticketDetail[1]); } catch { /* HTTP validation handles malformed input */ }
   const ticketWhere = ticketKey ? { OR: [{ id: ticketKey }, { ticketNumber: ticketKey }] } : undefined;
-  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary', '/api/approvals', '/api/assets', '/api/notifications', '/api/kb'].includes(pathname);
+  const scopedRead = method === 'GET' && ['/api/tickets', '/api/analytics/summary', '/api/approvals', '/api/assets', '/api/notifications', '/api/kb', '/api/sla/status', '/api/reports/summary'].includes(pathname);
   const approvalDecision = method === 'POST' && /^\/api\/approvals\/([^/]+)\/decide$/.exec(pathname);
   const assetAck = method === 'POST' && /^\/api\/assets\/([^/]+)\/acknowledge$/.exec(pathname);
+  const assetLifecycle = method === 'POST' && /^\/api\/assets\/([^/]+)\/lifecycle$/.exec(pathname);
   let approvalId: string | undefined;
   let assetId: string | undefined;
   try {
     if (approvalDecision) approvalId = decodeURIComponent(approvalDecision[1]);
     if (assetAck) assetId = decodeURIComponent(assetAck[1]);
+    if (assetLifecycle) assetId = decodeURIComponent(assetLifecycle[1]);
   } catch { /* HTTP validation handles malformed input */ }
   const creating = method === 'POST' && pathname === '/api/tickets';
   const detail = !!ticketKey && method === 'GET' && !ticketDetail?.[2];
@@ -60,7 +62,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   const notificationRead = /^\/api\/notifications\/([^/]+)\/read$/.exec(pathname);
   let notificationId: string | undefined;
   try { if (notificationRead) notificationId = decodeURIComponent(notificationRead[1]); } catch { /* HTTP validation handles malformed input */ }
-  const [users, sbus, roles, categories, tickets, events, comments, assets, approvals, notifications, aiLogs, audits, articles, sessions, counter] = await Promise.all([
+  const [users, sbus, roles, categories, tickets, events, comments, attachments, assets, approvals, notifications, aiLogs, audits, articles, sessions, counter] = await Promise.all([
     !scopedRead || developmentSessionDigest
       ? tx.user.findMany({
         where: scopedRead ? { sessions: { some: { id: developmentSessionDigest, kind: null } } } : undefined,
@@ -68,13 +70,14 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
       }) : [],
     scopedRead ? [] : tx.sBU.findMany({ orderBy: [...oldest] }),
     pathname === '/api/auth/me' ? tx.role.findMany() : [],
-    creating || detail || pathname === '/api/catalog' ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
-    ticketWhere || approvalId ? tx.ticket.findMany({
+    creating || detail || ['/api/catalog','/api/sla/policies','/api/sla/status','/api/sla/review'].includes(pathname) ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
+    ticketWhere || approvalId || ['/api/sla/status', '/api/sla/review', '/api/reports/summary'].includes(pathname) ? tx.ticket.findMany({
       where: ticketWhere ?? { approvals: { some: { id: approvalId } } }, orderBy: [...newest],
     }) : [],
     detail || assigning ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
-    assetId ? tx.asset.findMany({ where: { id: assetId } }) : [],
+    ticketKey ? tx.ticketAttachment.findMany({ where: { ticketId: ticketKey }, orderBy: [...oldest] }) : pathname === '/api/reports/summary' ? tx.ticketAttachment.findMany({ orderBy: [...oldest] }) : [],
+    assetId ? tx.asset.findMany({ where: { id: assetId } }) : ['/api/assets','/api/reports/summary'].includes(pathname) ? tx.asset.findMany({ orderBy: [...oldest] }) : [],
     detail || approvalId ? tx.approval.findMany({ where: ticketFilter ?? { id: approvalId }, orderBy: [...newest] }) : [],
     notificationId ? tx.notification.findMany({ where: { id: notificationId } }) : [],
     detail ? tx.aIActionLog.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
@@ -87,7 +90,7 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
   return {
     users: users.map(applicationUser), sbus: project(sbus), roles: project(roles),
     serviceCategories: project(categories), tickets: project(unversion(tickets)),
-    ticketEvents: project(events), ticketComments: project(comments), assets: project(unversion(assets)),
+    ticketEvents: project(events), ticketComments: project(comments), ticketAttachments: project(attachments), assets: project(unversion(assets)),
     approvals: project(unversion(approvals)), notifications: project(notifications), aiActionLogs: project(aiLogs),
     auditLogs: project(audits), knowledgeArticles: project(articles),
     authSessions: sessions.map(({ id, userId, expiresAt }) => ({ id, userId, expiresAt: expiresAt.getTime() })),
@@ -100,26 +103,101 @@ async function commitChanges(tx: Tx, before: DatabaseState, after: DatabaseState
   if (tickets.inserted.length) await tx.ticket.createMany({ data: tickets.inserted.map(ticket => ({
     ...ticket, customFormPayload: json(ticket.customFormPayload),
   })) });
-  for (const { id, status, severity, assigneeId, escalationReason, updatedAt, resolvedAt, closedAt } of tickets.updated) {
+  for (const { id, status, severity, assigneeId, escalationReason, updatedAt, resolvedAt, closedAt, slaResponseDueAt, slaResolutionDueAt, slaBreached, slaBreachedAt, slaEscalatedAt } of tickets.updated) {
     await tx.ticket.update({
       where: { id },
-      data: { status, severity, assigneeId, escalationReason, updatedAt, resolvedAt, closedAt, version: { increment: 1 } },
+      data: {
+        status, severity, assigneeId, escalationReason, updatedAt, resolvedAt, closedAt,
+        slaResponseDueAt: slaResponseDueAt ? new Date(slaResponseDueAt) : null,
+        slaResolutionDueAt: slaResolutionDueAt ? new Date(slaResolutionDueAt) : null,
+        slaBreached: slaBreached ?? false,
+        slaBreachedAt: slaBreachedAt ? new Date(slaBreachedAt) : null,
+        slaEscalatedAt: slaEscalatedAt ? new Date(slaEscalatedAt) : null,
+        version: { increment: 1 },
+      },
+    });
+  }
+
+  const categories = splitChanges(before.serviceCategories, after.serviceCategories);
+  for (const row of categories.updated) {
+    await tx.serviceCategory.update({
+      where: { id: row.id },
+      data: { slaResponseMinutes: row.slaResponseMinutes, slaResolutionMinutes: row.slaResolutionMinutes },
     });
   }
 
   const approvals = splitChanges(before.approvals, after.approvals);
-  if (approvals.inserted.length) await tx.approval.createMany({ data: approvals.inserted });
-  for (const { id, status, approverId, decisionNotes, decidedAt } of approvals.updated) {
-    await tx.approval.update({ where: { id, status: 'PENDING' }, data: { status, approverId, decisionNotes, decidedAt, version: { increment: 1 } } });
+  if (approvals.inserted.length) {
+    await tx.approval.createMany({ data: approvals.inserted.map(row => ({
+      ...row,
+      expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+      actionParams: row.actionParams ? json(row.actionParams) : Prisma.JsonNull,
+      consumedAt: row.consumedAt ? new Date(row.consumedAt) : null,
+    })) });
   }
-  for (const { id, status, handoverAckStatus, updatedAt, history } of splitChanges(before.assets, after.assets).updated) {
-    await tx.asset.update({ where: { id }, data: { status, handoverAckStatus, updatedAt, history: json(history), version: { increment: 1 } } });
+  for (const { id, status, approverId, decisionNotes, decidedAt, consumedAt, expectedVersion } of approvals.updated) {
+    await tx.approval.update({
+      where: { id, status: 'PENDING' },
+      data: {
+        status,
+        approverId,
+        decisionNotes,
+        decidedAt: decidedAt ? new Date(decidedAt) : null,
+        consumedAt: consumedAt ? new Date(consumedAt) : null,
+        expectedVersion: expectedVersion ?? 0,
+        version: { increment: 1 },
+      },
+    });
+  }
+  const assets = splitChanges(before.assets, after.assets);
+  if (assets.inserted.length) {
+    await tx.asset.createMany({ data: assets.inserted.map(row => ({
+      ...row,
+      history: json(row.history),
+      location: row.location ?? null,
+      lifecycleNotes: row.lifecycleNotes ?? null,
+      lastMaintenanceAt: row.lastMaintenanceAt ? new Date(row.lastMaintenanceAt) : null,
+      retiredAt: row.retiredAt ? new Date(row.retiredAt) : null,
+    })) });
+  }
+  for (const row of assets.updated) {
+    await tx.asset.update({
+      where: { id: row.id },
+      data: {
+        assignedUserId: row.assignedUserId,
+        status: row.status,
+        handoverAckStatus: row.handoverAckStatus,
+        handoverNotes: row.handoverNotes,
+        updatedAt: new Date(row.updatedAt),
+        history: json(row.history),
+        location: row.location ?? null,
+        condition: row.condition ?? 'GOOD',
+        lifecycleNotes: row.lifecycleNotes ?? null,
+        lastMaintenanceAt: row.lastMaintenanceAt ? new Date(row.lastMaintenanceAt) : null,
+        retiredAt: row.retiredAt ? new Date(row.retiredAt) : null,
+        version: { increment: 1 },
+      },
+    });
   }
 
   const events = splitChanges(before.ticketEvents, after.ticketEvents).inserted;
   if (events.length) await tx.ticketEvent.createMany({ data: events.map(row => ({ ...row, metadata: nullableJson(row.metadata) })) });
   const comments = splitChanges(before.ticketComments, after.ticketComments).inserted;
   if (comments.length) await tx.ticketComment.createMany({ data: comments.map(row => ({ ...row, attachments: nullableJson(row.attachments) })) });
+  const attachments = splitChanges(before.ticketAttachments || [], after.ticketAttachments || []).inserted;
+  if (attachments.length) {
+    await tx.ticketAttachment.createMany({ data: attachments.map(row => ({
+      id: row.id,
+      ticketId: row.ticketId,
+      uploaderId: row.uploaderId,
+      fileName: row.fileName,
+      mimeType: row.mimeType,
+      sizeBytes: row.sizeBytes,
+      contentBase64: row.contentBase64,
+      sha256: row.sha256,
+      createdAt: new Date(row.createdAt),
+    })) });
+  }
   const aiLogs = splitChanges(before.aiActionLogs, after.aiActionLogs).inserted;
   if (aiLogs.length) await tx.aIActionLog.createMany({ data: aiLogs.map(row => ({ ...row, toolOutput: nullableJson(row.toolOutput) })) });
   const audits = splitChanges(before.auditLogs, after.auditLogs).inserted;

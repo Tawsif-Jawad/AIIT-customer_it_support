@@ -29,6 +29,7 @@ import {
   MockActiveDirectoryAdapter,
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
+import { sha256Params, approvalParamsForAction } from './functional-extension.ts';
 import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
 import { isAssignableStatus, validateAssignmentInput } from './assignment.ts';
 import { EnterpriseDataStore, type RequestStore } from './store.ts';
@@ -408,10 +409,19 @@ export function createServer<Store extends RequestStore>(
             '/api/tickets/{id}/comments': { post: { summary: 'Add comment to an authorized ticket' } },
             '/api/approvals': { get: { summary: 'List pending/decided human approvals' } },
             '/api/approvals/{id}/decide': { post: { summary: 'Approve or reject a sensitive operation (IT_ADMIN / CTO)' } },
-            '/api/assets': { get: { summary: 'List IT equipment inventory scoped by role/employee' } },
+            '/api/assets': {
+              get: { summary: 'List IT equipment inventory scoped by role/employee' },
+              post: { summary: 'Register synthetic equipment inventory with IT authorization' },
+            },
             '/api/assets/{id}/acknowledge': { post: { summary: 'Employee equipment handover/takeover digital acknowledgment' } },
+            '/api/assets/{id}/lifecycle': { post: { summary: 'Register and manage assign, handover, takeover, return, maintenance, reassignment or retirement' } },
             '/api/kb': { get: { summary: 'Search approved knowledge base articles' } },
             '/api/analytics/summary': { get: { summary: 'Role-scoped dashboard metrics for Employee, IT Admin, and CTO' } },
+            '/api/sla/policies': { get: { summary: 'List configurable synthetic SLA policies' }, patch: { summary: 'Update severity SLA deadlines' } },
+            '/api/sla/status': { get: { summary: 'Authorized ticket SLA status and breach visibility' } },
+            '/api/sla/review': { post: { summary: 'Run duplicate-safe overdue detection and escalation review' } },
+            '/api/reports/summary': { get: { summary: 'Authorized reporting summary for IT and CTO dashboards' } },
+            '/api/tickets/{id}/attachments': { get: { summary: 'List authorized ticket attachments' }, post: { summary: 'Upload a synthetic base64 ticket attachment' } },
             '/api/notifications/{id}/read': { post: { summary: 'Mark a notification read as its recipient' } },
             '/api/audit-logs': { get: { summary: 'View immutable security and administrative audit logs (IT_ADMIN / CTO)' } },
           },
@@ -568,6 +578,153 @@ export function createServer<Store extends RequestStore>(
           categories: state.serviceCategories,
           sbus: state.sbus,
         });
+        return;
+      }
+
+      if (method === 'GET' && pathname === '/api/sla/policies') {
+        const state = store.getState();
+        const policies = (['LOW','MEDIUM','HIGH','CRITICAL'] as TicketSeverity[]).map((severity) => {
+          const categories = state.serviceCategories.filter((category) => category.defaultSeverity === severity);
+          const responseMinutes = categories.length ? Math.min(...categories.map((category) => category.slaResponseMinutes)) : ({ LOW: 480, MEDIUM: 240, HIGH: 120, CRITICAL: 30 } as Record<TicketSeverity, number>)[severity];
+          const resolutionMinutes = categories.length ? Math.min(...categories.map((category) => category.slaResolutionMinutes)) : ({ LOW: 2880, MEDIUM: 1440, HIGH: 480, CRITICAL: 120 } as Record<TicketSeverity, number>)[severity];
+          return { severity, responseMinutes, resolutionMinutes, escalationRole: severity === 'CRITICAL' ? 'CTO' : 'IT_ADMIN', isActive: true };
+        });
+        sendJson(res, 200, { items: policies });
+        return;
+      }
+
+      const slaPolicyMatch = pathname.match(/^\/api\/sla\/policies\/(LOW|MEDIUM|HIGH|CRITICAL)$/);
+      if (method === 'PATCH' && slaPolicyMatch) {
+        if (currentUser.roleName !== 'IT_ADMIN') {
+          sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators may update SLA policies.');
+          return;
+        }
+        const severity = slaPolicyMatch[1] as TicketSeverity;
+        const body = await readBody(req);
+        const responseMinutes = Number(body.responseMinutes);
+        const resolutionMinutes = Number(body.resolutionMinutes);
+        if (!Number.isSafeInteger(responseMinutes) || !Number.isSafeInteger(resolutionMinutes) || responseMinutes < 1 || resolutionMinutes < responseMinutes) {
+          sendError(res, 400, 'VALIDATION_ERROR', 'SLA minutes must be positive integers and resolution must follow response.');
+          return;
+        }
+        const state = store.getState();
+        const categories = state.serviceCategories.filter((category) => category.defaultSeverity === severity);
+        if (!categories.length) {
+          sendError(res, 404, 'SLA_POLICY_NOT_FOUND', 'No active synthetic policy category uses this severity.');
+          return;
+        }
+        for (const category of categories) {
+          category.slaResponseMinutes = responseMinutes;
+          category.slaResolutionMinutes = resolutionMinutes;
+        }
+        store.persist();
+        recordAudit({
+          actor: currentUser,
+          action: 'SLA_POLICY_UPDATED',
+          resource: 'SlaPolicy',
+          resourceId: severity,
+          ipAddress: clientIp,
+          details: { severity, responseMinutes, resolutionMinutes },
+        });
+        sendJson(res, 200, { severity, responseMinutes, resolutionMinutes });
+        return;
+      }
+
+      if (method === 'GET' && pathname === '/api/sla/status') {
+        const state = store.getState();
+        const now = Date.now();
+        const accessible = state.tickets.filter((ticket) => canAccessTicket(currentUser, ticket));
+        const items = accessible.map((ticket) => {
+          const responseDue = Date.parse(ticket.slaResponseDueAt || ticket.slaDueAt);
+          const resolutionDue = Date.parse(ticket.slaResolutionDueAt || ticket.slaDueAt);
+          const responseBreached = now > responseDue && !['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'].includes(ticket.status);
+          const resolutionBreached = now > resolutionDue && !['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'].includes(ticket.status);
+          return {
+            ticketId: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            status: ticket.status,
+            severity: ticket.severity,
+            responseDueAt: new Date(responseDue).toISOString(),
+            resolutionDueAt: new Date(resolutionDue).toISOString(),
+            responseBreached,
+            resolutionBreached,
+            breached: Boolean(ticket.slaBreached) || responseBreached || resolutionBreached,
+            escalatedAt: ticket.slaEscalatedAt || null,
+          };
+        });
+        sendJson(res, 200, {
+          items,
+          summary: {
+            total: items.length,
+            responseBreaches: items.filter((item) => item.responseBreached).length,
+            resolutionBreaches: items.filter((item) => item.resolutionBreached).length,
+            escalated: items.filter((item) => item.escalatedAt).length,
+          },
+        });
+        return;
+      }
+
+      if (method === 'POST' && pathname === '/api/sla/review') {
+        if (!['IT_ADMIN', 'CTO', 'SYSTEM_SERVICE'].includes(currentUser.roleName)) {
+          sendError(res, 403, 'FORBIDDEN', 'Only authorized SLA services may run breach review.');
+          return;
+        }
+        const state = store.getState();
+        const now = new Date();
+        let reviewed = 0;
+        let escalated = 0;
+        for (const ticket of state.tickets) {
+          if (['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'].includes(ticket.status) || ticket.slaEscalatedAt) continue;
+          const resolutionDue = Date.parse(ticket.slaResolutionDueAt || ticket.slaDueAt);
+          const responseDue = Date.parse(ticket.slaResponseDueAt || ticket.slaDueAt);
+          if (now.getTime() <= responseDue && now.getTime() <= resolutionDue) continue;
+          reviewed++;
+          ticket.slaBreached = true;
+          ticket.slaBreachedAt = ticket.slaBreachedAt || now.toISOString();
+          ticket.slaEscalatedAt = now.toISOString();
+          const resolutionBreach = now.getTime() > resolutionDue;
+          if (resolutionBreach && ticket.status !== 'ESCALATED_TO_CTO') {
+            ticket.status = 'ESCALATED_TO_CTO';
+            escalated++;
+          } else if (ticket.status === 'NEW' || ticket.status === 'TRIAGED') {
+            ticket.status = 'ASSIGNED_TO_IT';
+            escalated++;
+          }
+          ticket.updatedAt = now.toISOString();
+          state.ticketEvents.push({
+            id: crypto.randomUUID(),
+            ticketId: ticket.id,
+            actorId: currentUser.id,
+            actorName: currentUser.displayName,
+            eventType: resolutionBreach ? 'SLA_RESOLUTION_BREACH_ESCALATION' : 'SLA_RESPONSE_BREACH',
+            fromStatus: null,
+            toStatus: ticket.status,
+            metadata: { duplicatePrevented: false, resolutionDueAt: new Date(resolutionDue).toISOString(), responseDueAt: new Date(responseDue).toISOString() },
+            createdAt: now.toISOString(),
+          });
+          const recipient = state.users.find((user) => resolutionBreach
+            ? user.roleName === 'CTO' && user.isActive
+            : user.roleName === 'IT_ADMIN' && user.isActive);
+          if (recipient) {
+            await queueProcessor.enqueueNotification({
+              ticketId: ticket.id,
+              recipientId: recipient.id,
+              recipientEmail: recipient.email,
+              subject: `[${ticket.ticketNumber}] SLA breach`,
+              body: `Ticket ${ticket.ticketNumber} breached ${resolutionBreach ? 'resolution' : 'response'} SLA and was escalated to ${recipient.roleName}.`,
+            });
+          }
+        }
+        store.persist();
+        recordAudit({
+          actor: currentUser,
+          action: 'SLA_REVIEW_COMPLETED',
+          resource: 'SlaPolicy',
+          resourceId: 'synthetic',
+          ipAddress: clientIp,
+          details: { reviewed, escalated },
+        });
+        sendJson(res, 200, { reviewed, escalated });
         return;
       }
 
@@ -957,6 +1114,76 @@ export function createServer<Store extends RequestStore>(
           return;
         }
 
+        if (method === 'GET' && subAction === 'attachments') {
+          if (!canAccessTicket(currentUser, ticket)) {
+            sendError(res, 403, 'FORBIDDEN', 'Ticket attachment access denied.');
+            return;
+          }
+          const state = store.getState();
+          const items = (state.ticketAttachments || []).filter((attachment) => attachment.ticketId === ticket.id);
+          sendJson(res, 200, { items });
+          return;
+        }
+
+        if (method === 'POST' && subAction === 'attachments') {
+          if (!canAccessTicket(currentUser, ticket) && !['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
+            sendError(res, 403, 'FORBIDDEN', 'Ticket attachment upload denied.');
+            return;
+          }
+          const body = await readBody(req);
+          const fileName = typeof body.fileName === 'string' ? body.fileName.trim().slice(0, 255) : '';
+          const mimeType = typeof body.mimeType === 'string' ? body.mimeType.trim().slice(0, 128) : 'application/octet-stream';
+          const contentBase64 = typeof body.contentBase64 === 'string' ? body.contentBase64 : '';
+          if (!fileName || !contentBase64) {
+            sendError(res, 400, 'VALIDATION_ERROR', 'fileName and contentBase64 are required.');
+            return;
+          }
+          let bytes: Buffer;
+          try {
+            bytes = Buffer.from(contentBase64, 'base64');
+          } catch {
+            sendError(res, 400, 'VALIDATION_ERROR', 'contentBase64 is invalid.');
+            return;
+          }
+          if (bytes.length < 1 || bytes.length > 1024 * 1024) {
+            sendError(res, 400, 'VALIDATION_ERROR', 'Attachments must contain 1 byte to 1 MiB.');
+            return;
+          }
+          const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+          const now = new Date().toISOString();
+          const state = store.getState();
+          const existing = (state.ticketAttachments || []).find((attachment) =>
+            attachment.ticketId === ticket.id && attachment.sha256 === sha256 && attachment.fileName === fileName);
+          if (existing) {
+            sendJson(res, 200, { attachment: existing, idempotent: true });
+            return;
+          }
+          const attachment = {
+            id: `attachment-${crypto.randomUUID()}`,
+            ticketId: ticket.id,
+            uploaderId: currentUser.id,
+            fileName,
+            mimeType,
+            sizeBytes: bytes.length,
+            contentBase64: bytes.toString('base64'),
+            sha256,
+            createdAt: now,
+          };
+          state.ticketAttachments = state.ticketAttachments || [];
+          state.ticketAttachments.push(attachment);
+          store.persist();
+          recordAudit({
+            actor: currentUser,
+            action: 'TICKET_ATTACHMENT_UPLOADED',
+            resource: 'TicketAttachment',
+            resourceId: attachment.id,
+            ipAddress: clientIp,
+            details: { ticketId: ticket.id, fileName, mimeType, sizeBytes: bytes.length, sha256 },
+          });
+          sendJson(res, 201, { attachment });
+          return;
+        }
+
         // POST /api/tickets/:id/comments
         if (method === 'POST' && subAction === 'comments') {
           const body = await readBody(req);
@@ -1050,6 +1277,28 @@ export function createServer<Store extends RequestStore>(
         if (approval.status !== 'PENDING') {
           sendError(res, 409, 'APPROVAL_ALREADY_DECIDED', 'Approval decisions are immutable.'); return;
         }
+        if (approval.consumedAt) {
+          sendError(res, 409, 'APPROVAL_ALREADY_CONSUMED', 'Approval has already been consumed.'); return;
+        }
+        if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.now()) {
+          sendError(res, 410, 'APPROVAL_EXPIRED', 'Approval has expired.'); return;
+        }
+        const boundParams = approval.actionParams &&
+          typeof approval.actionParams === 'object' && !Array.isArray(approval.actionParams)
+          ? approval.actionParams as Record<string, unknown>
+          : null;
+        const suppliedParams = body.actionParams && typeof body.actionParams === 'object' && !Array.isArray(body.actionParams)
+          ? body.actionParams as Record<string, unknown>
+          : boundParams;
+        if (!suppliedParams) {
+          sendError(res, 400, 'VALIDATION_ERROR', 'Exact action parameters are required.'); return;
+        }
+        if (approval.actionParamsHash && sha256Params(suppliedParams) !== approval.actionParamsHash) {
+          sendError(res, 409, 'APPROVAL_PARAMETER_MISMATCH', 'Action parameters do not match the approved binding.'); return;
+        }
+        if (typeof body.expectedVersion === 'number' && approval.expectedVersion !== undefined && body.expectedVersion !== approval.expectedVersion) {
+          sendError(res, 409, 'APPROVAL_VERSION_CONFLICT', 'Approval parameters changed after the request was opened.'); return;
+        }
         if (!decisionNotes) {
           sendError(res, 400, 'VALIDATION_ERROR', 'Decision rationale is required.'); return;
         }
@@ -1063,6 +1312,8 @@ export function createServer<Store extends RequestStore>(
         approval.approverId = currentUser.id;
         approval.decisionNotes = decisionNotes || `Decided by ${currentUser.displayName}`;
         approval.decidedAt = new Date().toISOString();
+        approval.consumedAt = approval.decidedAt;
+        approval.expectedVersion = (approval.expectedVersion || 0) + 1;
 
         const ticket = state.tickets.find((t) => t.id === approval.ticketId);
         if (ticket) {
@@ -1111,6 +1362,169 @@ export function createServer<Store extends RequestStore>(
         return;
       }
 
+      if (method === 'POST' && pathname === '/api/assets') {
+        if (currentUser.roleName !== 'IT_ADMIN') {
+          sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators may register assets.');
+          return;
+        }
+        const body = await readBody(req);
+        const assetTag = typeof body.assetTag === 'string' ? body.assetTag.trim() : '';
+        const serialNumber = typeof body.serialNumber === 'string' ? body.serialNumber.trim() : '';
+        const category = typeof body.category === 'string' ? body.category.trim() : '';
+        const modelName = typeof body.modelName === 'string' ? body.modelName.trim() : '';
+        const sbuId = typeof body.sbuId === 'string' ? body.sbuId : currentUser.sbuId;
+        if (!assetTag || !serialNumber || !category || !modelName) {
+          sendError(res, 400, 'VALIDATION_ERROR', 'assetTag, serialNumber, category and modelName are required.');
+          return;
+        }
+        const state = store.getState();
+        if (!state.sbus.some((sbu) => sbu.id === sbuId)) {
+          sendError(res, 400, 'INVALID_SBU', 'Asset SBU does not exist.');
+          return;
+        }
+        if (state.assets.some((asset) => asset.assetTag === assetTag || asset.serialNumber === serialNumber)) {
+          sendError(res, 409, 'ASSET_ALREADY_EXISTS', 'Asset tag or serial number already exists.');
+          return;
+        }
+        const now = new Date().toISOString();
+        const asset = {
+          id: `asset-${crypto.randomUUID()}`,
+          assetTag,
+          serialNumber,
+          category,
+          modelName,
+          status: 'AVAILABLE' as const,
+          sbuId,
+          assignedUserId: null,
+          handoverAckStatus: 'ACKNOWLEDGED' as const,
+          handoverNotes: null,
+          history: [{ date: now, action: 'REGISTERED', actorEmail: currentUser.email, notes: typeof body.notes === 'string' ? redactSensitiveData(body.notes.trim()) : 'Synthetic asset registered' }],
+          location: typeof body.location === 'string' ? body.location.trim() : null,
+          condition: (['GOOD', 'DAMAGED', 'NEEDS_REPAIR'].includes(String(body.condition)) ? body.condition : 'GOOD') as 'GOOD' | 'DAMAGED' | 'NEEDS_REPAIR',
+          lifecycleNotes: null,
+          lastMaintenanceAt: null,
+          retiredAt: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        state.assets.push(asset);
+        store.persist();
+        recordAudit({
+          actor: currentUser,
+          action: 'ASSET_REGISTERED',
+          resource: 'Asset',
+          resourceId: asset.id,
+          ipAddress: clientIp,
+          details: { assetTag, serialNumber, sbuId, category, modelName },
+        });
+        sendJson(res, 201, { asset });
+        return;
+      }
+
+      const assetLifecycleMatch = pathname.match(/^\/api\/assets\/([^/]+)\/lifecycle$/);
+      if (method === 'POST' && assetLifecycleMatch) {
+        if (currentUser.roleName !== 'IT_ADMIN') {
+          sendError(res, 403, 'FORBIDDEN', 'Only IT Administrators may change asset lifecycle.');
+          return;
+        }
+        const assetId = decodeURIComponent(assetLifecycleMatch[1]);
+        const state = store.getState();
+        const asset = state.assets.find((item) => item.id === assetId);
+        if (!asset) {
+          sendError(res, 404, 'ASSET_NOT_FOUND', 'Asset not found.');
+          return;
+        }
+        const body = await readBody(req);
+        const action = typeof body.action === 'string' ? body.action : '';
+        const notes = typeof body.notes === 'string' ? redactSensitiveData(body.notes.trim()) : '';
+        const now = new Date().toISOString();
+
+        if (action === 'assign' || action === 'reassign') {
+          const assigneeId = typeof body.assigneeId === 'string' ? body.assigneeId : '';
+          const assignee = state.users.find((user) => user.id === assigneeId);
+          if (!assignee || assignee.roleName !== 'EMPLOYEE' || !assignee.isActive || assignee.sbuId !== asset.sbuId) {
+            sendError(res, 400, 'INVALID_ASSIGNEE', 'Asset assignment requires an active employee in the asset SBU.');
+            return;
+          }
+          if (action === 'assign' && asset.assignedUserId) {
+            sendError(res, 409, 'ASSET_ALREADY_ASSIGNED', 'Asset is already assigned.');
+            return;
+          }
+          if (action === 'assign' && state.assets.some((item) => item.id !== asset.id && item.assignedUserId === assigneeId &&
+            ['ASSIGNED', 'HANDOVER_PENDING_ACK', 'TAKEOVER_PENDING_ACK'].includes(item.status))) {
+            sendError(res, 409, 'EMPLOYEE_ASSET_CONFLICT', 'Employee already has an active asset assignment.');
+            return;
+          }
+          asset.assignedUserId = assigneeId;
+          asset.status = 'HANDOVER_PENDING_ACK';
+          asset.handoverAckStatus = 'PENDING_EMPLOYEE_ACK';
+          asset.handoverNotes = notes || `${action} to ${assignee.displayName}`;
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: action === 'reassign' ? 'REASSIGNED' : 'ASSIGNED', actorEmail: currentUser.email, notes: asset.handoverNotes });
+        } else if (action === 'handover') {
+          if (asset.status !== 'ASSIGNED' && asset.status !== 'HANDOVER_PENDING_ACK') {
+            sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Asset cannot enter handover in its current state.');
+            return;
+          }
+          asset.status = 'HANDOVER_PENDING_ACK';
+          asset.handoverAckStatus = 'PENDING_EMPLOYEE_ACK';
+          asset.handoverNotes = notes || 'Handover pending employee acknowledgement';
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: 'HANDOVER_STARTED', actorEmail: currentUser.email, notes: asset.handoverNotes });
+        } else if (action === 'takeover') {
+          if (!asset.assignedUserId || !['ASSIGNED', 'HANDOVER_PENDING_ACK'].includes(asset.status)) {
+            sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Only an assigned asset can enter takeover.');
+            return;
+          }
+          asset.status = 'TAKEOVER_PENDING_ACK';
+          asset.handoverAckStatus = 'PENDING_EMPLOYEE_ACK';
+          asset.handoverNotes = notes || 'Takeover pending employee acknowledgement';
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: 'TAKEOVER_STARTED', actorEmail: currentUser.email, notes: asset.handoverNotes });
+        } else if (action === 'return') {
+          if (!['ASSIGNED', 'HANDOVER_PENDING_ACK', 'TAKEOVER_PENDING_ACK'].includes(asset.status)) {
+            sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Asset is not in an active custody state.');
+            return;
+          }
+          const condition = ['GOOD', 'DAMAGED', 'NEEDS_REPAIR'].includes(String(body.condition)) ? body.condition : 'GOOD';
+          asset.assignedUserId = null;
+          asset.status = 'AVAILABLE';
+          asset.handoverAckStatus = 'ACKNOWLEDGED';
+          asset.condition = condition as 'GOOD' | 'DAMAGED' | 'NEEDS_REPAIR';
+          asset.handoverNotes = notes || 'Returned to inventory';
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: 'RETURNED', actorEmail: currentUser.email, notes: `${asset.handoverNotes}; condition=${condition}` });
+        } else if (action === 'maintenance') {
+          asset.status = 'MAINTENANCE';
+          asset.lastMaintenanceAt = now;
+          asset.lifecycleNotes = notes || 'Maintenance recorded';
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: 'MAINTENANCE', actorEmail: currentUser.email, notes: asset.lifecycleNotes });
+        } else if (action === 'retire') {
+          asset.status = 'RETIRED';
+          asset.assignedUserId = null;
+          asset.retiredAt = now;
+          asset.lifecycleNotes = notes || 'Asset retired';
+          asset.updatedAt = now;
+          asset.history.push({ date: now, action: 'RETIRED', actorEmail: currentUser.email, notes: asset.lifecycleNotes });
+        } else {
+          sendError(res, 400, 'VALIDATION_ERROR', 'Unsupported asset lifecycle action.');
+          return;
+        }
+        if (typeof body.location === 'string') asset.location = body.location.trim();
+        store.persist();
+        recordAudit({
+          actor: currentUser,
+          action: `ASSET_${action.toUpperCase()}`,
+          resource: 'Asset',
+          resourceId: asset.id,
+          ipAddress: clientIp,
+          details: { assetTag: asset.assetTag, serialNumber: asset.serialNumber, action, assigneeId: asset.assignedUserId, notes },
+        });
+        sendJson(res, 200, { asset });
+        return;
+      }
+
       const assetAckMatch = pathname.match(/^\/api\/assets\/([^/]+)\/acknowledge$/);
       if (method === 'POST' && assetAckMatch) {
         const assetId = decodeURIComponent(assetAckMatch[1]);
@@ -1128,8 +1542,8 @@ export function createServer<Store extends RequestStore>(
         if (asset.assignedUserId && asset.status === 'ASSIGNED' && asset.handoverAckStatus === 'ACKNOWLEDGED') {
           sendJson(res, 200, {asset}); return; // idempotent retry; preserve history
         }
-        if (!asset.assignedUserId || asset.status !== 'HANDOVER_PENDING_ACK' || asset.handoverAckStatus !== 'PENDING_EMPLOYEE_ACK') {
-          sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Only an assigned pending handover may be acknowledged.'); return;
+        if (!asset.assignedUserId || !['HANDOVER_PENDING_ACK', 'TAKEOVER_PENDING_ACK'].includes(asset.status) || asset.handoverAckStatus !== 'PENDING_EMPLOYEE_ACK') {
+          sendError(res, 409, 'ASSET_STATE_CONFLICT', 'Only an assigned pending handover or takeover may be acknowledged.'); return;
         }
 
         asset.handoverAckStatus = 'ACKNOWLEDGED';
@@ -1195,6 +1609,7 @@ export function createServer<Store extends RequestStore>(
           sendJson(res, 200, await store.ticketAnalytics(currentUser));
           return;
         }
+
         const state = store.getState();
         const visibleTickets = state.tickets.filter((t) => canAccessTicket(currentUser, t));
         const byStatus: Record<string, number> = {};
@@ -1213,6 +1628,35 @@ export function createServer<Store extends RequestStore>(
           pendingApprovals: state.approvals.filter((a) => a.status === 'PENDING' && visibleTickets.some(t => t.id === a.ticketId)).length,
           byStatus,
           bySbu,
+        });
+        return;
+      }
+
+      if (method === 'GET' && pathname === '/api/reports/summary') {
+        if (!['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
+          sendError(res, 403, 'FORBIDDEN', 'Reporting is restricted to IT Administrators and the CTO.');
+          return;
+        }
+        const state = store.getState();
+        const now = Date.now();
+        const tickets = state.tickets.filter((ticket) => currentUser.roleName === 'CTO' || ticket.sbuId === currentUser.sbuId);
+        const slaBreaches = tickets.filter((ticket) => {
+          const resolutionDue = Date.parse(ticket.slaResolutionDueAt || ticket.slaDueAt);
+          return ticket.slaBreached || (now > resolutionDue && !['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'].includes(ticket.status));
+        }).length;
+        const assets = state.assets.filter((asset) => currentUser.roleName === 'CTO' || asset.sbuId === currentUser.sbuId);
+        sendJson(res, 200, {
+          ticketTotal: tickets.length,
+          openTickets: tickets.filter((ticket) => ticket.status !== 'CLOSED').length,
+          escalatedTickets: tickets.filter((ticket) => ticket.status === 'ESCALATED_TO_CTO').length,
+          slaBreaches,
+          pendingApprovals: state.approvals.filter((approval) => approval.status === 'PENDING').length,
+          assetTotal: assets.length,
+          assignedAssets: assets.filter((asset) => asset.assignedUserId).length,
+          maintenanceAssets: assets.filter((asset) => asset.status === 'MAINTENANCE').length,
+          retiredAssets: assets.filter((asset) => asset.status === 'RETIRED').length,
+          attachmentCount: (state.ticketAttachments || []).filter((attachment) => tickets.some((ticket) => ticket.id === attachment.ticketId)).length,
+          generatedAt: new Date().toISOString(),
         });
         return;
       }

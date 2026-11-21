@@ -106,6 +106,11 @@ export interface Ticket {
   aiConfidence: number | null;
   escalationReason: string | null;
   slaDueAt: string;
+  slaResponseDueAt?: string;
+  slaResolutionDueAt?: string;
+  slaBreached?: boolean;
+  slaBreachedAt?: string | null;
+  slaEscalatedAt?: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
   createdAt: string;
@@ -136,6 +141,18 @@ export interface TicketComment {
   createdAt: string;
 }
 
+export interface TicketAttachment {
+  id: string;
+  ticketId: string;
+  uploaderId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  contentBase64: string;
+  sha256: string;
+  createdAt: string;
+}
+
 export interface Asset {
   id: string;
   assetTag: string;
@@ -148,6 +165,11 @@ export interface Asset {
   handoverAckStatus: 'PENDING_EMPLOYEE_ACK' | 'ACKNOWLEDGED' | 'RETURN_REQUESTED';
   handoverNotes: string | null;
   history: Array<{ date: string; action: string; actorEmail: string; notes: string }>;
+  location?: string | null;
+  condition?: 'GOOD' | 'DAMAGED' | 'NEEDS_REPAIR';
+  lifecycleNotes?: string | null;
+  lastMaintenanceAt?: string | null;
+  retiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -163,6 +185,11 @@ export interface Approval {
   justification: string;
   decisionNotes: string | null;
   decidedAt: string | null;
+  expiresAt?: string;
+  actionParams?: Record<string, unknown>;
+  actionParamsHash?: string;
+  consumedAt?: string | null;
+  expectedVersion?: number;
   createdAt: string;
 }
 
