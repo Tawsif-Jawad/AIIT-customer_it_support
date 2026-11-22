@@ -30,6 +30,7 @@ test('synthetic SMTP requires authentication over verified TLS and recovers loca
   const transport = createRehearsalSmtp(env)!;
   assert.throws(() => createRehearsalSmtp({ ...env, AIIT_REHEARSAL_SMTP_PASSWORD: undefined }), /UNSAFE_CONFIG/);
   assert.equal((await createRehearsalSmtp({ ...env, AIIT_REHEARSAL_SMTP_PASSWORD: 'invalid' })!.sendEmail(message)).delivered, false);
+  assert.throws(() => createRehearsalSmtp({ ...env, AIIT_REHEARSAL_SMTP_PORT: undefined }), /UNSAFE_CONFIG/);
   const untrustedCa = rehearsalCertificate(wrong).caFile;
   assert.equal((await createRehearsalSmtp({ ...env, AIIT_REHEARSAL_SMTP_CA: untrustedCa })!.sendEmail(message)).delivered, false);
   assert.equal((await transport.sendEmail({ ...message, to: 'blocked@example.invalid' })).delivered, false);

@@ -20,16 +20,17 @@ const syntheticAddress = /^[a-z0-9][a-z0-9._+-]{0,63}@example\.test$/i;
 const require = createRequire(import.meta.url);
 
 export function createRehearsalSmtp(env = process.env): RehearsalTransport | undefined {
-  if (env.AIIT_REHEARSAL_SMTP_PORT === undefined) return undefined;
-  const port = Number(env.AIIT_REHEARSAL_SMTP_PORT);
-  const caFile = env.AIIT_REHEARSAL_SMTP_CA;
   const user = env.AIIT_REHEARSAL_SMTP_USER;
   const pass = env.AIIT_REHEARSAL_SMTP_PASSWORD;
+  const hasCredentials = user !== undefined || pass !== undefined;
+  if (env.AIIT_REHEARSAL_SMTP_PORT === undefined && !hasCredentials) return undefined;
+  const port = Number(env.AIIT_REHEARSAL_SMTP_PORT);
+  const caFile = env.AIIT_REHEARSAL_SMTP_CA;
   const db = URL.parse(env.DATABASE_URL ?? '');
   if (env.NODE_ENV !== 'test' || env.STORAGE_MODE !== 'postgres' ||
       !db || !disposablePostgresUrl(db) || db.pathname !== '/aiit_test' ||
       !Number.isInteger(port) || port < 1024 || port > 65535 || !caFile ||
-      ((user !== undefined || pass !== undefined) && (!user || !pass))) {
+      (hasCredentials && (!user || !pass))) {
     throw new Error('REHEARSAL_SMTP_UNSAFE_CONFIG');
   }
 
