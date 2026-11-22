@@ -1,0 +1,7 @@
+# Container environment
+
+The local macOS arm64 host had no Docker, Podman or Colima CLI. No runtime was installed and no host security settings were modified. The dedicated GitHub-hosted Ubuntu workflow runs the container smoke when the profile changes. Its exact-head result is linked in the draft PR.
+
+The official Keycloak 26.8.2 Quay manifest index was verified over HTTPS. Its digest is `sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3`, with amd64 and arm64 images. The profile caps Keycloak at 1.5 GiB and publishes only 127.0.0.1:38443. CPU, memory floor, native ARM execution, image signatures and container vulnerability findings were not established. An official registry and pinned digest identify image provenance and immutable content; a security scan is still due before a reusable infrastructure rollout. [Official container guide](https://www.keycloak.org/server/containers)
+
+With an authorized Docker engine and Compose, OpenSSL, curl and jq, run `bash infra/synthetic-enterprise/smoke.sh`. It creates a unique Compose project and a one-day certificate, starts the realm, validates trusted discovery and RSA keys, rejects a hostname mismatch, inspects the scoped network, and tears down only its own services and files. Port 38443 must be available. The script holds the environment only for the smoke and creates no administrative credentials. The host-native demos remain available independently.

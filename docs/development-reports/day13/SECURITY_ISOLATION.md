@@ -1,0 +1,7 @@
+# Security isolation
+
+The SMTP adapter retains its disposable PostgreSQL configuration gate, literal loopback destination, certificate and hostname verification, and one synthetic recipient. A partial credential pair fails closed. The capture sink has no relay path. Credentials are generated per run and are excluded from output. No production credential or destination is used.
+
+The Keycloak profile requests an internal bridge, drops capabilities, disables plain HTTP, mounts the realm and generated TLS files read-only, and publishes only loopback. The authorized smoke verifies the Docker network's internal setting and absence of an IPv4 default route. This is bounded routing evidence. External DNS resolution, IPv6 routes, host networking variants and an active egress probe were not verified. Container configuration must not be used as proof of OS-wide isolation.
+
+The smoke uses a unique Compose project and removes that project's volumes and containers during cleanup. There is no Docker socket mount or privileged container. The native runner continues to use its owned disposable cluster and local services.

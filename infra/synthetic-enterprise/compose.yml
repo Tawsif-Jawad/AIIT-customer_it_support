@@ -1,0 +1,24 @@
+services:
+  issuer:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3
+    command:
+      - start-dev
+      - --import-realm
+      - --http-enabled=false
+      - --https-certificate-file=/opt/keycloak/tls/cert.pem
+      - --https-certificate-key-file=/opt/keycloak/tls/key.pem
+      - --hostname=https://localhost:38443
+    ports:
+      - "127.0.0.1:38443:8443"
+    volumes:
+      - ./realm.json:/opt/keycloak/data/import/office-realm.json:ro
+      - ${AIIT_DAY13_TLS_DIR:?Run the dedicated smoke script}:/opt/keycloak/tls:ro
+    networks:
+      - identity
+    init: true
+    mem_limit: 1536m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+networks:
+  identity:
+    internal: true

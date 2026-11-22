@@ -35,7 +35,7 @@ test('synthetic office runs all eight scenarios with scoped OIDC and TLS mail', 
   skip: process.env.DB_REQUIRED !== 'true' && !postgresBinaries() ? 'Disposable PostgreSQL unavailable' : false,
   timeout: 120000,
 }, async t => {
-  const office = await startOffice();
+  const office = await startOffice(0, false, true);
   t.after(() => office.close());
   const page = await fetch(office.publicUrl + '/app');
   assert.equal(page.status, 200);

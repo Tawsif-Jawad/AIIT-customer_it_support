@@ -1,0 +1,7 @@
+# Samba AD validation
+
+`corepack pnpm --silent synthetic:directory-manifest` emits credential-free provisioning input derived from Day 12. It has six organizational units, 129 accounts, three disabled accounts, employee IDs, fictional groups and department attributes. The output excludes simulator OIDC subjects. The manifest count was checked locally with jq. No directory was written.
+
+A disposable Samba AD DC and read-only federation identity remain future work. Use the fictional realm OFFICE.EXAMPLE.TEST, create a dedicated staff base and its six units, and provision the manifest with runtime-generated passwords. Use a private certificate with a DNS SAN for the DC and verify LDAPS trust in Keycloak. Keep Samba administration inside the isolated network. [Samba domain and account tooling](https://www.samba.org/samba/docs/current/man-html/samba-tool.8.html)
+
+Real bind, user/password verification, missing and disabled users, group/profile changes, federation synchronization, outage and recovery, and federated session propagation were not executed. The existing simulator still verifies local disable and revocation. Measure identity-sync delay and existing Keycloak and AIIT session behavior before selecting an additional revocation control.

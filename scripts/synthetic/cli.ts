@@ -3,9 +3,9 @@ import { startOffice } from './office.ts';
 import { runOfficeScenarios } from './scenarios.ts';
 
 const command = process.argv[2];
-if (command !== 'up' && command !== 'demo') throw new Error('Use synthetic:up or synthetic:demo');
-if (command === 'demo') {
-  const office = await startOffice();
+if (command !== 'up' && command !== 'demo' && command !== 'enterprise-demo') throw new Error('Use synthetic:up or synthetic:demo');
+if (command !== 'up') {
+  const office = await startOffice(0, false, command === 'enterprise-demo');
   try {
     console.log(JSON.stringify({ inventory: office.counts, postgres: office.version, ...await runOfficeScenarios(office) }, null, 2));
   } finally { await office.close(); }

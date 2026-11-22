@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
@@ -48,11 +49,14 @@ export function createRehearsalEdge(certificate: ReturnType<typeof rehearsalCert
 }
 
 /** A local single-recipient SMTP fixture. Successful messages are retained in memory and never relayed. */
-export async function startRehearsalSink(certificate: ReturnType<typeof rehearsalCertificate>) {
+export async function startRehearsalSink(certificate: ReturnType<typeof rehearsalCertificate>, options: {
+  auth?: { user: string; pass: string }; port?: number;
+} = {}) {
+  const expectedAuth = options.auth ? Buffer.from('\0' + options.auth.user + '\0' + options.auth.pass) : undefined;
   const received: { recipient: string; data: string }[] = [];
   const sockets = new Set<net.Socket>();
   let rejected = 0;
-  let rejectNext = false;
+  let rejectNext: 451 | 550 | undefined;
   let requireAuthentication = false;
   let authGateHits = 0;
   const server = tls.createServer(certificate, socket => {
@@ -66,6 +70,7 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
     let data = '';
     let sending = false;
     let senderAccepted = false;
+    let authenticated = false;
     let recipient = '';
     socket.on('data', (chunk: string) => {
       pending += chunk;
@@ -81,9 +86,9 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
             continue;
           }
           if (rejectNext) {
-            rejectNext = false;
+            socket.write(rejectNext + ' Synthetic rejection\r\n');
+            rejectNext = undefined;
             rejected++;
-            socket.write('451 Synthetic sink temporarily unavailable\r\n');
           } else {
             received.push({ recipient, data });
             socket.write('250 Accepted into isolated sink\r\n');
@@ -94,9 +99,14 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
           data = '';
           continue;
         }
-        if (/^(EHLO|HELO) /i.test(line)) socket.write('250 localhost\r\n');
-        else if (/^MAIL FROM:<aiit-rehearsal@example\.test>$/i.test(line)) {
-          if (requireAuthentication) {
+        if (/^(EHLO|HELO) /i.test(line)) {
+          socket.write(expectedAuth ? '250-localhost\r\n250 AUTH PLAIN\r\n' : '250 localhost\r\n');
+        } else if (expectedAuth && /^AUTH PLAIN [a-z0-9+/]+={0,2}$/i.test(line)) {
+          const receivedAuth = Buffer.from(line.slice(11), 'base64');
+          authenticated = receivedAuth.length === expectedAuth.length && timingSafeEqual(receivedAuth, expectedAuth);
+          socket.write(authenticated ? '235 Authentication successful\r\n' : '535 Authentication failed\r\n');
+        } else if (/^MAIL FROM:<aiit-rehearsal@example\.test>$/i.test(line)) {
+          if ((expectedAuth && !authenticated) || requireAuthentication) {
             authGateHits++;
             socket.write('530 Authentication required\r\n');
           } else {
@@ -114,10 +124,14 @@ export async function startRehearsalSink(certificate: ReturnType<typeof rehearsa
       }
     });
   });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(options.port ?? 0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+  });
   return {
-    port: await listenOnLoopback(server),
+    port: (server.address() as net.AddressInfo).port,
     received,
-    rejectNextMessage: () => { rejectNext = true; },
+    rejectNextMessage: (code: 451 | 550 = 451) => { rejectNext = code; },
     rejectedCount: () => rejected,
     authenticationRequired: (required: boolean) => { requireAuthentication = required; },
     authGateHits: () => authGateHits,

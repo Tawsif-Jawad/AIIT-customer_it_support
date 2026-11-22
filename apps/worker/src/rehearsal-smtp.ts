@@ -23,10 +23,13 @@ export function createRehearsalSmtp(env = process.env): RehearsalTransport | und
   if (env.AIIT_REHEARSAL_SMTP_PORT === undefined) return undefined;
   const port = Number(env.AIIT_REHEARSAL_SMTP_PORT);
   const caFile = env.AIIT_REHEARSAL_SMTP_CA;
+  const user = env.AIIT_REHEARSAL_SMTP_USER;
+  const pass = env.AIIT_REHEARSAL_SMTP_PASSWORD;
   const db = URL.parse(env.DATABASE_URL ?? '');
   if (env.NODE_ENV !== 'test' || env.STORAGE_MODE !== 'postgres' ||
       !db || !disposablePostgresUrl(db) || db.pathname !== '/aiit_test' ||
-      !Number.isInteger(port) || port < 1024 || port > 65535 || !caFile) {
+      !Number.isInteger(port) || port < 1024 || port > 65535 || !caFile ||
+      ((user !== undefined || pass !== undefined) && (!user || !pass))) {
     throw new Error('REHEARSAL_SMTP_UNSAFE_CONFIG');
   }
 
@@ -34,6 +37,7 @@ export function createRehearsalSmtp(env = process.env): RehearsalTransport | und
   const client = nodemailer.createTransport({
     host: '127.0.0.1', port, secure: true, name: 'localhost',
     tls: { ca: readFileSync(caFile), servername: 'localhost', minVersion: 'TLSv1.2', rejectUnauthorized: true },
+    ...(user && pass ? { auth: { user, pass }, authMethod: 'PLAIN' } : {}),
     disableFileAccess: true, disableUrlAccess: true, maxRecipients: 1,
     connectionTimeout: 3000, greetingTimeout: 3000, socketTimeout: 5000,
   });

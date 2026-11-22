@@ -1,0 +1,16 @@
+name: Synthetic enterprise infrastructure
+on:
+  pull_request:
+    paths:
+      - 'infra/synthetic-enterprise/**'
+      - '.github/workflows/synthetic-enterprise.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  keycloak-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/synthetic-enterprise/smoke.sh

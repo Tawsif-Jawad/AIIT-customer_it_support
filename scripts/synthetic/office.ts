@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { createServer, type AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -25,7 +26,7 @@ const closeServer = async (server: ReturnType<typeof createServer> | Server) => 
   await new Promise<void>(resolve => server.close(() => resolve()));
 };
 
-export async function startOffice(preferredPort = 0, autoWorker = false) {
+export async function startOffice(preferredPort = 0, autoWorker = false, authenticatedMail = false) {
   const cleanup: Array<() => unknown | Promise<unknown>> = [];
   const close = async () => {
     // Drain the worker, then shut down everything it can reach.
@@ -49,12 +50,14 @@ export async function startOffice(preferredPort = 0, autoWorker = false) {
     const cluster = await disposablePostgres();
     cleanup.push(() => cluster.close());
     const cert = rehearsalCertificate(cluster.dir);
-    const sink = await startRehearsalSink(cert);
+    const auth = authenticatedMail ? { user: 'synthetic-relay', pass: randomBytes(24).toString('base64url') } : undefined;
+    const sink = await startRehearsalSink(cert, { auth });
     cleanup.push(() => sink.close());
     const settings = {
       NODE_ENV: 'test', AUTH_MODE: 'oidc', MAIL_PROVIDER: 'mock', STORAGE_MODE: 'postgres',
       DATABASE_URL: cluster.url, OIDC_ISSUER_URL: issuer.issuer, OIDC_CLIENT_ID: 'synthetic-office',
       OIDC_ALLOW_INSECURE_LOOPBACK: 'true', APP_PUBLIC_URL: publicUrl, AIIT_REHEARSAL_SMTP_PORT: String(sink.port),
+      AIIT_REHEARSAL_SMTP_USER: auth?.user, AIIT_REHEARSAL_SMTP_PASSWORD: auth?.pass,
       AIIT_REHEARSAL_SMTP_CA: cert.caFile, OIDC_CLIENT_SECRET: undefined,
     };
     const previous = Object.fromEntries(Object.keys(settings).map(key => [key, process.env[key]]));
