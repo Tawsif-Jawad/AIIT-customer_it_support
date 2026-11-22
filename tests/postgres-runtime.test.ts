@@ -562,6 +562,62 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     assert.equal(mock.getDeliveredMessages()[0].deliveryId, job.id);
   });
 
+  await t.test('parallel custody acknowledgments record one custody change and audit', async () => {
+    const asset = await client.asset.create({
+      data: {
+        assetTag: 'DAY10-CUSTODY', serialNumber: 'DAY10-CUSTODY-SN', modelName: 'Synthetic Laptop',
+        category: 'Laptop', sbuId: source.users[0].sbuId, assignedUserId: source.users[0].id,
+        status: 'HANDOVER_PENDING_ACK', handoverAckStatus: 'PENDING_EMPLOYEE_ACK', history: [],
+      },
+    });
+    const requests = await Promise.all([1, 2].map(() => app.inject({
+      method: 'POST', url: `/api/assets/${asset.id}/acknowledge`, token: employee, body: {},
+    })));
+    assert.ok(requests.some(result => result.status === 200));
+    assert.ok(requests.every(result => result.status === 200 || result.status === 409));
+    const final = await client.asset.findUniqueOrThrow({ where: { id: asset.id } });
+    assert.equal(final.status, 'ASSIGNED');
+    assert.equal(final.handoverAckStatus, 'ACKNOWLEDGED');
+    assert.ok(Array.isArray(final.history));
+    assert.equal(final.history.length, 1);
+    assert.equal(await client.auditLog.count({
+      where: { resourceId: asset.id, action: 'ASSET_HANDOVER_ACKNOWLEDGED' },
+    }), 1);
+  });
+
+  await t.test('parallel SLA workers commit one escalation and one notification job', async () => {
+    const opened = await app.inject({ method: 'POST', url: '/api/tickets', token: employee, body: input });
+    assert.equal(opened.status, 201);
+    const candidate = await client.ticket.update({
+      where: { id: opened.data.ticket.id },
+      data: { status: 'IN_PROGRESS', severity: 'MEDIUM', slaResolutionDueAt: new Date(0) },
+    });
+    const transport = new DevelopmentEmailTransport({
+      mode: 'mock', smtpHost: 'localhost', smtpPort: 1025, fromAddress: 'fixture@example.test',
+    });
+    const workers = [new NotificationWorker(client, transport), new NotificationWorker(client, transport)];
+    const outcomes = await Promise.all(workers.map(worker => worker.processSlaOnce()));
+    assert.deepEqual(outcomes.sort(), [false, true]);
+
+    const ticket = await client.ticket.findUniqueOrThrow({ where: { id: candidate.id } });
+    assert.equal(ticket.status, 'ESCALATED_TO_CTO');
+    assert.equal(ticket.version, candidate.version + 1);
+    assert.equal(await client.slaJob.count({ where: { ticketId: ticket.id, state: 'COMPLETED' } }), 1);
+    assert.equal(await client.ticketEvent.count({
+      where: { ticketId: ticket.id, eventType: 'SLA_RESOLUTION_BREACH_ESCALATION' },
+    }), 1);
+    assert.equal(await client.auditLog.count({
+      where: { resourceId: ticket.id, action: 'SLA_RESOLUTION_BREACH_ESCALATION' },
+    }), 1);
+    const notifications = await client.notification.findMany({
+      where: { ticketId: ticket.id, subject: `[${ticket.ticketNumber}] SLA resolution breach` },
+      include: { job: true },
+    });
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].recipientId, source.users[4].id);
+    assert.equal(notifications[0].job?.state, 'QUEUED');
+  });
+
   await t.test('backup and restore preserve the exercised HTTP dataset and its relationships', async () => {
     const restored = await connectPostgres({ ...env, DATABASE_URL: cluster.restoreBackup() });
     try {

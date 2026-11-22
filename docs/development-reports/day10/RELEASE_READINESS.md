@@ -8,8 +8,8 @@
 | Office/SBU isolation | BLOCKED | Requester isolation exercised; privileged scope remains open. |
 | AI workflow safety | PASS | Deterministic mock policy and authorization tests. |
 | Database integrity | PASS | Disposable PostgreSQL transactions, migrations and recovery tests. |
-| SLA and escalation | BLOCKED | Core flow exercised; concurrent scheduler evidence incomplete. |
-| Asset management | BLOCKED | Core lifecycle exercised; parallel custody evidence incomplete. |
+| SLA and escalation | PASS | Synthetic repeat review and PostgreSQL parallel scheduler cases passed. |
+| Asset management | PASS | Synthetic asset lifecycle and parallel PostgreSQL custody acknowledgment passed. |
 | Browser functionality | PASS | Local Chromium covered both storage modes with synthetic fixtures. |
 | Real directory integration | BLOCKED | Approved environment and credentials required. |
 | Real email integration | BLOCKED | Approved relay and delivery policy required. |

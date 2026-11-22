@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { EmailTransportAdapter } from '../../../packages/connectors/src/index.ts';
 import { PostgresOutbox } from '../../api/src/postgres-outbox.ts';
 import crypto from 'node:crypto';
@@ -46,32 +46,23 @@ export class NotificationWorker {
 
   async processSlaOnce(): Promise<boolean> {
     const now = new Date();
+    const eligible: Prisma.TicketWhereInput = {
+      slaEscalatedAt: null,
+      slaBreached: false,
+      status: { notIn: ['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'] },
+      slaResolutionDueAt: { lt: now },
+    };
     const ticket = await this.client.ticket.findFirst({
-      where: {
-        slaEscalatedAt: null,
-        slaBreached: false,
-        status: { notIn: ['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'] },
-        slaResolutionDueAt: { lt: now },
-      },
+      where: eligible,
       orderBy: [{ slaResolutionDueAt: 'asc' }, { id: 'asc' }],
     });
     if (!ticket) return false;
-    const existing = await this.client.slaJob.findUnique({
-      where: { ticketId_breachType: { ticketId: ticket.id, breachType: 'RESOLUTION' } },
-    });
+    const jobKey = { ticketId_breachType: { ticketId: ticket.id, breachType: 'RESOLUTION' } };
+    const existing = await this.client.slaJob.findUnique({ where: jobKey });
     if (existing?.state === 'COMPLETED') return false;
-    const recipient = await this.client.user.findFirst({
-      where: { role: { name: ticket.severity === 'CRITICAL' ? 'CTO' : 'IT_ADMIN' }, isActive: true },
-      include: { role: true },
-    });
-    await this.client.$transaction(async tx => {
-      await tx.slaJob.upsert({
-        where: { ticketId_breachType: { ticketId: ticket.id, breachType: 'RESOLUTION' } },
-        create: { id: crypto.randomUUID(), ticketId: ticket.id, breachType: 'RESOLUTION', state: 'COMPLETED', processedAt: now },
-        update: { state: 'COMPLETED', processedAt: now, leaseUntil: null, leaseToken: null, lastError: null },
-      });
-      await tx.ticket.update({
-        where: { id: ticket.id },
+    return this.client.$transaction(async tx => {
+      const claimed = await tx.ticket.updateMany({
+        where: { ...eligible, id: ticket.id, version: ticket.version },
         data: {
           slaBreached: true,
           slaBreachedAt: now,
@@ -79,6 +70,12 @@ export class NotificationWorker {
           status: 'ESCALATED_TO_CTO',
           version: { increment: 1 },
         },
+      });
+      if (claimed.count === 0) return false;
+      await tx.slaJob.upsert({
+        where: jobKey,
+        create: { id: crypto.randomUUID(), ticketId: ticket.id, breachType: 'RESOLUTION', state: 'COMPLETED', processedAt: now },
+        update: { state: 'COMPLETED', processedAt: now, leaseUntil: null, leaseToken: null, lastError: null },
       });
       await tx.ticketEvent.create({
         data: {
@@ -90,6 +87,20 @@ export class NotificationWorker {
           metadata: { source: 'durable-sla-worker', duplicatePrevented: true },
           createdAt: now,
         },
+      });
+      await tx.auditLog.create({
+        data: {
+          sbuId: ticket.sbuId,
+          action: 'SLA_RESOLUTION_BREACH_ESCALATION',
+          resource: 'Ticket',
+          resourceId: ticket.id,
+          details: { source: 'durable-sla-worker' },
+          createdAt: now,
+        },
+      });
+      const recipient = await tx.user.findFirst({
+        where: { role: { name: 'CTO' }, isActive: true },
+        orderBy: { id: 'asc' },
       });
       if (recipient) {
         await tx.notification.create({
@@ -103,17 +114,11 @@ export class NotificationWorker {
             body: `Ticket ${ticket.ticketNumber} breached its resolution deadline and was escalated automatically.`,
             status: 'QUEUED',
             createdAt: now,
+            job: { create: { id: crypto.randomUUID() } },
           },
         });
-        await tx.notificationJob.create({
-          data: { id: crypto.randomUUID(), notificationId: (await tx.notification.findFirstOrThrow({
-            where: { ticketId: ticket.id, subject: `[${ticket.ticketNumber}] SLA resolution breach` },
-            orderBy: [{ createdAt: 'desc' }],
-            select: { id: true },
-          })).id },
-        });
       }
+      return true;
     });
-    return true;
   }
 }
