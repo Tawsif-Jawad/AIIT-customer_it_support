@@ -1,0 +1,12 @@
+# Security review
+
+| Control | Evidence and limit |
+|---|---|
+| OIDC and session | `enterprise-auth.ts` and OIDC security/browser tests cover issuer metadata, same-origin endpoints, RS256/JWKS signature verification, issuer/audience, freshness, browser flow binding, S256 PKCE, callback replay, and digest-only session persistence. Cookie protections and Origin/session CSRF checks apply to enterprise writes. |
+| Accounts and authorizers | Verified OIDC issuer and subject map to a prebound active account. Requests reload current application identity and role. Disabled and service identities fail closed. Employee ownership combines requester ID and SBU. Shared policy grants IT and CTO organization-wide ticket visibility. Approval role is checked on the current request. |
+| Object and workflow controls | Ticket history, attachment access, custody acknowledgment, recipient-owned notifications and approval status/role checks have regression evidence. New approvals persist action parameters and hashes. Legacy records require review before use with any future execution path. |
+| Input and browser protections | Existing tests cover malformed input, literal search and bounded pagination, CSP, ingress authentication and spoofed forwarding headers, exact Origin, rate limiting and error redaction. Repository dependency audits are recorded in test evidence. |
+| AI boundary | Deterministic AI handles synthetic categories. Catalog policy owns authorization. Tests cover untrusted ticket text, privileged override prevention, and gated directory/mail requests. No real privileged connector execution was exercised. Generative provider behavior is unverified. |
+| Audit and delivery | Concurrent approvals and escalations have commit/rollback and audit tests. Worker processing can repeat a delivery after an ambiguous external acknowledgment. See findings. |
+
+Day 10 changed approval decision authorization ordering and the SBU-scoped approval count in the IT report. Regression assertions are in `tests/functional-completion.test.ts`. Independent reviewers should inspect the authorization and reporting diff, confirm the privileged SBU policy with the owner, and trace outbox and approval transactions in the proposed release configuration. Human approval remains pending.

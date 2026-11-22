@@ -144,6 +144,17 @@ describe('Day 1-9 functional completion', () => {
     assert.ok(approval);
     assert.ok(approval.actionParamsHash);
 
+    const unauthorized = await app.inject({
+      method: 'POST', url: `/api/approvals/${approval.id}/decide`, token: employeeToken, body: {},
+    });
+    const unknown = await app.inject({
+      method: 'POST', url: '/api/approvals/unknown/decide', token: employeeToken, body: {},
+    });
+    assert.equal(unauthorized.status, 403);
+    assert.equal(unknown.status, 403);
+    assert.equal(unauthorized.data.error.code, unknown.data.error.code);
+    assert.equal(unauthorized.data.error.message, unknown.data.error.message);
+
     const mismatch = await app.inject({
       method: 'POST',
       url: `/api/approvals/${approval.id}/decide`,
@@ -202,6 +213,20 @@ describe('Day 1-9 functional completion', () => {
     const report = await app.inject({ method: 'GET', url: '/api/reports/summary', token: itToken });
     assert.equal(report.status, 200);
     assert.equal(typeof report.data.ticketTotal, 'number');
+
+    const state = app.store.getState();
+    const admin = state.users.find((user) => user.email === 'it@example.test');
+    assert.ok(admin);
+    const tickets = new Map(state.tickets.map((ticket) => [ticket.id, ticket]));
+    const pending = state.approvals.filter((item) => item.status === 'PENDING');
+    const scopedPending = pending.filter((item) => tickets.get(item.ticketId)?.sbuId === admin.sbuId);
+    assert.ok(pending.length > scopedPending.length, 'fixture must include a cross-SBU approval');
+    assert.equal(report.data.pendingApprovals, scopedPending.length);
+
+    const ctoToken = await login('cto@example.test');
+    const organization = await app.inject({ method: 'GET', url: '/api/reports/summary', token: ctoToken });
+    assert.equal(organization.status, 200);
+    assert.equal(organization.data.pendingApprovals, pending.length);
 
     const policies = await app.inject({ method: 'GET', url: '/api/sla/policies', token: itToken });
     assert.equal(policies.status, 200);

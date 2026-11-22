@@ -1253,6 +1253,10 @@ export function createServer<Store extends RequestStore>(
 
       const approvalMatch = pathname.match(/^\/api\/approvals\/([^/]+)\/decide$/);
       if (method === 'POST' && approvalMatch) {
+        if (!['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
+          sendError(res, 403, 'FORBIDDEN', 'Insufficient privileges to decide approvals.');
+          return;
+        }
         const approvalId = decodeURIComponent(approvalMatch[1]);
         const state = store.getState();
         const approval = state.approvals.find((a) => a.id === approvalId);
@@ -1264,10 +1268,6 @@ export function createServer<Store extends RequestStore>(
 
         if (approval.requiredRole === 'CTO' && currentUser.roleName !== 'CTO') {
           sendError(res, 403, 'FORBIDDEN', 'This critical operation requires CTO approval.');
-          return;
-        }
-        if (!['IT_ADMIN', 'CTO'].includes(currentUser.roleName)) {
-          sendError(res, 403, 'FORBIDDEN', 'Insufficient privileges to decide approvals.');
           return;
         }
 
@@ -1640,6 +1640,7 @@ export function createServer<Store extends RequestStore>(
         const state = store.getState();
         const now = Date.now();
         const tickets = state.tickets.filter((ticket) => currentUser.roleName === 'CTO' || ticket.sbuId === currentUser.sbuId);
+        const ticketIds = new Set(tickets.map((ticket) => ticket.id));
         const slaBreaches = tickets.filter((ticket) => {
           const resolutionDue = Date.parse(ticket.slaResolutionDueAt || ticket.slaDueAt);
           return ticket.slaBreached || (now > resolutionDue && !['CLOSED', 'RESOLVED_PENDING_CONFIRMATION'].includes(ticket.status));
@@ -1650,12 +1651,12 @@ export function createServer<Store extends RequestStore>(
           openTickets: tickets.filter((ticket) => ticket.status !== 'CLOSED').length,
           escalatedTickets: tickets.filter((ticket) => ticket.status === 'ESCALATED_TO_CTO').length,
           slaBreaches,
-          pendingApprovals: state.approvals.filter((approval) => approval.status === 'PENDING').length,
+          pendingApprovals: state.approvals.filter((approval) => approval.status === 'PENDING' && ticketIds.has(approval.ticketId)).length,
           assetTotal: assets.length,
           assignedAssets: assets.filter((asset) => asset.assignedUserId).length,
           maintenanceAssets: assets.filter((asset) => asset.status === 'MAINTENANCE').length,
           retiredAssets: assets.filter((asset) => asset.status === 'RETIRED').length,
-          attachmentCount: (state.ticketAttachments || []).filter((attachment) => tickets.some((ticket) => ticket.id === attachment.ticketId)).length,
+          attachmentCount: (state.ticketAttachments || []).filter((attachment) => ticketIds.has(attachment.ticketId)).length,
           generatedAt: new Date().toISOString(),
         });
         return;
