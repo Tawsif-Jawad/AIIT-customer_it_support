@@ -14,7 +14,7 @@ import { getLandingHtml } from './landing.ts';
 const WEB_PORT = Number(process.env.WEB_PORT || 3000);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
 
-export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
+export function getPortalHtml(apiBaseUrl = '', nonce?: string, synthetic = false): string {
   const nonceAttribute = nonce ? ` nonce="${nonce}"` : '';
   return `<!DOCTYPE html>
 <html lang="en">
@@ -220,6 +220,7 @@ export function getPortalHtml(apiBaseUrl = '', nonce?: string): string {
   </header>
 
   <main class="container" role="main">
+    ${synthetic ? '<p class="banner-mock"><strong>SYNTHETIC ENVIRONMENT — FICTIONAL DATA</strong></p>' : ''}
     <div class="banner-mock" role="status">
       <span><strong>Governance Notice:</strong> AI Orchestrator is running in <code>deterministic-mock-ai-provider</code> mode. Active Directory & Self-Hosted Mail production writes are safely disabled until corporate verification.</span>
       <div style="display:flex;gap:10px;align-items:center"><span id="health-pill" class="badge badge-status">Checking Health...</span><button class="btn-secondary" id="retry-health" type="button" style="padding:4px 10px;min-height:30px;font-size:10px">Retry health</button></div>
@@ -1057,7 +1058,7 @@ function htmlSecurityHeaders(nonce?: string) {
   };
 }
 
-export function createWebServer(apiTargetUrl = API_URL): http.Server {
+export function createWebServer(apiTargetUrl = API_URL, synthetic = false): http.Server {
   const target = new URL(apiTargetUrl);
   const upstream = authenticatedForwarders(process.env.WEB_TRUSTED_PROXY_IPS, process.env.WEB_PROXY_TOKEN);
   const apiProxyToken = validateProxyToken(process.env.WEB_API_PROXY_TOKEN);
@@ -1137,7 +1138,7 @@ export function createWebServer(apiTargetUrl = API_URL): http.Server {
 
     const nonce = randomBytes(18).toString('base64');
     res.writeHead(200, { ...htmlSecurityHeaders(nonce), 'Cache-Control': 'no-store' });
-    res.end(getPortalHtml('', nonce));
+    res.end(getPortalHtml('', nonce, synthetic && process.env.NODE_ENV === 'test'));
   });
 }
 

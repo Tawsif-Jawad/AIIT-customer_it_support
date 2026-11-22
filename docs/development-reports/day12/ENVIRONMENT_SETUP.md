@@ -1,0 +1,8 @@
+# Environment setup
+
+1. Use Node 26.8.1 and pnpm 9.15.0. From the repo root run `corepack pnpm install --frozen-lockfile --ignore-scripts` and `DATABASE_URL=postgresql://aiit_test@127.0.0.1:1/aiit_test corepack pnpm db:generate`. The latter value is a placeholder for generation.
+2. Put PostgreSQL binaries and OpenSSL on PATH, or set `PG_BINDIR` to the directory containing `initdb`, `pg_ctl`, `createdb`, `pg_dump` and `pg_restore`. Use an unprivileged user. On the verified Mac, `PG_BINDIR=/opt/homebrew/opt/postgresql/bin` selects PostgreSQL 18.6. Hosted CI uses version 16.
+3. Run `corepack pnpm synthetic:up` in a terminal. It creates a fresh cluster, applies migrations, seeds and verifies data, then starts the portal at `http://127.0.0.1:3120/app`. Use the commands in that terminal for `status`, `inbox`, `fail-mail`, `reset` and `down`. Startup combines seeding and bring-up; there is no command that seeds a caller-supplied database.
+4. Run `corepack pnpm synthetic:demo` for the eight checked API scenarios on a separate disposable instance. It shuts down when finished. Use `down` or Ctrl-C to stop the interactive office. `reset` builds replacements and changes the fixture issuer, so sign in again after reset.
+
+If port 3120 is occupied, stop the process occupying it only if it is your previous office instance, or use the ephemeral-port automated demo. The sandbox does not use an inherited database URL. Missing OpenSSL or PostgreSQL binaries causes startup to fail. An interrupted process may leave a uniquely named temporary cluster. Confirm process and directory ownership before manual cleanup. Never aim a reset at a database URL or operational directory.

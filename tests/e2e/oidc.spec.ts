@@ -130,3 +130,31 @@ test("enterprise IT assignment requires the session's Origin and CSRF token", as
   await page.getByRole("button", { name: "Save assignment" }).click();
   await expect(page.locator("#global-feedback")).toContainText("Ticket already assigned");
 });
+
+test("synthetic office sign-in supports three fictional roles at mobile width", async ({ browser }) => {
+  test.skip(process.env.AIIT_E2E_POSTGRES !== 'true', 'Synthetic office requires disposable PostgreSQL');
+  const { startOffice, demoPassword } = await import("../../scripts/synthetic/office.ts");
+  const office = await startOffice();
+  try {
+    for (const [email, role] of [
+      ["employee1@example.test", "EMPLOYEE"],
+      ["it1@example.test", "IT_ADMIN"],
+      ["cto@example.test", "CTO"],
+    ]) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      try {
+        await page.goto(office.publicUrl + "/app");
+        await expect(page.getByText("SYNTHETIC ENVIRONMENT — FICTIONAL DATA")).toBeVisible();
+        await page.locator("#enterprise-login-btn").click();
+        await page.getByLabel("Fictional email").fill(email);
+        await page.getByLabel("Demo password").fill(demoPassword);
+        await page.getByRole("button", { name: "Sign in", exact: true }).click();
+        await expect(page.getByTestId("active-user-badge")).toContainText(role);
+      } finally {
+        await page.close();
+      }
+    }
+  } finally {
+    await office.close();
+  }
+});

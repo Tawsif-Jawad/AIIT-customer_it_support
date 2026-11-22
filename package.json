@@ -18,6 +18,8 @@
     "dev:web": "node --watch apps/web/src/server.ts",
     "start:api": "node apps/api/src/main.ts",
     "start:worker": "node apps/worker/src/main.ts",
+    "synthetic:up": "env -i LC_ALL=C PATH=\"$PATH\" PG_BINDIR=\"${PG_BINDIR:-}\" node scripts/synthetic/cli.ts up",
+    "synthetic:demo": "env -i LC_ALL=C PATH=\"$PATH\" PG_BINDIR=\"${PG_BINDIR:-}\" node scripts/synthetic/cli.ts demo",
     "start:web": "node apps/web/src/server.ts",
     "db:seed": "node apps/api/src/prisma/seed.ts",
     "test": "NODE_ENV=test AUTH_MODE=dev_oidc MAIL_PROVIDER=mock node --test tests/*.test.ts",
