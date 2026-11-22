@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { createServer, type AddressInfo } from 'node:net';
-import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { createServer, type Server } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createWebServer } from '../../apps/web/src/server.ts';
 import { connectPostgres, createPostgresApiServer } from '../../apps/api/src/postgres-runtime.ts';
@@ -15,14 +15,14 @@ import { createOfficeNetwork } from './network.ts';
 
 export const demoPassword = 'fictional-office-demo';
 const loopback = '127.0.0.1';
-const listen = async (server: ReturnType<typeof createServer> | Server, port: number) => {
+const listen = async (server: Server, port: number) => {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, loopback, () => { server.removeListener('error', reject); resolve(); });
   });
   return (server.address() as AddressInfo).port;
 };
-const closeServer = async (server: ReturnType<typeof createServer> | Server) => {
+const closeServer = async (server: Server) => {
   await new Promise<void>(resolve => server.close(() => resolve()));
 };
 
@@ -37,12 +37,16 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
     if (errors.length) throw new AggregateError(errors, 'Synthetic shutdown failed');
   };
   try {
-    if (!preferredPort) {
-      const reservation = createServer();
-      preferredPort = await listen(reservation, 0);
-      await closeServer(reservation);
-    }
-    const publicUrl = `http://${loopback}:${preferredPort}`;
+    // Bind once and keep the assigned port while OIDC and persistence initialize.
+    let web: Server | undefined;
+    const portal = createServer((req, res) => {
+      if (web) web.emit('request', req, res);
+      else res.writeHead(503).end('Synthetic office is starting');
+    });
+    const closePortal = () => closeServer(portal);
+    cleanup.push(closePortal);
+    const port = await listen(portal, preferredPort);
+    const publicUrl = `http://${loopback}:${port}`;
     const fixture = officeDataset();
     const accounts = new Map(fixture.snapshot.users.map(user => [user.email, { subject: user.oidcSubject, active: user.isActive }]));
     const issuer = await startTestIssuer({ redirect: publicUrl + '/api/auth/oidc/callback', clientId: 'synthetic-office', accounts, password: demoPassword });
@@ -77,9 +81,10 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
     const api = await createPostgresApiServer(client);
     cleanup.push(() => closeServer(api.server));
     const apiPort = await listen(api.server, 0);
-    const web = createWebServer(`http://${loopback}:${apiPort}`, true);
-    cleanup.push(() => closeServer(web));
-    await listen(web, preferredPort);
+    web = createWebServer(`http://${loopback}:${apiPort}`, true);
+    // Drain the browser-facing server before shutting down API and storage.
+    cleanup.splice(cleanup.indexOf(closePortal), 1);
+    cleanup.push(closePortal);
     const worker = new NotificationWorker(client, createRehearsalSmtp(settings)!);
     if (autoWorker) {
       const controller = new AbortController();
