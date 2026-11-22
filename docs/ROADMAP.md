@@ -1,3 +1,43 @@
+# AIIT — Current development roadmap (updated 22 November 2026)
+
+> **Current plan.** The final goal remains a secure, functional, production-grade multi-SBU IT Support System. The next development strategy is to prove the actual application in a **complete isolated synthetic office** before requesting permission to integrate it with any real organizational infrastructure. This is a sequencing change, **not** a restart, reimplementation, change of architecture, or production authorization.
+>
+> **Status is evidence-specific.** Days 1–11 have engineering milestones recorded against development/PR heads, with Day 11 engineering PASS on [draft PR #15](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/15) at `78b3fc5298d09592370574a0cb5c540904ca1c63`. Passing isolated engineering checks does **not** mean independent approval, merged `main`, enterprise certification, stakeholder acceptance, or production readiness. The release verdict remains **NO-GO**.
+>
+> **Owner restriction.** No agent, test, diagnostic, or deployment may contact or probe office servers, corporate networks, Active Directory, company email/SMTP, corporate data or real accounts (including read-only or certificate/trust tests) until the owner explicitly authorizes the **specific** integration. Continue with synthetic users, isolated endpoints, disposable stores and test mailboxes. See the [office infrastructure isolation policy](security/OFFICE_INFRASTRUCTURE_ISOLATION_POLICY.md).
+
+## Revised sequence and acceptance
+
+| Stage | Status | Scope and intended deliverable | Acceptance evidence / outstanding gates |
+| --- | --- | --- | --- |
+| **Days 1–11 — Core application engineering** | **Engineering milestone work recorded; formal acceptance pending** | Existing frontend, API, PostgreSQL, worker and security boundaries; employee/IT/CTO workflows; assets, SLA, approvals, audit, synthetic verification and hosted CI | Retain exact-head evidence from [PR #13](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/13), [PR #14](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/14) and [PR #15](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/15). Independent review, approved dependency integration and verification on `main` remain open. |
+| **Day 12 — Full synthetic office environment** | **Next; proposed** | Reproducible isolated simulation fixture: fictional offices/SBUs, customers/employees, IT admins, CTO, equipment, tickets, roles and policy-aligned state, using the existing application | Deterministic seed/reset and documented topology; verified isolation; correct role/SBU and custody fixtures; existing production integrations stay disabled |
+| **Day 13 — Enterprise service integration lab** | **Proposed** | Exercise existing integration boundaries against *simulated* OIDC/identity, directory, SMTP/mail, and device services; include error/failure states | End-to-end adapter/contract evidence, allowlisted synthetic endpoints, bad certificate/claims/permissions tests, outbox retry/recovery; no actual office calls |
+| **Day 14 — Full-office simulation and stress testing** | **Proposed** | Multi-user employee → AI (current deterministic/mock provider) → IT → CTO scenarios, tickets, assets, approvals, SLA, failures, concurrent updates and recovery | Reproducible role/SBU scenario matrix; measured latency, throughput, conflicts, data integrity and bounded resource use at documented synthetic scales; fix and replay confirmed issues |
+| **Day 15 — Synthetic acceptance and release-candidate evaluation** | **Proposed** | Cut a traceable release-candidate *for synthetic evaluation*, run functional/security/performance/recovery suites and demonstrate a complete fictional office | Exact-commit CI, browser UAT evidence, negative authorization tests, dependency review, backup/restore and rollback evidence, open-risk register and explicit **synthetic readiness** verdict; do not call it production-approved |
+| **Later — Real enterprise integration and deployment** | **Blocked pending owner authorization** | Validate actual identity federation, AD policies, corporate SMTP/relay, runtime network/security, operational backups and recovery, stakeholders and rollout | Specific owner-approved access and changes; named independent review; approved PR integration and verified `main`; real-infrastructure tests; stakeholder UAT; release authorization |
+
+**Scheduling:** Days 12–15 are *proposed milestone labels*, not a commitment to finish in four calendar days. Prioritize evidence and quality over the numbered schedule. The earlier **10 December 2026** date is a conditional planning target, not a release promise.
+
+## Implementation rules for Days 12–15
+
+1. **One product, one system of record.** Build the synthetic office as a test-fixture/harness layer **around the real application**, not a second application, replacement backend, or alternate production architecture. Reuse existing interfaces, policies, worker, database schema and automated tests.
+2. **Representative multi-SBU behavior.** Generate deterministic fictional identities, support roles, scoped tickets, asset custody, approvals, escalations, notifications, service catalog entries, and audit histories. Test authorized behavior and forbidden cross-user/SBU actions.
+3. **True synthetic service contracts.** Simulated OIDC/Keycloak, directory, mail and device services exercise the approved adapter contracts and failures. External enterprise integration remains disabled; deterministic/mock AI must not be represented as a validated production LLM.
+4. **Security and integrity by default.** Disposable databases, synthetic `example.test` recipients, bounded load, explicit destination allowlists, secrets excluded from logs, reproducible test data and no unexpected network egress. Stop any operation whose isolation cannot be demonstrated.
+5. **Demonstrate production gaps, do not hide them.** Track source/test evidence separately for implemented, synthetic-verified, unverified, owner-decision-required and production-blocked capabilities. Evaluate data leakage, access scope, concurrency, SMTP acceptance/completion ambiguity, recovery objectives, and operational governance.
+6. **Preserve Git governance.** Continue on the reviewed Day 11 PR #15 line; do not rewrite or merge pending PRs, bypass review, or assert a new merged baseline. Obtain independent review and approved integration before calling `main` validated.
+7. **Explicit decisions remain outstanding.** Privileged SBU/CTO policy, requester data/API compatibility, production SMTP duplicate/reconciliation policy, actual operational RPO/RTO and retention, corporate identity/mail trust, target infrastructure and stakeholder UAT require the appropriate owners. No mock test resolves them.
+
+## Separate readiness verdicts
+
+- **Synthetic readiness:** A working, isolated full-office demonstration with reproducible contract, workflow, security, performance and recovery evidence; this can be evaluated during Day 15.
+- **Production readiness:** **NOT APPROVED** until office-specific integrations and permissions are explicitly authorized, independently verified, stakeholder-accepted and deployed through approved release procedures.
+
+---
+
+## Historical roadmap and milestone notes (retained; not current delivery status)
+
 > **Day 1–6 remediation update.** The next gate is independent and hosted verification of the Day 1–6 remediation. The 10 December target is conditional on a private pilot boundary and operational evidence. Privileged execution, live integrations and LLM rollout require their own approvals. [Current evidence](development-reports/DAY1_DAY6_AUDIT_REMEDIATION_2026-11-18/14_REMAINING_RELEASE_BLOCKERS.md)
 
 > Audit remediation M1 addresses active CTO notification routing, PostgreSQL ticket creation parity, catalog form validation and ticket numbering. See the [M1 acceptance report](development-reports/AUDIT_REMEDIATION_M1_2026-11-11/10_FINAL_ACCEPTANCE.md) and [remaining source-truth findings and owner decisions](development-reports/AUDIT_REMEDIATION_M1_2026-11-11/09_REMAINING_FINDINGS.md). DEF-001 remains the next integration milestone.
