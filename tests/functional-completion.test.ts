@@ -102,6 +102,13 @@ describe('Day 1-9 functional completion', () => {
     assert.equal(returnResult.status, 200);
     assert.equal(returnResult.data.asset.assignedUserId, null);
 
+    const maintenance = await app.inject({
+      method: 'POST', url: `/api/assets/${assetId}/lifecycle`, token: itToken,
+      body: { action: 'maintenance', notes: 'Synthetic maintenance' },
+    });
+    assert.equal(maintenance.status, 200);
+    assert.equal(maintenance.data.asset.status, 'MAINTENANCE');
+    assert.ok(maintenance.data.asset.history.some((event: { action: string }) => event.action === 'MAINTENANCE'));
     const retired = await app.inject({
       method: 'POST',
       url: `/api/assets/${assetId}/lifecycle`,
@@ -126,6 +133,23 @@ describe('Day 1-9 functional completion', () => {
       body: { decision: 'APPROVED', decisionNotes: 'Expired should fail', actionParams: expired.actionParams, expectedVersion: expired.expectedVersion || 0 },
     });
     assert.equal(expiredResult.status, 410, JSON.stringify(expiredResult.data));
+
+    const ctoToken = await login('cto@example.test');
+    const ctoApproval = app.store.getState().approvals.find(item => item.requiredRole === 'CTO' && item.status === 'PENDING');
+    assert.ok(ctoApproval);
+    const ctoDecision = { decision: 'REJECTED', decisionNotes: 'Synthetic CTO decision' };
+    assert.equal((await app.inject({
+      method: 'POST', url: `/api/approvals/${ctoApproval.id}/decide`, token: itToken, body: ctoDecision,
+    })).status, 403);
+    const currentCtoApproval = app.store.getState().approvals.find(item => item.id === ctoApproval.id)!;
+    const ctoExpiry = currentCtoApproval.expiresAt;
+    currentCtoApproval.expiresAt = new Date(Date.now() - 60_000).toISOString();
+    app.store.persist();
+    assert.equal((await app.inject({
+      method: 'POST', url: `/api/approvals/${ctoApproval.id}/decide`, token: ctoToken, body: ctoDecision,
+    })).status, 410);
+    app.store.getState().approvals.find(item => item.id === ctoApproval.id)!.expiresAt = ctoExpiry;
+    app.store.persist();
 
     const ticketResult = await app.inject({
       method: 'POST',
@@ -162,6 +186,19 @@ describe('Day 1-9 functional completion', () => {
       body: { decision: 'APPROVED', decisionNotes: 'Synthetic approval rationale', actionParams: { actionType: 'SUBSTITUTED' }, expectedVersion: 0 },
     });
     assert.equal(mismatch.status, 409);
+
+    const binding = approval.actionParamsHash;
+    delete app.store.getState().approvals.find(item => item.id === approval.id)!.actionParamsHash;
+    app.store.persist();
+    const unbound = await app.inject({
+      method: 'POST', url: `/api/approvals/${approval.id}/decide`, token: itToken,
+      body: { decision: 'APPROVED', decisionNotes: 'Synthetic legacy approval', actionParams: approval.actionParams },
+    });
+    assert.equal(unbound.status, 409);
+    assert.equal(unbound.data.error.code, 'APPROVAL_BINDING_REQUIRED');
+    assert.equal(app.store.getState().approvals.find(item => item.id === approval.id)?.status, 'PENDING');
+    app.store.getState().approvals.find(item => item.id === approval.id)!.actionParamsHash = binding;
+    app.store.persist();
 
     const accepted = await app.inject({
       method: 'POST',

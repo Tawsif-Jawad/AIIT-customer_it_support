@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, statSync } from 'node:fs';
 import https from 'node:https';
 import net from 'node:net';
 import type { IncomingHttpHeaders, OutgoingHttpHeaders, Server } from 'node:http';
@@ -264,6 +264,7 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   await client.$disconnect();
   const sourceCounts = await Promise.all([client.ticket.count(), client.ticketEvent.count(), client.auditLog.count(),
     client.authSession.count(), client.notification.count(), client.notificationJob.count()]);
+  const restoreStartedAt = new Date();
   const restoreStarted = performance.now();
   const restoredEnv = { ...env, DATABASE_URL: cluster.restoreBackup(), AIIT_REHEARSAL_SMTP_PORT: undefined };
   const restored = await connectPostgres(restoredEnv);
@@ -280,7 +281,9 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   assert.equal(restoredQueue.status, 200);
   assert.ok((await restoredQueue.json()).items.some((item: { title: string }) => item.title === 'Rehearsal Outlook TLS support'));
   const restoreMs = Math.round(performance.now() - restoreStarted);
-  t.diagnostic('REHEARSAL_RECOVERY ' + JSON.stringify({ restartMs, restoreMs, tickets: sourceCounts[0],
+  t.diagnostic('REHEARSAL_RECOVERY ' + JSON.stringify({ restartMs, restoreMs, startedAt: restoreStartedAt.toISOString(),
+    completedAt: new Date().toISOString(), backupBytes: statSync(cluster.dir + '/runtime.dump').size,
+    backupAgeMs: Date.now() - statSync(cluster.dir + '/runtime.dump').mtimeMs, tickets: sourceCounts[0],
     ticketEvents: sourceCounts[1], auditEntries: sourceCounts[2], sessions: sourceCounts[3],
     notifications: sourceCounts[4], jobs: sourceCounts[5] }));
   const bounded = await client.notification.create({
@@ -304,6 +307,13 @@ test('controlled staging rehearsal crosses authenticated TLS ingress, OIDC, Post
   assert.equal(exhausted.state, 'FAILED');
   assert.equal(exhausted.notification.status, 'FAILED');
   assert.equal(exhausted.notification.sentAt, null);
+  const deliveryAudit = await client.auditLog.findMany({
+    where: { action: 'NOTIFICATION_DELIVERY_EXHAUSTED', resourceId: exhausted.id },
+  });
+  assert.equal(deliveryAudit.length, 1);
+  assert.deepEqual(deliveryAudit[0].details, {
+    notificationId: bounded.id, attempts: 2, code: 'DELIVERY_FAILED',
+  });
   assert.equal(await worker.runOnce(), false);
   assert.equal(smtp.rejectedCount(), 3);
   assert.equal(smtp.received.length, 1);

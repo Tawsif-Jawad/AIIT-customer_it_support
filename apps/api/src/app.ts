@@ -29,7 +29,7 @@ import {
   MockActiveDirectoryAdapter,
   UnconfiguredMailboxProvisioningAdapter,
 } from '../../../packages/connectors/src/index.ts';
-import { sha256Params, approvalParamsForAction } from './functional-extension.ts';
+import { sha256Params } from './functional-extension.ts';
 import { planTicketCreation, ticketNumberFor, escalationNotification } from './ticket-workflow.ts';
 import { isAssignableStatus, validateAssignmentInput } from './assignment.ts';
 import { EnterpriseDataStore, type RequestStore } from './store.ts';
@@ -1280,23 +1280,26 @@ export function createServer<Store extends RequestStore>(
         if (approval.consumedAt) {
           sendError(res, 409, 'APPROVAL_ALREADY_CONSUMED', 'Approval has already been consumed.'); return;
         }
-        if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.now()) {
+        const expiry = Date.parse(approval.expiresAt ?? '');
+        if (expiry <= Date.now()) {
           sendError(res, 410, 'APPROVAL_EXPIRED', 'Approval has expired.'); return;
         }
-        const boundParams = approval.actionParams &&
-          typeof approval.actionParams === 'object' && !Array.isArray(approval.actionParams)
-          ? approval.actionParams as Record<string, unknown>
-          : null;
-        const suppliedParams = body.actionParams && typeof body.actionParams === 'object' && !Array.isArray(body.actionParams)
-          ? body.actionParams as Record<string, unknown>
-          : boundParams;
-        if (!suppliedParams) {
-          sendError(res, 400, 'VALIDATION_ERROR', 'Exact action parameters are required.'); return;
+        const boundParams = approval.actionParams;
+        if (!Number.isFinite(expiry) || !boundParams || typeof boundParams !== 'object' || Array.isArray(boundParams) ||
+            boundParams.ticketId !== approval.ticketId || boundParams.actionType !== approval.actionType ||
+            !approval.actionParamsHash || sha256Params(boundParams) !== approval.actionParamsHash) {
+          sendError(res, 409, 'APPROVAL_BINDING_REQUIRED', 'This approval must be reissued with a valid action binding.'); return;
         }
-        if (approval.actionParamsHash && sha256Params(suppliedParams) !== approval.actionParamsHash) {
-          sendError(res, 409, 'APPROVAL_PARAMETER_MISMATCH', 'Action parameters do not match the approved binding.'); return;
+        if (body.actionParams !== undefined) {
+          const suppliedParams = body.actionParams;
+          if (!suppliedParams || typeof suppliedParams !== 'object' || Array.isArray(suppliedParams)) {
+            sendError(res, 400, 'VALIDATION_ERROR', 'Action parameters must be an object.'); return;
+          }
+          if (sha256Params(suppliedParams as Record<string, unknown>) !== approval.actionParamsHash) {
+            sendError(res, 409, 'APPROVAL_PARAMETER_MISMATCH', 'Action parameters do not match the approved binding.'); return;
+          }
         }
-        if (typeof body.expectedVersion === 'number' && approval.expectedVersion !== undefined && body.expectedVersion !== approval.expectedVersion) {
+        if (body.expectedVersion !== undefined && body.expectedVersion !== approval.expectedVersion) {
           sendError(res, 409, 'APPROVAL_VERSION_CONFLICT', 'Approval parameters changed after the request was opened.'); return;
         }
         if (!decisionNotes) {

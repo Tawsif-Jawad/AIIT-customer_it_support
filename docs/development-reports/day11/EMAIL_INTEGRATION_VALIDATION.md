@@ -1,0 +1,5 @@
+# Enterprise email validation
+
+The worker defaults to mock and can use a harness-owned loopback TLS sink. The test adapter verifies its CA and hostname, requires one synthetic recipient, and uses a fixed synthetic sender. Synthetic checks include accepted formatting, unauthorized recipient rejection, TLS mismatch, relay authentication-required failure, retry, final failure audit and restart. Authenticated production delivery is unverified.
+
+Mail operations must supply the approved relay hostname and port separately from the sender identity, transport mode and CA chain, a scoped sending identity and approved envelope sender, recipient controls and test addresses, and secured credential injection. Rehearse authenticated sending, transient rejection, non-delivery reports, blocked addresses, and relay-side duplicate handling. Record stable message/job identifiers and sanitized outcomes. Production transport is blocked by the current runtime guard and by unavailable authorized relay access. See [SMTP delivery reliability](SMTP_DELIVERY_RELIABILITY.md).

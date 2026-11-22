@@ -72,13 +72,16 @@ async function readState(tx: Tx, { pathname, method, developmentSessionDigest }:
     pathname === '/api/auth/me' ? tx.role.findMany() : [],
     creating || detail || ['/api/catalog','/api/sla/policies','/api/sla/status','/api/sla/review'].includes(pathname) ? tx.serviceCategory.findMany({ orderBy: [...oldest] }) : [],
     ticketWhere || approvalId || ['/api/sla/status', '/api/sla/review', '/api/reports/summary'].includes(pathname) ? tx.ticket.findMany({
-      where: ticketWhere ?? { approvals: { some: { id: approvalId } } }, orderBy: [...newest],
+      where: ticketWhere ?? (approvalId ? { approvals: { some: { id: approvalId } } } : undefined), orderBy: [...newest],
     }) : [],
     detail || assigning ? tx.ticketEvent.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     detail ? tx.ticketComment.findMany({ where: ticketFilter, orderBy: [...oldest] }) : [],
     ticketKey ? tx.ticketAttachment.findMany({ where: { ticketId: ticketKey }, orderBy: [...oldest] }) : pathname === '/api/reports/summary' ? tx.ticketAttachment.findMany({ orderBy: [...oldest] }) : [],
     assetId ? tx.asset.findMany({ where: { id: assetId } }) : ['/api/assets','/api/reports/summary'].includes(pathname) ? tx.asset.findMany({ orderBy: [...oldest] }) : [],
-    detail || approvalId ? tx.approval.findMany({ where: ticketFilter ?? { id: approvalId }, orderBy: [...newest] }) : [],
+    detail || approvalId || pathname === '/api/reports/summary' ? tx.approval.findMany({
+      where: pathname === '/api/reports/summary' ? { status: 'PENDING' } : ticketFilter ?? { id: approvalId },
+      orderBy: [...newest],
+    }) : [],
     notificationId ? tx.notification.findMany({ where: { id: notificationId } }) : [],
     detail ? tx.aIActionLog.findMany({ where: ticketFilter, orderBy: [...newest] }) : [],
     pathname === '/api/audit-logs' ? tx.auditLog.findMany({ orderBy: [...newest], take: 100 }) : [],

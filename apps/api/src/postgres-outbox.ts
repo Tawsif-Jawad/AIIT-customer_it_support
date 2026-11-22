@@ -23,19 +23,28 @@ export class PostgresOutbox implements NotificationOutbox {
     return this.client.$transaction(async (tx) => {
       // Expired final attempts are retained as FAILED, never reclaimed forever.
       const exhausted = await tx.$queryRaw<
-        { notificationId: string }[]
+        { id: string; notificationId: string; attempts: number }[]
       >`WITH expired AS (
         SELECT id FROM "NotificationJob"
         WHERE state='PROCESSING' AND "leaseUntil"<=statement_timestamp() AND attempts>="maxAttempts"
         ORDER BY "leaseUntil", id LIMIT 32 FOR UPDATE SKIP LOCKED
       ) UPDATE "NotificationJob" j
       SET state='FAILED', "leaseToken"=NULL, "leaseUntil"=NULL, "lastError"='LEASE_EXHAUSTED'
-      FROM expired e WHERE j.id=e.id RETURNING j."notificationId"`;
-      if (exhausted.length)
+      FROM expired e WHERE j.id=e.id RETURNING j.id, j."notificationId", j.attempts`;
+      if (exhausted.length) {
         await tx.notification.updateMany({
           where: { id: { in: exhausted.map((job) => job.notificationId) } },
           data: { status: "FAILED", errorDetails: "LEASE_EXHAUSTED" },
         });
+        await tx.auditLog.createMany({
+          data: exhausted.map(job => ({
+            action: "NOTIFICATION_DELIVERY_EXHAUSTED",
+            resource: "NotificationJob",
+            resourceId: job.id,
+            details: { notificationId: job.notificationId, attempts: job.attempts, code: "LEASE_EXHAUSTED" },
+          })),
+        });
+      }
       const jobs = await tx.$queryRaw<NotificationJob[]>`WITH candidate AS (
         SELECT id FROM "NotificationJob" WHERE attempts<"maxAttempts" AND
         ((state='QUEUED' AND "availableAt"<=statement_timestamp()) OR (state='PROCESSING' AND "leaseUntil"<=statement_timestamp()))
@@ -82,6 +91,16 @@ export class PostgresOutbox implements NotificationOutbox {
           ),
         },
       });
+      if (state === "FAILED") {
+        await tx.auditLog.create({
+          data: {
+            action: "NOTIFICATION_DELIVERY_EXHAUSTED",
+            resource: "NotificationJob",
+            resourceId: job.id,
+            details: { notificationId: job.notificationId, attempts: job.attempts, code: "DELIVERY_FAILED" },
+          },
+        });
+      }
       await tx.notification.update({
         where: { id: job.notificationId },
         data: {

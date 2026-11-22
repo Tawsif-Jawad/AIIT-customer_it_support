@@ -94,6 +94,13 @@ async function workflow(app: API) {
   assert.equal(reopened.ticket.status, 'REOPENED');
   const routed = await check('create approval', 'POST', '/api/tickets', 201, employee, { ...input, serviceCategoryId: 'cat-ad-account', customFormPayload: { targetAdGroup: 'Synthetic', businessJustification: 'Synthetic approval' } });
   assert.equal(routed.ticket.assigneeId, runtimeFixture().users[3].id);
+  const report = await check('pending approval report', 'GET', '/api/reports/summary', 200, cto);
+  assert.ok(report.pendingApprovals > 0);
+  checks.reportTotals = [report.ticketTotal, report.openTickets, report.pendingApprovals];
+  const itReport = await check('IT scoped report', 'GET', '/api/reports/summary', 200, it);
+  assert.ok(itReport.ticketTotal < report.ticketTotal);
+  checks.itReportTotals = [itReport.ticketTotal, itReport.openTickets, itReport.pendingApprovals];
+  await check('employee report denied', 'GET', '/api/reports/summary', 403, employee);
   const approvals = await check('approval list', 'GET', '/api/approvals', 200, it);
   const approval = approvals.items.find((row: { ticketId: string }) => row.ticketId === routed.ticket.id);
   assert.ok(approval);
@@ -522,6 +529,10 @@ test('PostgreSQL HTTP runtime parity, rollback, concurrent numbering, worker and
     assert.equal(failed.status, 'FAILED');
     assert.equal(failed.job?.lastError, 'LEASE_EXHAUSTED');
     assert.equal(failed.sentAt, null);
+    const audit = await client.auditLog.findFirstOrThrow({
+      where: { action: 'NOTIFICATION_DELIVERY_EXHAUSTED', resourceId: terminal.id },
+    });
+    assert.deepEqual(audit.details, { notificationId: terminal.id, attempts: 1, code: 'LEASE_EXHAUSTED' });
   });
 
   await t.test('SIGKILL after claim leaves a recoverable job for a new worker', async () => {
