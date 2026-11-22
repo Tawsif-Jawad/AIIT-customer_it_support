@@ -148,8 +148,10 @@ test("synthetic office sign-in supports three fictional roles at mobile width", 
         await page.locator("#enterprise-login-btn").click();
         await page.getByLabel("Fictional email").fill(email);
         await page.getByLabel("Demo password").fill(demoPassword);
+        const ticketDetail = page.waitForResponse(response => new URL(response.url()).pathname.startsWith("/api/tickets/office-ticket-"));
         await page.getByRole("button", { name: "Sign in", exact: true }).click();
         await expect(page.getByTestId("active-user-badge")).toContainText(role);
+        expect((await ticketDetail).ok()).toBe(true);
       } finally {
         await page.close();
       }

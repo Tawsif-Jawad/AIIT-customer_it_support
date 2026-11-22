@@ -22,7 +22,6 @@ const listen = async (server: ReturnType<typeof createServer> | Server, port: nu
   return (server.address() as AddressInfo).port;
 };
 const closeServer = async (server: ReturnType<typeof createServer> | Server) => {
-  if ('closeAllConnections' in server) server.closeAllConnections();
   await new Promise<void>(resolve => server.close(() => resolve()));
 };
 
