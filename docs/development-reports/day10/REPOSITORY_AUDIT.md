@@ -19,7 +19,7 @@ The supplied SHA `41050cb1ab2fc435c0f4a8f4856b099a3ff540e` differs from the actu
 | [#12](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/12) | Draft | `codex/day8-controlled-staging-rehearsal` | `codex/day9-reliability-performance-release-readiness` | `80e8225c8b02947123f3dac1c9582fb57b732218` | [Success](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/44289517673) |
 | [#13](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/pull/13) | Draft | `main` | `tawsif-jawad-day1-9-remediation` | `41050cbd1ab2fc435c0f4a8f4856b099a3ff540e` | [Success](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/44888326778) |
 
-GitHub review submissions were empty for all twelve PRs. No approval is evidenced. All twelve were open at the snapshot; #3 was the only non-draft. Successful workflow runs are distinct from enforced branch-protection checks. Effective protection settings were not established; the repository workflow defines `quality`, `tests`, `database`, and `browser`.
+GitHub review submissions were empty for all twelve PRs. No approval is evidenced. All twelve were open at the snapshot; #3 was the only non-draft. Successful workflow runs are distinct from enforced branch-protection checks. GitHub reports that [main is protected](https://api.github.com/repos/Tawsif-Jawad/AIIT-customer_it_support/branches/main) and requires `quality`, `tests`, `database`, and `browser` for everyone. The full ruleset and any additional human review settings still require maintainer verification.
 
 All adjacent head-to-head ancestry checks from #2 through #13 succeeded. The main-to-candidate merge-tree simulation completed without conflict.
 

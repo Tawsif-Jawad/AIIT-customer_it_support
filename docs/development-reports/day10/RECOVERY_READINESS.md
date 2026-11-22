@@ -1,6 +1,6 @@
 # Recovery readiness
 
-The disposable PostgreSQL fixture initializes an empty cluster, runs the committed Prisma migrations, and starts the application against the migrated schema. The database suite covers referential integrity, atomic rollback, contention and retry, outbox leases, connection failure, and restart. The controlled rehearsal measured 1,868 ms for restart and 2,404 ms for synthetic restore. The restored dataset contained four tickets, eight ticket events, nine audit entries, four sessions, one notification and one outbox job. A separate runtime restore verified 21 tickets, 26 outbox jobs, 44 audit records and seven sessions with matching relationships. Timings reflect tiny local fixtures.
+The disposable PostgreSQL fixture initializes an empty cluster, runs the committed Prisma migrations, and starts the application against the migrated schema. The database suite covers referential integrity, atomic rollback, contention and retry, outbox leases, connection failure, and restart. The controlled rehearsal measured 640 ms for restart and 1,884 ms for synthetic restore. The restored dataset contained four tickets, eight ticket events, nine audit entries, four sessions, one notification and one outbox job. A separate runtime restore verified 21 tickets, 26 outbox jobs, 44 audit records and seven sessions with matching relationships. Timings reflect tiny local fixtures.
 
 ## Restore procedure for an isolated drill
 
