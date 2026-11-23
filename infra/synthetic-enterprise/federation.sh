@@ -57,8 +57,9 @@ read_directory() {
     -H ldaps://directory:636 -x -D CN=federation-reader,CN=Users,DC=office,DC=example,DC=test \
     -y /fixture/bind-password -b OU=Staff,DC=office,DC=example,DC=test "$1" "${@:2}"
 }
-for attempt in {1..40}; do
-  if read_directory '(objectClass=organizationalUnit)' ou >"$root/units.ldif" 2>"$root/ldap-error"; then break; fi
+ready=false
+for attempt in {1..12}; do
+  if read_directory '(objectClass=organizationalUnit)' ou >"$root/units.ldif" 2>"$root/ldap-error"; then ready=true; break; fi
   directory_id=$(dc ps -aq directory)
   if [[ "$(docker inspect -f '{{.State.Running}}' "$directory_id")" != true ]]; then
     echo 'Samba exited before accepting LDAPS' >&2
@@ -67,6 +68,13 @@ for attempt in {1..40}; do
   fi
   sleep 2
 done
+if [[ "$ready" != true ]]; then
+  echo 'Trusted LDAPS readiness probe failed' >&2
+  cat "$root/ldap-error" >&2
+  dc exec -T directory openssl s_client -brief -connect directory:636 -verify_hostname directory \
+    -verify_return_error -CAfile /fixture/ca.pem </dev/null || true
+  exit 1
+fi
 echo "LDAPS organizational unit count: $(grep -ic '^ou: OFFICE-' "$root/units.ldif" || true)"
 test "$(grep -ic '^ou: OFFICE-' "$root/units.ldif")" -eq 6
 read_directory '(employeeID=FIC-*)' employeeID >"$root/users.ldif"
