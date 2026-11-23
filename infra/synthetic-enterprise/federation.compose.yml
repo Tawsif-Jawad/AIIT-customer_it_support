@@ -1,0 +1,18 @@
+services:
+  directory:
+    build:
+      context: .
+      dockerfile: Samba.Dockerfile
+    hostname: directory
+    volumes:
+      - ${AIIT_DAY13_FIXTURE:?Run the federation harness}:/fixture:ro
+    networks: [identity]
+    init: true
+    security_opt: [no-new-privileges:true]
+  issuer:
+    environment:
+      KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/synthetic-ad-ca.pem
+    volumes:
+      - ${AIIT_DAY13_FIXTURE:?Run the federation harness}/ca.pem:/opt/keycloak/conf/synthetic-ad-ca.pem:ro
+      - ${AIIT_DAY13_REALM:?Run the federation harness}:/opt/keycloak/data/import/aiit-synthetic-office-realm.json:ro
+    depends_on: [directory]

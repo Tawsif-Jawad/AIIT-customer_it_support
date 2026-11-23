@@ -14,3 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash infra/synthetic-enterprise/smoke.sh
+  samba-ldaps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: bash infra/synthetic-enterprise/federation.sh
