@@ -50,10 +50,25 @@ try {
   });
   assert.equal(grant.status, 200, 'Synthetic management authentication failed');
   const { access_token } = await grant.json();
+  const adminHeaders = { authorization: 'Bearer ' + access_token };
+  const adminRealm = root + '/admin/realms/' + realm;
+  const providers = await fetch(adminRealm + '/components?type=' + encodeURIComponent('org.keycloak.storage.UserStorageProvider'), {
+    headers: adminHeaders,
+  });
+  assert.equal(providers.status, 200);
+  const directory = (await providers.json() as Array<{ id: string; name: string }>).find(provider => provider.name === 'synthetic-samba');
+  assert.ok(directory?.id);
+  const sync = await fetch(adminRealm + '/user-storage/' + directory.id + '/sync?action=triggerFullSync', {
+    method: 'POST', headers: adminHeaders,
+  });
+  assert.equal(sync.status, 200);
+  const { added, updated, failed } = await sync.json();
+  assert.equal(failed, 0);
+  assert.equal(added + updated, 129);
+  console.log(JSON.stringify({ directorySync: { added, updated, failed } }));
   const subjects = new Map<string, string>();
   for (const email of actorEmails) {
-    const users = await fetch(root + '/admin/realms/' + realm + '/users?exact=true&username=' + username(email),
-      { headers: { authorization: 'Bearer ' + access_token } });
+    const users = await fetch(adminRealm + '/users?exact=true&username=' + username(email), { headers: adminHeaders });
     assert.equal(users.status, 200);
     const entries = await users.json() as Array<{ id: string; username: string; email: string; federationLink: string }>;
     assert.equal(entries.length, 1);

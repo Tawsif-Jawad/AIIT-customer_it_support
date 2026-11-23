@@ -13,7 +13,7 @@ domain = 'DC=office,DC=example,DC=test'
 staff = 'OU=Staff,' + domain
 configuration = Path('/tmp/synthetic-ad/etc/smb.conf')
 def serve():
-    os.execv('/usr/sbin/samba', ['samba', '--foreground', '--no-process-group', '-s', str(configuration)])
+    os.execv('/usr/sbin/samba', ['samba', '--foreground', '--debug-stdout', '--no-process-group', '-s', str(configuration)])
 
 if Path('/tmp/synthetic-ad/provisioned').is_file():
     serve()

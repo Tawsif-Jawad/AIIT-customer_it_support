@@ -58,16 +58,23 @@ read_directory() {
     -y /fixture/bind-password -b OU=Staff,DC=office,DC=example,DC=test "$1" "${@:2}"
 }
 for attempt in {1..40}; do
-  if read_directory '(objectClass=organizationalUnit)' ou >"$root/units.ldif" 2>/dev/null; then break; fi
+  if read_directory '(objectClass=organizationalUnit)' ou >"$root/units.ldif" 2>"$root/ldap-error"; then break; fi
   directory_id=$(dc ps -aq directory)
-  test "$(docker inspect -f '{{.State.Running}}' "$directory_id")" = true
+  if [[ "$(docker inspect -f '{{.State.Running}}' "$directory_id")" != true ]]; then
+    echo 'Samba exited before accepting LDAPS' >&2
+    cat "$root/ldap-error" >&2
+    exit 1
+  fi
   sleep 2
 done
-test "$(grep -c '^ou: OFFICE-' "$root/units.ldif")" -eq 6
+echo "LDAPS organizational unit count: $(grep -ic '^ou: OFFICE-' "$root/units.ldif" || true)"
+test "$(grep -ic '^ou: OFFICE-' "$root/units.ldif")" -eq 6
 read_directory '(employeeID=FIC-*)' employeeID >"$root/users.ldif"
-test "$(grep -c '^employeeID:' "$root/users.ldif")" -eq 129
+echo "LDAPS identity count: $(grep -ic '^employeeID:' "$root/users.ldif" || true)"
+test "$(grep -ic '^employeeID:' "$root/users.ldif")" -eq 129
 read_directory '(&(employeeID=FIC-*)(userAccountControl:1.2.840.113556.1.4.803:=2))' employeeID >"$root/disabled.ldif"
-test "$(grep -c '^employeeID:' "$root/disabled.ldif")" -eq 3
+echo "LDAPS disabled identity count: $(grep -ic '^employeeID:' "$root/disabled.ldif" || true)"
+test "$(grep -ic '^employeeID:' "$root/disabled.ldif")" -eq 3
 read_directory '(sAMAccountName=employee1)' mail memberOf department >"$root/employee.ldif"
 grep -q '^mail: employee1@example.test$' "$root/employee.ldif"
 grep -qi '^memberOf: CN=ROLE-EMPLOYEE,' "$root/employee.ldif"
@@ -95,8 +102,8 @@ for family, endpoint in ((socket.AF_INET, ('192.0.2.1', 443)), (socket.AF_INET6,
 print('IPv4, IPv6 and outbound DNS documentation-range probes unreachable')
 PYTHON
 for name in employee1 it1 cto; do
-  dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
-    -H ldaps://directory:636 -x -D "$name@office.example.test" -y /fixture/user-password >/dev/null
+  dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \
+    -H ldaps://directory:636 -x -D "$name@office.example.test" -y /fixture/user-password defaultNamingContext >/dev/null
 done
 dc up -d issuer
 issuer=$(dc ps -q issuer)
@@ -107,23 +114,23 @@ curl -fsS --noproxy '*' --connect-to "localhost:38443:$address:8443" \
   | jq -e '.issuer == "https://localhost:38443/realms/aiit-synthetic-office"' >/dev/null
 echo 'Verified real Samba directory counts, disabled flags, LDAPS binds and Keycloak realm discovery.'
 
-if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
-  -H ldaps://directory:636 -x -D employee120@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \
+  -H ldaps://directory:636 -x -D employee120@office.example.test -y /fixture/user-password defaultNamingContext >/dev/null 2>&1; then
   echo 'Disabled identity unexpectedly bound to Samba' >&2
   exit 1
 fi
-if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
-  -H ldaps://127.0.0.1:636 -x -D employee1@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \
+  -H ldaps://127.0.0.1:636 -x -D employee1@office.example.test -y /fixture/user-password defaultNamingContext >/dev/null 2>&1; then
   echo 'LDAPS accepted an incorrect hostname' >&2
   exit 1
 fi
-if dc exec -T directory env LDAPTLS_REQCERT=demand ldapwhoami \
-  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+if dc exec -T directory env LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \
+  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/user-password defaultNamingContext >/dev/null 2>&1; then
   echo 'LDAPS accepted an untrusted certificate' >&2
   exit 1
 fi
-if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
-  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/bind-password >/dev/null 2>&1; then
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \
+  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/bind-password defaultNamingContext >/dev/null 2>&1; then
   echo 'LDAPS accepted an incorrect password' >&2
   exit 1
 fi
