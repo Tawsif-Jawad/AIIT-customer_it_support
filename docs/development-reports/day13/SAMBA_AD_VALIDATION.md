@@ -9,3 +9,7 @@ Real bind, user/password verification, missing and disabled users, group/profile
 ## Remediation implementation
 
 `infra/synthetic-enterprise/federation.sh` builds the Samba fixture from an immutable Debian base and provisions the existing manifest. Samba serves LDAP on a private Docker network. The runner tests actual LDAPS search counts, fictional attributes and membership, enabled role binds, disabled bind, wrong credentials, untrusted certificate and hostname mismatch. Keycloak uses a separate ordinary directory user with read-only provider configuration. Hosted verification is required before these checks can be marked passed.
+
+Hosted remediation verified the live Samba certificate chain and hostname with TLS 1.3. LDAP then returned invalid credentials for the federation reader. The harness now writes password files without a trailing newline, matching the bytes used during provisioning. The associated rerun must demonstrate the positive bind and all later assertions. [TLS and bind diagnostic](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45108830274/job/137476253658)
+
+The hosted password-file rerun verified 6 organizational units, 129 employee records, 3 disabled flags, trusted role binds and the transport rejection checks, then reached Keycloak federation. [Hosted directory results](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45109042618/job/137476921029)

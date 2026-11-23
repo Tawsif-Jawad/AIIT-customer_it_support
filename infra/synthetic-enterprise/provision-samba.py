@@ -50,9 +50,11 @@ for account in manifest['accounts']:
     ou = account['ou'].removesuffix(',' + domain)
     db.newuser(name, password, userou=ou, useusernameascn=True)
     obj = db.search(base=staff, expression='(sAMAccountName=' + ldb.binary_encode(name) + ')')[0]
+    first_name, last_name = account['displayName'].split(' ', 1)
     update = ldb.Message(obj.dn)
     for key, value in {'mail': account['email'], 'employeeID': account['employeeNumber'],
-                       'department': account['department'], 'displayName': account['displayName']}.items():
+                       'department': account['department'], 'displayName': account['displayName'],
+                       'givenName': first_name, 'sn': last_name}.items():
         update[key] = ldb.MessageElement(value, ldb.FLAG_MOD_REPLACE, key)
     db.modify(update)
     for group in account['groups']:

@@ -35,6 +35,18 @@ jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
   .components = {"org.keycloak.storage.UserStorageProvider": [{
     name:"synthetic-samba", providerId:"ldap",
     subComponents:{"org.keycloak.storage.ldap.mappers.LDAPStorageMapper":[
+      {name:"synthetic-username",providerId:"user-attribute-ldap-mapper",config:{
+        "user.model.attribute":["username"],"ldap.attribute":["sAMAccountName"],"read.only":["true"],
+        "always.read.value.from.ldap":["true"],"is.mandatory.in.ldap":["true"]
+      }},
+      {name:"synthetic-first-name",providerId:"user-attribute-ldap-mapper",config:{
+        "user.model.attribute":["firstName"],"ldap.attribute":["givenName"],"read.only":["true"],
+        "always.read.value.from.ldap":["true"]
+      }},
+      {name:"synthetic-last-name",providerId:"user-attribute-ldap-mapper",config:{
+        "user.model.attribute":["lastName"],"ldap.attribute":["sn"],"read.only":["true"],
+        "always.read.value.from.ldap":["true"]
+      }},
       {name:"synthetic-email",providerId:"user-attribute-ldap-mapper",config:{
         "user.model.attribute":["email"],"ldap.attribute":["mail"],"read.only":["true"],
         "always.read.value.from.ldap":["true"],"is.mandatory.in.ldap":["true"]
