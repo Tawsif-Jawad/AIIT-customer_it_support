@@ -33,7 +33,14 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
 chmod 644 "$AIIT_DAY13_TLS_DIR/"*.pem "$AIIT_DAY13_FIXTURE/ca.pem"
 jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
   .components = {"org.keycloak.storage.UserStorageProvider": [{
-    name:"synthetic-samba", providerId:"ldap", subComponents:{}, config:{
+    name:"synthetic-samba", providerId:"ldap",
+    subComponents:{"org.keycloak.storage.ldap.mappers.LDAPStorageMapper":[
+      {name:"synthetic-email",providerId:"user-attribute-ldap-mapper",config:{
+        "user.model.attribute":["email"],"ldap.attribute":["mail"],"read.only":["true"],
+        "always.read.value.from.ldap":["true"],"is.mandatory.in.ldap":["true"]
+      }},
+      {name:"synthetic-account-status",providerId:"msad-user-account-control-mapper",config:{}}
+    ]}, config:{
       enabled:["true"], priority:["0"], vendor:["ad"], editMode:["READ_ONLY"],
       connectionUrl:["ldaps://directory:636"], usersDn:["OU=Staff,DC=office,DC=example,DC=test"],
       bindDn:["CN=federation-reader,CN=Users,DC=office,DC=example,DC=test"],
@@ -59,6 +66,22 @@ read_directory '(employeeID=FIC-*)' employeeID >"$root/users.ldif"
 test "$(grep -c '^employeeID:' "$root/users.ldif")" -eq 129
 read_directory '(&(employeeID=FIC-*)(userAccountControl:1.2.840.113556.1.4.803:=2))' employeeID >"$root/disabled.ldif"
 test "$(grep -c '^employeeID:' "$root/disabled.ldif")" -eq 3
+read_directory '(sAMAccountName=employee1)' mail memberOf department >"$root/employee.ldif"
+grep -q '^mail: employee1@example.test$' "$root/employee.ldif"
+grep -qi '^memberOf: CN=ROLE-EMPLOYEE,' "$root/employee.ldif"
+grep -q '^department: Operations$' "$root/employee.ldif"
+# Refuse any external routes. Probe only reserved documentation addresses.
+dc exec -T directory python3 - <<'PYTHON'
+import errno
+import socket
+for family, endpoint in ((socket.AF_INET, ('192.0.2.1', 443)), (socket.AF_INET6, ('2001:db8::1', 443))):
+    with socket.socket(family) as client:
+        client.settimeout(2)
+        result = client.connect_ex(endpoint)
+        if result not in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EAFNOSUPPORT):
+            raise SystemExit('Expected an unreachable documentation destination, got errno ' + str(result))
+print('IPv4 and IPv6 documentation-route probes unreachable')
+PYTHON
 for name in employee1 it1 cto; do
   dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
     -H ldaps://directory:636 -x -D "$name@office.example.test" -y /fixture/user-password >/dev/null
