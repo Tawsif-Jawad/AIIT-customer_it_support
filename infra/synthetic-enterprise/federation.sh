@@ -20,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT
 node ../../scripts/synthetic/directory-manifest.ts >"$AIIT_DAY13_FIXTURE/directory.json"
-for role in user bind; do printf 'Fic!7%s\n' "$(openssl rand -hex 24)" >"$AIIT_DAY13_FIXTURE/$role-password"; done
+for role in user bind; do printf 'Fic!7%s' "$(openssl rand -hex 24)" >"$AIIT_DAY13_FIXTURE/$role-password"; done
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=AIIT-Synthetic-CA \
   -keyout "$root/ca-key.pem" -out "$AIIT_DAY13_FIXTURE/ca.pem" 2>/dev/null
 openssl req -new -newkey rsa:2048 -nodes -subj /CN=directory -keyout "$AIIT_DAY13_FIXTURE/ad-key.pem" -out "$root/ad.csr" 2>/dev/null
