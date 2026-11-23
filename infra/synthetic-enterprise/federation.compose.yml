@@ -11,6 +11,8 @@ services:
     security_opt: [no-new-privileges:true]
   issuer:
     environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: fixture-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${AIIT_DAY13_ADMIN_PASSWORD:?Run the federation harness}
       KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/synthetic-ad-ca.pem
     volumes:
       - ${AIIT_DAY13_FIXTURE:?Run the federation harness}/ca.pem:/opt/keycloak/conf/synthetic-ad-ca.pem:ro

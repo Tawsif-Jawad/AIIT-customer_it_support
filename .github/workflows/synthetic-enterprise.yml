@@ -19,7 +19,9 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-16 postgresql-contrib-16 libnss3-tools
+      - run: pnpm exec playwright install --with-deps chromium
       - run: bash infra/synthetic-enterprise/federation.sh
+        env:
+          PG_BINDIR: /usr/lib/postgresql/16/bin

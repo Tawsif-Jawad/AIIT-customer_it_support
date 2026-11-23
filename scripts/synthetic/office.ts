@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { createServer, type Server } from 'node:http';
+import { createServer as createTlsServer, type ServerOptions } from 'node:https';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createWebServer } from '../../apps/web/src/server.ts';
 import { connectPostgres, createPostgresApiServer } from '../../apps/api/src/postgres-runtime.ts';
@@ -26,7 +27,14 @@ const closeServer = async (server: Server) => {
   await new Promise<void>(resolve => server.close(() => resolve()));
 };
 
-export async function startOffice(preferredPort = 0, autoWorker = false, authenticatedMail = false) {
+interface FederatedIdentity {
+  issuer: string;
+  clientId: string;
+  serverTls: ServerOptions;
+  subjects: ReadonlyMap<string, string>;
+}
+
+export async function startOffice(preferredPort = 0, autoWorker = false, authenticatedMail = false, federated?: FederatedIdentity) {
   const cleanup: Array<() => unknown | Promise<unknown>> = [];
   const close = async () => {
     // Drain the worker, then shut down everything it can reach.
@@ -39,18 +47,19 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
   try {
     // Bind once and keep the assigned port while OIDC and persistence initialize.
     let web: Server | undefined;
-    const portal = createServer((req, res) => {
+    const handle: Parameters<typeof createServer>[1] = (req, res) => {
       if (web) web.emit('request', req, res);
       else res.writeHead(503).end('Synthetic office is starting');
-    });
+    };
+    const portal = federated ? createTlsServer(federated.serverTls, handle) : createServer(handle);
     const closePortal = () => closeServer(portal);
     cleanup.push(closePortal);
     const port = await listen(portal, preferredPort);
-    const publicUrl = `http://${loopback}:${port}`;
+    const publicUrl = federated ? `https://localhost:${port}` : `http://${loopback}:${port}`;
     const fixture = officeDataset();
     const accounts = new Map(fixture.snapshot.users.map(user => [user.email, { subject: user.oidcSubject, active: user.isActive }]));
-    const issuer = await startTestIssuer({ redirect: publicUrl + '/api/auth/oidc/callback', clientId: 'synthetic-office', accounts, password: demoPassword });
-    cleanup.push(() => issuer.close());
+    const issuer = federated ?? await startTestIssuer({ redirect: publicUrl + '/api/auth/oidc/callback', clientId: 'synthetic-office', accounts, password: demoPassword });
+    if ('close' in issuer) cleanup.push(() => issuer.close());
     const cluster = await disposablePostgres();
     cleanup.push(() => cluster.close());
     const cert = rehearsalCertificate(cluster.dir);
@@ -59,8 +68,8 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
     cleanup.push(() => sink.close());
     const settings = {
       NODE_ENV: 'test', AUTH_MODE: 'oidc', MAIL_PROVIDER: 'mock', STORAGE_MODE: 'postgres',
-      DATABASE_URL: cluster.url, OIDC_ISSUER_URL: issuer.issuer, OIDC_CLIENT_ID: 'synthetic-office',
-      OIDC_ALLOW_INSECURE_LOOPBACK: 'true', APP_PUBLIC_URL: publicUrl, AIIT_REHEARSAL_SMTP_PORT: String(sink.port),
+      DATABASE_URL: cluster.url, OIDC_ISSUER_URL: issuer.issuer, OIDC_CLIENT_ID: federated?.clientId ?? 'synthetic-office',
+      OIDC_ALLOW_INSECURE_LOOPBACK: federated ? 'false' : 'true', APP_PUBLIC_URL: publicUrl, AIIT_REHEARSAL_SMTP_PORT: String(sink.port),
       AIIT_REHEARSAL_SMTP_USER: auth?.user, AIIT_REHEARSAL_SMTP_PASSWORD: auth?.pass,
       AIIT_REHEARSAL_SMTP_CA: cert.caFile, OIDC_CLIENT_SECRET: undefined,
     };
@@ -76,6 +85,13 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
     const client = await connectPostgres(settings);
     cleanup.push(() => client.$disconnect());
     const { snapshot } = officeDataset(issuer.issuer);
+    if (federated) {
+      for (const user of snapshot.users) {
+        const subject = federated.subjects.get(user.email);
+        user.oidcSubject = subject ?? 'unbound-' + user.id;
+        if (!subject) delete user.oidcIssuer;
+      }
+    }
     const counts = await importJsonSnapshot(client, snapshot);
     await verifyImportedSnapshot(client, snapshot);
     const api = await createPostgresApiServer(client);

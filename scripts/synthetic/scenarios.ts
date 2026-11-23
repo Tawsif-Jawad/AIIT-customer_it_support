@@ -22,11 +22,11 @@ export async function officeLogin(office: Office, email: string, password = demo
   return { status: response.status, cookie: cookieFrom(response, 'itsupport_session') };
 }
 
-export async function runOfficeScenarios(office: Office) {
+export async function runOfficeScenarios(office: Office, signIn = (email: string) => officeLogin(office, email), checkSimulatorDenials = true) {
   const results: string[] = [];
   type Body = Record<string, unknown>;
   async function session(email: string, role: User['roleName']) {
-    const login = await officeLogin(office, email);
+    const login = await signIn(email);
     assert.ok(login.cookie);
     const profile = await fetch(office.publicUrl + '/api/auth/me', { headers: { cookie: login.cookie } });
     assert.equal(profile.status, 200);
@@ -45,8 +45,10 @@ export async function runOfficeScenarios(office: Office) {
     };
     return { user, call };
   }
-  assert.equal((await officeLogin(office, 'employee1@example.test', 'invalid')).status, 403);
-  assert.equal((await officeLogin(office, 'employee120@example.test')).status, 403);
+  if (checkSimulatorDenials) {
+    assert.equal((await officeLogin(office, 'employee1@example.test', 'invalid')).status, 403);
+    assert.equal((await officeLogin(office, 'employee120@example.test')).status, 403);
+  }
   const employee = await session('employee1@example.test', 'EMPLOYEE');
   const colleague = await session('employee92@example.test', 'EMPLOYEE');
   const it = await session('it1@example.test', 'IT_ADMIN');

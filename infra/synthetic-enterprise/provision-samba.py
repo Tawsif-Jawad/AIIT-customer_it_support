@@ -11,6 +11,12 @@ from samba.provision import provision
 fixture = Path('/fixture')
 domain = 'DC=office,DC=example,DC=test'
 staff = 'OU=Staff,' + domain
+configuration = Path('/tmp/synthetic-ad/etc/smb.conf')
+def serve():
+    os.execv('/usr/sbin/samba', ['samba', '--foreground', '--no-process-group', '-s', str(configuration)])
+
+if Path('/tmp/synthetic-ad/provisioned').is_file():
+    serve()
 manifest = json.loads((fixture / 'directory.json').read_text())
 assert manifest['realm'] == 'OFFICE.EXAMPLE.TEST'
 assert len(manifest['organizationalUnits']) == 6 and len(manifest['accounts']) == 129
@@ -21,7 +27,6 @@ result = provision(
     serverrole='active directory domain controller', dns_backend='SAMBA_INTERNAL',
     adminpass='Aa!1' + secrets.token_hex(24), skip_sysvolacl=True,
 )
-configuration = Path('/tmp/synthetic-ad/etc/smb.conf')
 contents = configuration.read_text()
 configuration.write_text(contents.replace('[global]', '''[global]
     tls certfile = /fixture/ad.pem
@@ -52,4 +57,5 @@ for account in manifest['accounts']:
         db.disable_account('(sAMAccountName=' + ldb.binary_encode(name) + ')')
 db.newuser('federation-reader', (fixture / 'bind-password').read_text().strip(), useusernameascn=True)
 del db, result
-os.execv('/usr/sbin/samba', ['samba', '--foreground', '--no-process-group', '-s', str(configuration)])
+Path('/tmp/synthetic-ad/provisioned').touch()
+serve()

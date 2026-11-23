@@ -6,11 +6,14 @@ umask 077
 root=$(mktemp -d)
 export AIIT_DAY13_FIXTURE="$root/ad" AIIT_DAY13_TLS_DIR="$root/tls" AIIT_DAY13_REALM="$root/realm.json"
 mkdir "$AIIT_DAY13_FIXTURE" "$AIIT_DAY13_TLS_DIR"
+export AIIT_DAY13_ADMIN_PASSWORD
+AIIT_DAY13_ADMIN_PASSWORD=$(openssl rand -hex 32)
 project="aiit-federation-$(basename "$root" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')"
 dc() { docker compose -p "$project" -f compose.yml -f federation.compose.yml "$@"; }
 cleanup() {
   local status=$?
   trap - EXIT
+  if ((status != 0)); then dc logs --no-color --tail 40 directory issuer || true; fi
   dc down --volumes --remove-orphans || status=1
   rm -rf -- "$root"
   exit "$status"
@@ -68,3 +71,31 @@ curl -fsS --noproxy '*' --connect-to "localhost:38443:$address:8443" \
   https://localhost:38443/realms/aiit-synthetic-office/.well-known/openid-configuration \
   | jq -e '.issuer == "https://localhost:38443/realms/aiit-synthetic-office"' >/dev/null
 echo 'Verified real Samba directory counts, disabled flags, LDAPS binds and Keycloak realm discovery.'
+
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
+  -H ldaps://directory:636 -x -D employee120@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+  echo 'Disabled identity unexpectedly bound to Samba' >&2
+  exit 1
+fi
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
+  -H ldaps://127.0.0.1:636 -x -D employee1@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+  echo 'LDAPS accepted an incorrect hostname' >&2
+  exit 1
+fi
+if dc exec -T directory env LDAPTLS_REQCERT=demand ldapwhoami \
+  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/user-password >/dev/null 2>&1; then
+  echo 'LDAPS accepted an untrusted certificate' >&2
+  exit 1
+fi
+if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \
+  -H ldaps://directory:636 -x -D employee1@office.example.test -y /fixture/bind-password >/dev/null 2>&1; then
+  echo 'LDAPS accepted an incorrect password' >&2
+  exit 1
+fi
+export AIIT_DAY13_ISSUER_ADDRESS="$address" AIIT_DAY13_COMPOSE_PROJECT="$project"
+export NODE_EXTRA_CA_CERTS="$AIIT_DAY13_TLS_DIR/cert.pem"
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+mkdir -p "$root/browser-home/.pki/nssdb"
+certutil -N --empty-password -d "sql:$root/browser-home/.pki/nssdb"
+certutil -A -d "sql:$root/browser-home/.pki/nssdb" -n aiit-synthetic -t 'C,,' -i "$NODE_EXTRA_CA_CERTS"
+(cd ../.. && HOME="$root/browser-home" node scripts/synthetic/federated-scenarios.ts)
