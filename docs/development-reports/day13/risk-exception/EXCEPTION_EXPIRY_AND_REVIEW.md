@@ -9,7 +9,8 @@
 - **Start of Validity Clock:** Starts **only** when the approving authority records explicit written approval (`APPROVE AIIT-SYNTH-EXC-001`) with a real UTC timestamp.
 - **Maximum Duration:** **14 calendar days** (`336 hours` = `1,209,600,000 ms`) from the recorded UTC approval timestamp.
 - **Automated Enforcement (`scripts/synthetic/day14-preflight.ts`):** Rejects missing/malformed timestamps, non-UTC offsets, future-dated `approvedAtUtc`, `expiresAtUtc <= approvedAtUtc`, durations `> 336 hours`, `nowUtcMs >= expiresAtUtc`, and `revoked: true` (or inclusion in `revokedExceptionIds`).
-- **Revocation Procedure:** Either set `"revoked": true` in a newly signed envelope, remove the GitHub Environment secret `AIIT_PROTECTED_ENV_ATTESTED`, or rotate/remove the trusted public key; all subsequent Day 14 runs immediately fail closed.
+- **Revocation Procedure:** The owner must publish a terminal revocation for the exception ID in an authoritative external registry. Each authorization check must obtain current state. Replacing a record with a signed revoked copy leaves old signatures valid against stale state. The registry must also reserve used exception IDs and consume unique start execution IDs so reruns and new records cannot reuse them.
+- **Runtime Deadline:** Check expiry and revocation immediately before workload start and throughout execution. Enforce a supervisor deadline at or before the signed UTC expiry, using elapsed monotonic time and current trusted UTC to catch clock changes. Stop and tear down on expiry, revocation, or loss of reliable time or state. The current live path denies execution pending this integration.
 - **No Automatic Renewal:** On reaching the exact UTC expiry timestamp, the exception terminates automatically.
 
 ---

@@ -50,9 +50,9 @@ Approval of `AIIT-SYNTH-EXC-001` is valid **only** when accompanied by explicit 
 
 Editing this Markdown file alone **cannot** authorize Day 14 execution. All Day 14 CLI entry points (`scripts/synthetic/cli.ts`) and the manual-only workflow (`.github/workflows/day14-synthetic-simulation.yml`) execute `scripts/synthetic/day14-preflight.ts` (**default: DENY**):
 
-1. **Cryptographic Verification (Out-of-Repo Trust Anchor):** Requires a JSON `SignedAuthorizationEnvelope` signed with an owner-controlled **Ed25519** private key (never stored in the repository) and verified against an out-of-repo public key (`AIIT_EXCEPTION_PUBLIC_KEY_FILE` or GitHub Environment secret `AIIT_EXCEPTION_PUBLIC_KEY_PEM`).
-2. **GitHub Protected Environment Gate (CI):** `.github/workflows/day14-synthetic-simulation.yml` requires `workflow_dispatch` + protected GitHub Environment `day14-synthetic-exception` with required human reviewers, plus environment secret `AIIT_PROTECTED_ENV_ATTESTED=AIIT-SYNTH-EXC-001`.
-3. **Local Execution Clock-Trust Limitation:** Local runs use the host UTC clock (`local-signed-attestation`) and therefore cannot defend against a locally altered system clock; authoritative time enforcement is provided by the ephemeral GitHub Actions runner UTC clock (`ci-runner-utc`).
+1. Decision A requires an Ed25519 signature over the exception payload, including all six acknowledgements, the approver, permitted scopes, pinned sources and validity window. The owner keeps the private key outside the repository.
+2. Decision B requires a separate Ed25519-signed start record issued after Decision A. It names the same owner, hashes the canonical exception payload, and binds one activity to the reviewed commit and unique execution ID.
+3. The live gate currently denies every request. An owner-controlled execution service must bind the verification key to the owner identity, provide current revocation state and trusted UTC, and verify the GitHub Environment protection before the verifier can participate in live authorization. Markdown and caller environment variables carry no authority.
 
 ## 5. Evidence & Document References
 - [RISK_EXCEPTION_REQUEST.md](RISK_EXCEPTION_REQUEST.md)

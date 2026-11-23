@@ -17,17 +17,23 @@ permissions:
 
 jobs:
   authorization-preflight:
+    if: >-
+      github.repository == 'Tawsif-Jawad/AIIT-customer_it_support' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/development' &&
+      github.workflow_ref == 'Tawsif-Jawad/AIIT-customer_it_support/.github/workflows/day14-synthetic-simulation.yml@refs/heads/development'
     runs-on: ubuntu-24.04
     environment: day14-synthetic-exception
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
       - name: Fail-closed AIIT-SYNTH-EXC-001 authorization preflight
         env:
-          AIIT_GIT_BRANCH: ${{ github.ref_name }}
-          AIIT_EXCEPTION_APPROVAL_FILE: ${{ vars.AIIT_EXCEPTION_APPROVAL_FILE }}
-          AIIT_EXCEPTION_PUBLIC_KEY_PEM: ${{ secrets.AIIT_EXCEPTION_PUBLIC_KEY_PEM }}
-          AIIT_EXCEPTION_TRUSTED_APPROVERS: ${{ vars.AIIT_EXCEPTION_TRUSTED_APPROVERS }}
-          AIIT_PROTECTED_ENV_ATTESTED: ${{ secrets.AIIT_PROTECTED_ENV_ATTESTED }}
-        run: node scripts/synthetic/day14-preflight.ts "${{ inputs.activity }}"
+          DAY14_ACTIVITY: ${{ inputs.activity }}
+        run: node scripts/synthetic/day14-preflight.ts "$DAY14_ACTIVITY"

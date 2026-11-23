@@ -25,12 +25,16 @@
 
 ---
 
-## Automated Control-Drift Detection vs. Human/Environmental Verification
+## Evidence required for Day 14
 
-`scripts/synthetic/day14-preflight.ts` (`inspectRepositoryControls` + `evaluateDay14Preflight`) automatically verifies before any Day 14 workload starts:
-- Pinned Keycloak (`compose.yml`) and Samba base (`Samba.Dockerfile`) immutable SHA-256 digests match `APPROVED_IMAGE_DIGESTS`.
-- `internal: true`, absence of `ports:`, `cap_drop: [ALL]`, `no-new-privileges:true`, absence of `privileged: true` / `network_mode: host`, presence of IPv4/IPv6/DNS egress probes, and teardown commands in `federation.sh`.
-- All declared `targetEndpoints` match synthetic loopback/container/`example.test` patterns (any corporate hostname fails closed).
+The matrix records baseline Day 13 evidence. Each new Day 14 execution needs its own evidence tied to the exact commit, runner and containers.
 
-**Controls Requiring Runtime/Human Verification (Cannot Be Proven by Config Inspection Alone):**
-- Actual kernel/Docker runtime isolation on the host or CI runner, absence of real credentials in local environment variables, and live teardown confirmation after execution (verified by `keycloak-smoke` and `samba-ldaps` in CI).
+| Evidence | What it establishes |
+|---|---|
+| Static review | Effective rendered Compose configuration and Dockerfile inputs establish intended network and port settings, capability and privilege restrictions, mounts and pinned sources. Source-text matches alone do not establish effective configuration. |
+| Runtime inspection | Inspect each container and its networks, ports, privileges and immutable image ID. Compare Keycloak's amd64 ID and the Samba image ID from trusted scan evidence. Verify IPv4, IPv6 and DNS isolation and restrict actual targets to the approved loopback and container endpoints. |
+| Prior evidence | Day 13 CI logs establish observations for the runs identified above. Use them for comparison. |
+| Data and secret evidence | Require reviewed fixture inputs, per-run synthetic credentials, a clean inherited environment, explicit mounts, and an allowlist for workflow credentials and output. Missing inputs or evidence deny authorization. |
+| Teardown | Establish cleanup readiness before workload start. Verify zero surviving project containers, networks and volumes after teardown and record failures. |
+
+The live gate has no runtime evidence collector and denies execution. The offline verifier exercises the decision rules with injected evidence. See [INDEPENDENT_AUTHORIZATION_AUDIT.md](INDEPENDENT_AUTHORIZATION_AUDIT.md).

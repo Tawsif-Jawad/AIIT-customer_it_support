@@ -1,7 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const EXCEPTION_ID = 'AIIT-SYNTH-EXC-001' as const;
@@ -13,6 +11,9 @@ export const APPROVED_IMAGE_DIGESTS = {
   keycloak: 'quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3',
   sambaBase: 'debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2',
 } as const;
+
+const KEYCLOAK_AMD64_IMAGE_ID = 'sha256:4938c322f47d3736c580fc57bb335d35c784489bc7e6d8fbbd52dbdd1b27e72e';
+const IMAGE_ID = /^sha256:[a-f0-9]{64}$/;
 
 export const PERMITTED_SCOPES = [
   'day14-synthetic-simulation',
@@ -49,18 +50,28 @@ export interface AuthorizationPayload {
     keycloak: string;
     sambaBase: string;
   };
-  day14StartAuthorized: boolean;
-  day14StartAuthorizedAtUtc?: string | null;
 }
 
-export interface SignedAuthorizationEnvelope {
-  payload: AuthorizationPayload;
+export interface StartAuthorizationPayload {
+  purpose: 'aiit-day14-start-v1';
+  exceptionPayloadSha256: string;
+  approver: string;
+  activity: string;
+  authorizedAtUtc: string;
+  commit: string;
+  executionId: string;
+}
+
+export interface SignedAuthorizationEnvelope<T = AuthorizationPayload> {
+  payload: T;
   signatureBase64: string;
 }
 
 export interface CompensatingControlSnapshot {
   keycloakImageDigest: string;
   sambaBaseImageDigest: string;
+  keycloakRuntimeImageId: string;
+  sambaRuntimeImageId: string;
   internalNetworkOnly: boolean;
   noPublishedPorts: boolean;
   egressIsolationVerified: boolean;
@@ -73,12 +84,15 @@ export interface CompensatingControlSnapshot {
 
 export interface PreflightContext {
   envelope: SignedAuthorizationEnvelope | null;
+  startEnvelope?: SignedAuthorizationEnvelope<StartAuthorizationPayload>;
+  execution?: { commit: string; id: string };
   trustedPublicKeyPem: string | null;
   trustedApprovers: readonly string[];
   revokedExceptionIds?: readonly string[];
   intendedActivity: string;
   currentBranch: string;
   controls: CompensatingControlSnapshot;
+  scannedSambaImageId?: string;
   nowUtcMs?: number;
   clockTrustMode?: 'ci-runner-utc' | 'local-signed-attestation' | 'test-injected';
   githubProtectedEnvironmentVerified?: boolean;
@@ -92,19 +106,15 @@ export interface PreflightResult {
   remainingMs?: number;
 }
 
-const STRICT_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const STRICT_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
-const ALLOWED_SYNTHETIC_HOST_PATTERNS = [
-  /^127\.0\.0\.1(?::\d+)?$/,
-  /^localhost(?::\d+)?$/,
-  /^\[::1\](?::\d+)?$/,
-  /^directory(?::\d+)?$/,
-  /^issuer(?::\d+)?$/,
-  /^[a-z0-9.-]+\.example\.test(?::\d+)?$/i,
-  /^172\.(1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}(?::\d+)?$/,
-];
+const ALLOWED_SYNTHETIC_ENDPOINTS = new Set([
+  'https://127.0.0.1:38443',
+  'https://127.0.0.1:38444',
+  'ldaps://directory:636',
+]);
 
-export function canonicalizePayload(payload: AuthorizationPayload): string {
+export function canonicalizePayload(payload: AuthorizationPayload | StartAuthorizationPayload): string {
   const sortValue = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(sortValue);
     if (value && typeof value === 'object') {
@@ -119,33 +129,21 @@ export function canonicalizePayload(payload: AuthorizationPayload): string {
 function parseStrictUtcMs(value: unknown): number | null {
   if (typeof value !== 'string' || !STRICT_ISO_UTC.test(value)) return null;
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isSyntheticEndpoint(endpoint: string): boolean {
-  const trimmed = endpoint.trim();
-  if (!trimmed) return false;
-  let hostPort = trimmed;
-  try {
-    if (trimmed.includes('://')) {
-      const url = new URL(trimmed);
-      hostPort = url.port ? `${url.hostname}:${url.port}` : url.hostname;
-    }
-  } catch {
-    return false;
-  }
-  return ALLOWED_SYNTHETIC_HOST_PATTERNS.some(pattern => pattern.test(hostPort));
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = value.includes('.') ? value : value.replace(/Z$/, '.000Z');
+  return new Date(parsed).toISOString() === normalized ? parsed : null;
 }
 
 export function verifySignedEnvelope(
-  envelope: SignedAuthorizationEnvelope,
+  envelope: SignedAuthorizationEnvelope<AuthorizationPayload | StartAuthorizationPayload>,
   trustedPublicKeyPem: string,
 ): boolean {
   try {
     const publicKey = createPublicKey(trustedPublicKeyPem);
     const message = Buffer.from(canonicalizePayload(envelope.payload), 'utf8');
     const signature = Buffer.from(envelope.signatureBase64, 'base64');
-    if (signature.length === 0) return false;
+    if (publicKey.asymmetricKeyType !== 'ed25519' || signature.length !== 64 ||
+        signature.toString('base64') !== envelope.signatureBase64) return false;
     return cryptoVerify(null, message, publicKey, signature);
   } catch {
     return false;
@@ -153,8 +151,12 @@ export function verifySignedEnvelope(
 }
 
 export function evaluateDay14Preflight(context: PreflightContext): PreflightResult {
-  const nowMs = context.nowUtcMs ?? Date.now();
-  const checkedAtUtc = new Date(nowMs).toISOString();
+  const clock = new Date(context.nowUtcMs ?? NaN);
+  if (!context.clockTrustMode || !Number.isFinite(clock.getTime())) {
+    return { allowed: false, reasons: ['Trusted UTC time is unavailable.'], checkedAtUtc: new Date().toISOString() };
+  }
+  const nowMs = clock.getTime();
+  const checkedAtUtc = clock.toISOString();
   const reasons: string[] = [];
 
   if (context.currentBranch !== REQUIRED_BRANCH) {
@@ -180,8 +182,12 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     reasons.push(`Exception status is '${String(payload.status)}'; explicit APPROVED status is required.`);
   }
 
-  if (payload.revoked || context.revokedExceptionIds?.includes(payload.exceptionId)) {
+  if (payload.revoked !== false || payload.revokedAtUtc != null || context.revokedExceptionIds?.includes(payload.exceptionId)) {
     reasons.push('Exception has been revoked.');
+  }
+
+  if (!context.revokedExceptionIds) {
+    reasons.push('Current revocation state is unavailable.');
   }
 
   if (!context.trustedApprovers.includes(payload.approver)) {
@@ -239,13 +245,22 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     reasons.push(`Activity '${context.intendedActivity}' is not listed in the signed permittedScopes.`);
   }
 
-  if (!payload.day14StartAuthorized) {
-    reasons.push('Separate Day 14 start authorization is missing or false.');
-  } else if (payload.day14StartAuthorizedAtUtc !== undefined && payload.day14StartAuthorizedAtUtc !== null) {
-    const startAuthMs = parseStrictUtcMs(payload.day14StartAuthorizedAtUtc);
-    if (startAuthMs === null || startAuthMs > nowMs) {
-      reasons.push('Separate Day 14 start authorization timestamp is malformed or in the future.');
-    }
+  const start = context.startEnvelope?.payload;
+  const startMs = parseStrictUtcMs(start?.authorizedAtUtc);
+  if (!start || !context.startEnvelope) {
+    reasons.push('Separate Day 14 start authorization is missing.');
+  } else if (
+    start.purpose !== 'aiit-day14-start-v1' ||
+    start.approver !== payload.approver ||
+    start.activity !== context.intendedActivity ||
+    !context.execution || !/^[0-9a-f]{40}$/.test(context.execution.commit) || !context.execution.id ||
+    start.commit !== context.execution.commit || start.executionId !== context.execution.id ||
+    start.exceptionPayloadSha256 !== createHash('sha256').update(canonicalizePayload(payload)).digest('hex') ||
+    startMs === null || approvedMs === null || expiresMs === null ||
+    startMs <= approvedMs || startMs > nowMs || startMs >= expiresMs ||
+    !context.trustedPublicKeyPem || !verifySignedEnvelope(context.startEnvelope, context.trustedPublicKeyPem)
+  ) {
+    reasons.push('Separate Day 14 start authorization does not match the signed exception, execution, or validity window.');
   }
 
   if (
@@ -262,25 +277,33 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     reasons.push('Samba base image digest does not match the approved immutable digest.');
   }
 
-  if (!context.controls.internalNetworkOnly) {
+  if (context.controls.keycloakRuntimeImageId !== KEYCLOAK_AMD64_IMAGE_ID) {
+    reasons.push('Effective Keycloak image ID does not match the reviewed amd64 image.');
+  }
+  if (!context.scannedSambaImageId || !IMAGE_ID.test(context.scannedSambaImageId) ||
+      context.controls.sambaRuntimeImageId !== context.scannedSambaImageId) {
+    reasons.push('Effective Samba image ID does not match the trusted scan evidence.');
+  }
+
+  if (context.controls.internalNetworkOnly !== true) {
     reasons.push('Compensating control failed: internal Docker network isolation is not verified.');
   }
-  if (!context.controls.noPublishedPorts) {
+  if (context.controls.noPublishedPorts !== true) {
     reasons.push('Compensating control failed: container port publishing is not restricted.');
   }
-  if (!context.controls.egressIsolationVerified) {
+  if (context.controls.egressIsolationVerified !== true) {
     reasons.push('Compensating control failed: IPv4/IPv6/DNS egress isolation is not verified.');
   }
-  if (!context.controls.syntheticDataOnly) {
+  if (context.controls.syntheticDataOnly !== true) {
     reasons.push('Compensating control failed: environment is not verified as synthetic-data-only.');
   }
-  if (!context.controls.noProductionSecrets) {
+  if (context.controls.noProductionSecrets !== true) {
     reasons.push('Compensating control failed: production secrets exclusion is not verified.');
   }
-  if (!context.controls.containerPrivilegeRestrictionsIntact) {
+  if (context.controls.containerPrivilegeRestrictionsIntact !== true) {
     reasons.push('Compensating control failed: container privilege restrictions are not intact.');
   }
-  if (!context.controls.teardownVerified) {
+  if (context.controls.teardownVerified !== true) {
     reasons.push('Compensating control failed: synthetic teardown verification is missing.');
   }
 
@@ -288,7 +311,7 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     reasons.push('Compensating control failed: explicit synthetic target endpoints must be declared.');
   } else {
     for (const endpoint of context.controls.targetEndpoints) {
-      if (!isSyntheticEndpoint(endpoint)) {
+      if (!ALLOWED_SYNTHETIC_ENDPOINTS.has(endpoint)) {
         reasons.push(`Unauthorized non-synthetic or corporate endpoint detected: '${endpoint}'.`);
       }
     }
@@ -303,100 +326,36 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
   };
 }
 
-export function inspectRepositoryControls(repoRoot: string): CompensatingControlSnapshot {
-  const composePath = path.join(repoRoot, 'infra/synthetic-enterprise/compose.yml');
-  const fedComposePath = path.join(repoRoot, 'infra/synthetic-enterprise/federation.compose.yml');
-  const sambaDockerfilePath = path.join(repoRoot, 'infra/synthetic-enterprise/Samba.Dockerfile');
-  const fedScriptPath = path.join(repoRoot, 'infra/synthetic-enterprise/federation.sh');
-
-  const composeText = existsSync(composePath) ? readFileSync(composePath, 'utf8') : '';
-  const fedComposeText = existsSync(fedComposePath) ? readFileSync(fedComposePath, 'utf8') : '';
-  const sambaText = existsSync(sambaDockerfilePath) ? readFileSync(sambaDockerfilePath, 'utf8') : '';
-  const fedScriptText = existsSync(fedScriptPath) ? readFileSync(fedScriptPath, 'utf8') : '';
-
-  const keycloakMatch = composeText.match(/^\s*image:\s*(\S+)\s*$/m);
-  const sambaMatch = sambaText.match(/^FROM\s+(\S+)\s*$/m);
-
-  const combinedCompose = `${composeText}\n${fedComposeText}`;
-  const internalNetworkOnly = /internal:\s*true/.test(composeText);
-  const noPublishedPorts = !/^\s*ports\s*:/m.test(combinedCompose);
-  const containerPrivilegeRestrictionsIntact =
-    /cap_drop:\s*\[ALL\]/.test(composeText) &&
-    /no-new-privileges:true/.test(composeText) &&
-    /no-new-privileges:true/.test(fedComposeText) &&
-    !/privileged:\s*true/.test(combinedCompose) &&
-    !/network_mode:\s*host/.test(combinedCompose);
-  const egressIsolationVerified =
-    fedScriptText.includes('192.0.2.1') &&
-    fedScriptText.includes('2001:db8::1') &&
-    fedScriptText.includes('ENETUNREACH');
-  const teardownVerified = fedScriptText.includes('dc down --volumes --remove-orphans');
-
-  return {
-    keycloakImageDigest: keycloakMatch?.[1] ?? '',
-    sambaBaseImageDigest: sambaMatch?.[1] ?? '',
-    internalNetworkOnly,
-    noPublishedPorts,
-    egressIsolationVerified,
-    syntheticDataOnly: true,
-    targetEndpoints: ['https://127.0.0.1:38443', 'https://127.0.0.1:38444', 'ldaps://directory:636'],
-    noProductionSecrets: true,
-    containerPrivilegeRestrictionsIntact,
-    teardownVerified,
-  };
-}
-
-export function runLivePreflight(intendedActivity: string, env: NodeJS.ProcessEnv = process.env): PreflightResult {
+export function runLivePreflight(intendedActivity: string): PreflightResult {
   const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
-  let currentBranch = env.AIIT_GIT_BRANCH ?? '';
-  if (!currentBranch) {
-    try {
-      currentBranch = execFileSync('git', ['branch', '--show-current'], { cwd: repoRoot, encoding: 'utf8' }).trim();
-    } catch {
-      currentBranch = '';
-    }
+  let currentRef = '';
+  try {
+    currentRef = execFileSync('git', ['symbolic-ref', '--quiet', 'HEAD'], {
+      cwd: repoRoot,
+      env: { PATH: process.env.PATH },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    // Detached checkouts and Git failures leave the local ref unverified.
   }
 
-  let envelope: SignedAuthorizationEnvelope | null = null;
-  const recordPath = env.AIIT_EXCEPTION_APPROVAL_FILE?.trim();
-  if (recordPath && existsSync(recordPath)) {
-    try {
-      envelope = JSON.parse(readFileSync(recordPath, 'utf8')) as SignedAuthorizationEnvelope;
-    } catch {
-      envelope = null;
-    }
+  const reasons = [
+    'Missing signed authorization approval record from an owner-controlled source.',
+    'Deployment authorization blocked: GitHub Environment protection and owner trust configuration are unverified.',
+    'Current revocation state, trusted UTC time and effective runtime controls are unavailable.',
+  ];
+  if (currentRef !== `refs/heads/${REQUIRED_BRANCH}`) {
+    reasons.push(`Active Git ref must be 'refs/heads/${REQUIRED_BRANCH}'.`);
   }
-
-  let trustedPublicKeyPem: string | null = null;
-  const pubKeyPath = env.AIIT_EXCEPTION_PUBLIC_KEY_FILE?.trim();
-  if (pubKeyPath && existsSync(pubKeyPath)) {
-    trustedPublicKeyPem = readFileSync(pubKeyPath, 'utf8');
-  } else if (env.AIIT_EXCEPTION_PUBLIC_KEY_PEM?.trim()) {
-    trustedPublicKeyPem = env.AIIT_EXCEPTION_PUBLIC_KEY_PEM;
+  if (!(PERMITTED_SCOPES as readonly string[]).includes(intendedActivity)) {
+    reasons.push('Intended activity is outside permitted Day 14 synthetic scopes.');
   }
-
-  const trustedApprovers = (env.AIIT_EXCEPTION_TRUSTED_APPROVERS ?? '')
-    .split(',')
-    .map(item => item.trim())
-    .filter(Boolean);
-
-  const controls = inspectRepositoryControls(repoRoot);
-  const githubProtectedEnvironmentVerified =
-    env.GITHUB_ACTIONS === 'true' && env.AIIT_PROTECTED_ENV_ATTESTED === 'AIIT-SYNTH-EXC-001';
-
-  return evaluateDay14Preflight({
-    envelope,
-    trustedPublicKeyPem,
-    trustedApprovers,
-    intendedActivity,
-    currentBranch,
-    controls,
-    clockTrustMode: env.GITHUB_ACTIONS === 'true' ? 'ci-runner-utc' : 'local-signed-attestation',
-    githubProtectedEnvironmentVerified,
-  });
+  // Live callers cannot supply the trust inputs used by the offline verifier.
+  return { allowed: false, reasons, checkedAtUtc: new Date().toISOString() };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const activity = process.argv[2] ?? 'day14-synthetic-simulation';
   const result = runLivePreflight(activity);
   console.log(JSON.stringify(result, null, 2));
