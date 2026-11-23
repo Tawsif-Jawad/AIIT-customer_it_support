@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { chromium } from '@playwright/test';
+import * as oidc from 'openid-client';
 import { startOffice } from './office.ts';
 import { runOfficeScenarios } from './scenarios.ts';
 
@@ -97,6 +98,38 @@ try {
       await login('unknown@example.test', password, false);
       console.log(JSON.stringify(await runOfficeScenarios(office, login, false)));
       const existing = await login(actorEmails[0]);
+      const config = await oidc.discovery(new URL(issuer), clientId, {
+        id_token_signed_response_alg: 'RS256',
+      }, oidc.None(), { execute: [oidc.enableNonRepudiationChecks] });
+      const redirect = callback + '/api/auth/oidc/callback';
+      const verifier = oidc.randomPKCECodeVerifier();
+      const nonce = oidc.randomNonce();
+      const state = oidc.randomState();
+      const authorization = oidc.buildAuthorizationUrl(config, {
+        redirect_uri: redirect, scope: 'openid', code_challenge_method: 'S256',
+        code_challenge: await oidc.calculatePKCECodeChallenge(verifier), nonce, state,
+      });
+      const tokenPage = await browser.newPage();
+      let verifiedAccessToken: string;
+      try {
+        await tokenPage.route(redirect + '?**', route => route.fulfill({ status: 200, body: 'Synthetic callback captured locally' }));
+        await tokenPage.goto(authorization.href);
+        await tokenPage.locator('#username').fill(username(actorEmails[0]));
+        await tokenPage.locator('#password').fill(password);
+        await tokenPage.locator('#kc-login').click();
+        await tokenPage.waitForURL(redirect + '?**');
+        const tokens = await oidc.authorizationCodeGrant(config, new URL(tokenPage.url()), {
+          pkceCodeVerifier: verifier, expectedNonce: nonce, expectedState: state, idTokenExpected: true,
+        });
+        assert.equal(tokens.claims()?.sub, subjects.get(actorEmails[0]));
+        verifiedAccessToken = tokens.access_token;
+      } finally {
+        await tokenPage.close();
+      }
+      const tokenStatus = async () => (await fetch(issuer + '/protocol/openid-connect/userinfo', {
+        headers: { authorization: 'Bearer ' + verifiedAccessToken },
+      })).status;
+      assert.equal(await tokenStatus(), 200);
       const issuedAt = Date.now();
       const directoryState = (action: string) => compose('exec', '-T', 'directory', 'samba-tool', 'user', action,
         username(actorEmails[0]), '-s', '/tmp/synthetic-ad/etc/smb.conf');
@@ -104,7 +137,7 @@ try {
       await login(actorEmails[0], password, false);
       const current = await fetch(callback + '/api/auth/me', { headers: { cookie: existing.cookie } });
       assert.ok([200, 401].includes(current.status));
-      console.log(JSON.stringify({ lifecycle: 'directory-disabled', elapsedMs: Date.now() - issuedAt, existingAiitSessionStatus: current.status }));
+      console.log(JSON.stringify({ lifecycle: 'directory-disabled', elapsedMs: Date.now() - issuedAt, existingAiitSessionStatus: current.status, existingTokenUserInfoStatus: await tokenStatus() }));
       directoryState('enable');
       await login(actorEmails[0]);
       compose('stop', 'directory');
@@ -112,7 +145,7 @@ try {
         await login(actorEmails[0], password, false);
         const outage = await fetch(callback + '/api/auth/me', { headers: { cookie: existing.cookie } });
         assert.ok([200, 401].includes(outage.status));
-        console.log(JSON.stringify({ lifecycle: 'directory-outage', existingAiitSessionStatus: outage.status }));
+        console.log(JSON.stringify({ lifecycle: 'directory-outage', existingAiitSessionStatus: outage.status, existingTokenUserInfoStatus: await tokenStatus() }));
       } finally {
         compose('start', 'directory');
       }

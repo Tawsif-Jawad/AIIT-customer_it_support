@@ -80,7 +80,17 @@ for family, endpoint in ((socket.AF_INET, ('192.0.2.1', 443)), (socket.AF_INET6,
         result = client.connect_ex(endpoint)
         if result not in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EAFNOSUPPORT):
             raise SystemExit('Expected an unreachable documentation destination, got errno ' + str(result))
-print('IPv4 and IPv6 documentation-route probes unreachable')
+    with socket.socket(family, socket.SOCK_DGRAM) as dns:
+        # One standard A query for aiit.example.invalid, to a reserved TEST-NET address.
+        query = bytes.fromhex('2301010000010000000000000461696974076578616d706c6507696e76616c69640000010001')
+        try:
+            dns.sendto(query, (endpoint[0], 53))
+        except OSError as error:
+            if error.errno not in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EAFNOSUPPORT):
+                raise
+        else:
+            raise SystemExit('Documentation-range DNS datagram was routable')
+print('IPv4, IPv6 and outbound DNS documentation-range probes unreachable')
 PYTHON
 for name in employee1 it1 cto; do
   dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapwhoami \

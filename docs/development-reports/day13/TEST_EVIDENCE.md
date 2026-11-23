@@ -13,3 +13,7 @@ Local platform: macOS arm64, Node 26.8.1, pnpm 9.15.0, PostgreSQL 18.6 and Chrom
 | `bash infra/synthetic-enterprise/smoke.sh` | Local runtime blocked. Hosted workflow reports exact-head execution. |
 
 The Day 11 [27-case UAT plan](../day11/UAT_TEST_PLAN.md) remains the stakeholder baseline. Automated regressions supply engineering evidence. Stakeholder signoff is still pending.
+
+## Remediation verification
+
+Run `bash infra/synthetic-enterprise/federation.sh` on an authorized Docker-capable Linux runner with the locked Node dependencies, PostgreSQL 16, Chromium and NSS tools. The dedicated workflow installs prerequisites and runs the unskipped integration. PR #18 provides exact-head results. The first remediation run failed before provisioning because its new job had not installed dependencies; the workflow now reuses the repository setup action. Local focused SMTP and host-native office regression passed all three tests. No local Docker runtime is installed.

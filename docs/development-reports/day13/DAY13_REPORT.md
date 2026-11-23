@@ -11,3 +11,7 @@ The eight application scenarios passed with authenticated delivery. Full enterpr
 - [Comparison matrix](SIMULATOR_COMPARISON.md)
 - [Isolation](SECURITY_ISOLATION.md), [test evidence](TEST_EVIDENCE.md), and [release gates](REMAINING_RELEASE_GATES.md)
 - [Day 14 handoff](DAY14_HANDOFF.md)
+
+## Completion remediation
+
+The existing PR #18 adds an isolated Samba/LDAPS federation job and a Chromium harness that uses the existing AIIT office, PostgreSQL store, authenticated SMTP worker and scenario driver. It must run with actual Keycloak federation. Hosted job logs determine which assertions were reached. The milestone stays open until every mandatory gate is evidenced.
