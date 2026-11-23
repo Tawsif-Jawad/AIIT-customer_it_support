@@ -59,6 +59,8 @@ read_directory() {
 }
 for attempt in {1..40}; do
   if read_directory '(objectClass=organizationalUnit)' ou >"$root/units.ldif" 2>/dev/null; then break; fi
+  directory_id=$(dc ps -aq directory)
+  test "$(docker inspect -f '{{.State.Running}}' "$directory_id")" = true
   sleep 2
 done
 test "$(grep -c '^ou: OFFICE-' "$root/units.ldif")" -eq 6
