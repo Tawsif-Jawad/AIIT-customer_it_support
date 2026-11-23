@@ -88,3 +88,7 @@ Development only: use the quick-selector on the login screen (`http://localhost:
 ## No-cloud-cost verification fallback
 
 Run `node scripts/verify-local.ts` to execute all ten mandatory checks and save actual logs/exit codes in a temporary evidence directory. PostgreSQL binaries and Chromium prerequisites must be installed; missing prerequisites fail the run. This is local development verification, not hosted CI acceptance. See [no-cost recovery and CircleCI preparation](docs/ci/NO_COST_VERIFICATION.md) and the [prepared GitHub Support request](docs/ci/GITHUB_SUPPORT_REQUEST.md). CircleCI is not connected; existing GitHub checks/protection remain required.
+
+## Two-Branch Git Policy (`main` + `development`)
+
+All ongoing engineering and verification work by Antigravity and Codex occurs on the permanent `development` branch; `main` remains the protected, stable baseline updated only via reviewed and CI-verified release promotions (`development -> PR -> review -> CI -> main`). Do not create separate permanent branches for individual development days. See the [Two-Branch Policy and Migration Reports](docs/development-reports/git-two-branch-migration/TWO_BRANCH_POLICY.md).
