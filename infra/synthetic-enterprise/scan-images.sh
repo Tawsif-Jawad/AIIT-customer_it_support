@@ -56,7 +56,9 @@ else
     docker save aiit-day13-samba-scan | gzip -1 >"$AIIT_SAMBA_EXPORT_DIR/samba.tar.gz"
   fi
   result=0
-  scan keycloak "$keycloak" || result=1
-  scan samba aiit-day13-samba-scan || result=1
+  scan keycloak "$keycloak" >"$evidence/keycloak-summary.json" || result=1
+  cat "$evidence/keycloak-summary.json"
+  scan samba aiit-day13-samba-scan >"$evidence/samba-summary.json" || result=1
+  cat "$evidence/samba-summary.json"
   exit "$result"
 fi

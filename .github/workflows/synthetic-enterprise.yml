@@ -29,11 +29,18 @@ jobs:
           name: selected-samba-runtime
           path: ${{ runner.temp }}/selected-samba-runtime
       - run: |
+          mkdir -p federation-evidence
           artifact="$RUNNER_TEMP/selected-samba-runtime"
           docker load -i "$artifact/samba.tar.gz"
-          AIIT_SAMBA_SCANNED_ID="$(cat "$artifact/image-id.txt")" bash infra/synthetic-enterprise/federation.sh
+          AIIT_SAMBA_SCANNED_ID="$(cat "$artifact/image-id.txt")" bash infra/synthetic-enterprise/federation.sh 2>&1 | tee federation-evidence/federation.log
         env:
           PG_BINDIR: /usr/lib/postgresql/16/bin
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: federation-evidence
+          path: federation-evidence/
+          if-no-files-found: warn
   image-scan:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
