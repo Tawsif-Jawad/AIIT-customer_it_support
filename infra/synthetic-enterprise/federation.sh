@@ -69,7 +69,7 @@ jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
       bindCredential:[($password | rtrimstr("\n"))], authType:["simple"],
       usernameLDAPAttribute:["sAMAccountName"], rdnLDAPAttribute:["cn"], uuidLDAPAttribute:["objectGUID"],
       userObjectClasses:["person, organizationalPerson, user"], searchScope:["2"],
-      useTruststoreSpi:["always"], connectionTimeout:["5000"], readTimeout:["5000"], importEnabled:["true"], cachePolicy:["NO_CACHE"]
+      useTruststoreSpi:["always"], connectionPooling:["false"], connectionTimeout:["5000"], readTimeout:["5000"], importEnabled:["true"], cachePolicy:["NO_CACHE"]
     }
   }]}' realm.json >"$AIIT_DAY13_REALM"
 chmod 644 "$AIIT_DAY13_REALM"

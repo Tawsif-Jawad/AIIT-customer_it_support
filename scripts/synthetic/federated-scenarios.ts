@@ -162,7 +162,22 @@ try {
       console.log(JSON.stringify({ lifecycle: 'directory-disabled', elapsedMs: Date.now() - issuedAt, existingAiitSessionStatus: current.status, existingTokenUserInfoStatus: await tokenStatus() }));
       directoryState('enable');
       await login(actorEmails[0]);
-      // Simulate an unresponsive directory while preserving its Docker network endpoint.
+      const waitForDirectoryLdaps = async (phase: string) => {
+        const recoveryDeadline = Date.now() + 25000;
+        for (;;) {
+          try {
+            compose('exec', '-T', 'directory', 'env', 'LDAPTLS_CACERT=/fixture/ca.pem', 'LDAPTLS_REQCERT=demand',
+              'ldapsearch', '-LLL', '-o', 'nettimeout=2', '-l', '3', '-H', 'ldaps://directory:636',
+              '-x', '-D', 'CN=federation-reader,CN=Users,DC=office,DC=example,DC=test',
+              '-y', '/fixture/bind-password', '-s', 'base', '-b', '', 'defaultNamingContext');
+            break;
+          } catch {
+            if (Date.now() >= recoveryDeadline) throw new Error('Samba LDAPS did not become ready after ' + phase);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      };
+      // 1. Simulate an unresponsive directory while preserving its Docker network endpoint.
       compose('pause', 'directory');
       try {
         await login(actorEmails[0], password, false);
@@ -172,21 +187,37 @@ try {
       } finally {
         compose('unpause', 'directory');
       }
-      // Check actual LDAPS readiness without spending the application's login budget.
-      const recoveryDeadline = Date.now() + 20000;
-      for (;;) {
+      await waitForDirectoryLdaps('resuming');
+      // 2. Verify full container stop/start outage and recovery with connectionPooling disabled and bounded DNS TTL.
+      // Note: AIIT enforces an unchanged 12-request OIDC login budget per IP per 300s (checkAbuse in abuse-control.ts).
+      // Prior steps consume 11 of 12 /api/auth/oidc/login requests; therefore, during full stop we verify Keycloak OIDC
+      // rejection directly at the provider endpoint and save the 12th AIIT /api/auth/oidc/login request for full post-restart recovery.
+      const restartStartedAt = Date.now();
+      compose('stop', 'directory');
+      try {
+        const directPage = await browser.newPage();
         try {
-          compose('exec', '-T', 'directory', 'env', 'LDAPTLS_CACERT=/fixture/ca.pem', 'LDAPTLS_REQCERT=demand',
-            'ldapsearch', '-LLL', '-o', 'nettimeout=2', '-l', '3', '-H', 'ldaps://directory:636',
-            '-x', '-D', 'CN=federation-reader,CN=Users,DC=office,DC=example,DC=test',
-            '-y', '/fixture/bind-password', '-s', 'base', '-b', '', 'defaultNamingContext');
-          break;
-        } catch {
-          if (Date.now() >= recoveryDeadline) throw new Error('Samba LDAPS did not become ready after resuming');
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await directPage.goto(authorization.href);
+          await directPage.locator('#username').fill(username(actorEmails[0]));
+          await directPage.locator('#password').fill(password);
+          const submission = directPage.waitForResponse(response => response.request().method() === 'POST' &&
+            new URL(response.url()).origin === root && new URL(response.url()).pathname.includes('/login-actions/authenticate'));
+          await directPage.locator('#kc-login').click();
+          const rejection = await submission;
+          assert.ok(rejection.status() >= 200 && rejection.status() < 600);
+          assert.equal(rejection.headers().location, undefined, 'Expected provider rejection while directory container is stopped');
+        } finally {
+          await directPage.close();
         }
+        const stoppedOutage = await fetch(callback + '/api/auth/me', { headers: { cookie: existing.cookie } });
+        assert.ok([200, 401].includes(stoppedOutage.status));
+        console.log(JSON.stringify({ lifecycle: 'directory-stopped', existingAiitSessionStatus: stoppedOutage.status, existingTokenUserInfoStatus: await tokenStatus() }));
+      } finally {
+        compose('start', 'directory');
       }
+      await waitForDirectoryLdaps('restart');
       await login(actorEmails[0]);
+      console.log(JSON.stringify({ lifecycle: 'directory-restarted-recovered', elapsedMs: Date.now() - restartStartedAt }));
       console.log('Verified federated login recovery.');
     } finally {
       await browser.close();

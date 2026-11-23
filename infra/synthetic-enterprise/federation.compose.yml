@@ -21,6 +21,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: fixture-admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${AIIT_DAY13_ADMIN_PASSWORD:?Run the federation harness}
       KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/synthetic-ad-ca.pem
+      JAVA_OPTS_APPEND: -Dsun.net.inetaddr.ttl=0 -Dsun.net.inetaddr.negative.ttl=0
     volumes:
       - ${AIIT_DAY13_FIXTURE:?Run the federation harness}/ca.pem:/opt/keycloak/conf/synthetic-ad-ca.pem:ro
       - ${AIIT_DAY13_REALM:?Run the federation harness}:/opt/keycloak/data/import/aiit-synthetic-office-realm.json:ro
