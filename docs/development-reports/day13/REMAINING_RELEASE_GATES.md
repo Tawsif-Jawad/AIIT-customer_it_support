@@ -1,13 +1,10 @@
 # Remaining release gates
 
-- **Synthetic directory and identity:** Disposable Samba provision, LDAPS trust, actual federated login and lifecycle, then all eight cases through Keycloak.
-- **Synthetic isolation:** Verify DNS and IPv6 behavior, controlled outbound probe, image vulnerability scan and complete teardown on the selected runner.
-- **Enterprise contracts:** Authorized nonproduction AD and SMTP tests, deactivation propagation, role and CTO routing agreement, and SMTP reconciliation policy.
-- **Operations:** Production topology, recovery targets and realistic restore, alerting and rollback rehearsal.
-- **Governance:** Stakeholder UAT, independent review, approved PR landing and deployment authorization.
+- **Synthetic directory and identity (VERIFIED IN CI):** Disposable Samba AD DC provisioning (6 OUs, 129 accounts, 3 disabled), trusted LDAPS, read-only Keycloak federation (129 synchronized, 0 failures), federated browser login across roles, account disablement lifecycle, unresponsive-directory (`pause`/`unpause`) recovery, **full directory container restart (`stop`/`start`) recovery**, and all eight business scenarios with 11 authenticated TLS SMTP captures passed on exact-image CI ([run 45121964849 / job 137518124409](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45121964849/job/137518124409)).
+- **Synthetic isolation & container vulnerability gate (ISOLATION VERIFIED; IMAGE SCAN BLOCKED UPSTREAM):** Internal bridge routing, absence of published ports, IPv4/IPv6/UDP-DNS documentation-range unreachability probes, and complete Compose teardown are verified in CI. However, the mandatory Grype 0.122.1 `--fail-on high` container scan still fails on upstream unpatched packages in official Keycloak `26.8.2` (1 Critical in `java-21-openjdk-headless` marked `Will not fix` by Red Hat; 4 High in `sqlite-libs` marked `Affected`; 1 High in `guava 33.6.0-jre` awaiting a new Keycloak release) and Debian Trixie Samba (5 Critical in `python3.13 3.13.5-2+deb13u5` and 139 High across 15 Debian Trixie source packages with `0` fixed versions available in Debian Trixie).
+- **Enterprise contracts (BLOCKED PENDING OWNER AUTHORIZATION):** Authorized nonproduction AD and SMTP tests, immediate session/token deactivation propagation policy, role and CTO routing agreement, and SMTP reconciliation policy.
+- **Operations (OPEN):** Production topology, recovery targets and realistic restore, alerting and rollback rehearsal.
+- **Governance (OPEN):** Stakeholder UAT, independent review, approved PR landing and deployment authorization.
 
-Production remains NO-GO.
-
-The Day 13 synthetic federation and lifecycle replay now has passing hosted evidence. The image scan still fails for both pinned images at the High threshold. A supported patched build and passing rescan are required for Day 13 acceptance. Production authorization and stakeholder review remain separate.
-
-The supported Bookworm LTS candidate also failed the unchanged gate. A patched official Keycloak image and supported Samba packages that clear all outstanding High/Critical matches have not been verified. A failing image or unavailable vendor fix keeps Day 13 open. See [image security remediation](IMAGE_SECURITY_REMEDIATION.md).
+**Day 13 Engineering Verdict:** **PARTIAL** (Blocked solely by external upstream vendor container package fixes for the unchanged Grype `--fail-on high` gate).  
+**Production Readiness Verdict:** **NO-GO**.
