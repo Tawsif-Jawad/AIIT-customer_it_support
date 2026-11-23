@@ -73,7 +73,16 @@ jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
     }
   }]}' realm.json >"$AIIT_DAY13_REALM"
 chmod 644 "$AIIT_DAY13_REALM"
-dc up -d --build directory
+if [[ -n "${AIIT_SAMBA_SCANNED_ID:-}" ]]; then
+  [[ "$AIIT_SAMBA_SCANNED_ID" =~ ^sha256:[[:xdigit:]]{64}$ ]]
+  test "$(docker image inspect --format '{{.Id}}' aiit-day13-samba-scan)" = "$AIIT_SAMBA_SCANNED_ID"
+  docker tag "$AIIT_SAMBA_SCANNED_ID" "$project-directory"
+  dc up -d --no-build directory
+  test "$(docker inspect --format '{{.Image}}' "$(dc ps -aq directory)")" = "$AIIT_SAMBA_SCANNED_ID"
+  echo "Federation uses scanned Samba image $AIIT_SAMBA_SCANNED_ID"
+else
+  dc up -d --build directory
+fi
 read_directory() {
   dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 \
     -H ldaps://directory:636 -x -D CN=federation-reader,CN=Users,DC=office,DC=example,DC=test \

@@ -171,13 +171,21 @@ try {
       } finally {
         compose('start', 'directory');
       }
-      for (let attempt = 0; ; attempt++) {
-        try { await login(actorEmails[0]); break; }
-        catch (error) {
-          if (attempt >= 4) throw error;
+      // Check actual LDAPS readiness without spending the application's login budget.
+      const recoveryDeadline = Date.now() + 20000;
+      for (;;) {
+        try {
+          compose('exec', '-T', 'directory', 'env', 'LDAPTLS_CACERT=/fixture/ca.pem', 'LDAPTLS_REQCERT=demand',
+            'ldapsearch', '-LLL', '-o', 'nettimeout=2', '-l', '3', '-H', 'ldaps://directory:636',
+            '-x', '-D', 'CN=federation-reader,CN=Users,DC=office,DC=example,DC=test',
+            '-y', '/fixture/bind-password', '-s', 'base', '-b', '', 'defaultNamingContext');
+          break;
+        } catch {
+          if (Date.now() >= recoveryDeadline) throw new Error('Samba LDAPS did not become ready after restart');
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
+      await login(actorEmails[0]);
       console.log('Verified federated login recovery.');
     } finally {
       await browser.close();

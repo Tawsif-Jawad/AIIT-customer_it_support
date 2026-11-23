@@ -9,3 +9,5 @@
 Production remains NO-GO.
 
 The Day 13 synthetic federation and lifecycle replay now has passing hosted evidence. The image scan still fails for both pinned images at the High threshold. A supported patched build and passing rescan are required for Day 13 acceptance. Production authorization and stakeholder review remain separate.
+
+The supported Bookworm LTS candidate also failed the unchanged gate. A patched official Keycloak image and supported Samba packages that clear all outstanding High/Critical matches have not been verified. A failing image or unavailable vendor fix keeps Day 13 open. See [image security remediation](IMAGE_SECURITY_REMEDIATION.md).

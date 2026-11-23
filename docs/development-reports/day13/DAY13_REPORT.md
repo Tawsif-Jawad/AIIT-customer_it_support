@@ -19,3 +19,7 @@ The existing PR #18 adds an isolated Samba/LDAPS federation job and a Chromium h
 ### Hosted functional evidence
 
 On application commit `a3f92878d574d8d4279fa07d7339484aee1a13a8`, the hosted federation job passed real Samba, trusted LDAPS, full Keycloak synchronization, AIIT browser sign-in, four authenticated actors, and all eight business scenarios. The separate image scan failed on both images at the High threshold. Day 13 remains open and production remains NO-GO. [Hosted federation and security jobs](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45110000268)
+
+### Final security remediation
+
+The image gate remains the Day 13 blocker. The work added complete scan and SBOM archives, evaluated and rejected a supported Debian LTS candidate, and applied published Samba base-package fixes for full revalidation. See the [security remediation](IMAGE_SECURITY_REMEDIATION.md), [vulnerability inventory](VULNERABILITY_INVENTORY.md) and [image provenance](IMAGE_PROVENANCE.md).

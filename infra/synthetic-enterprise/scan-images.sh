@@ -50,6 +50,11 @@ else
   [[ "$keycloak" == quay.io/keycloak/keycloak:*@sha256:* ]]
   docker pull "$keycloak"
   docker build -f Samba.Dockerfile -t aiit-day13-samba-scan .
+  if [[ -n "${AIIT_SAMBA_EXPORT_DIR:-}" ]]; then
+    mkdir -p "$AIIT_SAMBA_EXPORT_DIR"
+    docker image inspect --format '{{.Id}}' aiit-day13-samba-scan >"$AIIT_SAMBA_EXPORT_DIR/image-id.txt"
+    docker save aiit-day13-samba-scan | gzip -1 >"$AIIT_SAMBA_EXPORT_DIR/samba.tar.gz"
+  fi
   result=0
   scan keycloak "$keycloak" || result=1
   scan samba aiit-day13-samba-scan || result=1

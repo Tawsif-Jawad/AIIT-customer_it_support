@@ -1,0 +1,162 @@
+image	vulnerability	package	installed_version	scanner_fix	severity
+keycloak	CVE-2026-119586	sqlite-libs	3.34.1-11.el9_8		High
+keycloak	CVE-2026-91403	java-21-openjdk-headless	1:21.0.13.1.2-1.2.el9	(won't fix)	Critical
+keycloak	CVE-2026-119379	sqlite-libs	3.34.1-11.el9_8		High
+keycloak	CVE-2026-119374	sqlite-libs	3.34.1-11.el9_8		High
+keycloak	CVE-2026-119373	sqlite-libs	3.34.1-11.el9_8		High
+samba	CVE-2026-34980	libcups2t64	2.4.10-3+deb13u2		High
+samba	CVE-2026-112314	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-112314	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112314	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112314	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-112321	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-112321	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112321	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112321	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-112320	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-112320	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112320	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112320	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-119079	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-119079	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-119079	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-119079	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-112322	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-112323	libgssapi-krb5-2	1.21.3-5+deb13u2		High
+samba	CVE-2026-112322	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112323	libk5crypto3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112322	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112323	libkrb5-3	1.21.3-5+deb13u2		High
+samba	CVE-2026-112322	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-112323	libkrb5support0	1.21.3-5+deb13u2		High
+samba	CVE-2026-19445	libpython3.13	3.13.5-2+deb13u5	(won't fix)	Critical
+samba	CVE-2026-19445	libpython3.13-minimal	3.13.5-2+deb13u5	(won't fix)	Critical
+samba	CVE-2026-19445	libpython3.13-stdlib	3.13.5-2+deb13u5	(won't fix)	Critical
+samba	CVE-2026-19445	python3.13	3.13.5-2+deb13u5	(won't fix)	Critical
+samba	CVE-2026-19445	python3.13-minimal	3.13.5-2+deb13u5	(won't fix)	Critical
+samba	CVE-2026-124709	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-124709	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-124709	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-7210	libpython3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-7210	libpython3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-7210	libpython3.13-stdlib	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-7210	python3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-7210	python3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2019-25781	python3-markdown	3.7-2+deb13u1	(won't fix)	High
+samba	CVE-2026-15308	libpython3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-15308	libpython3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-15308	libpython3.13-stdlib	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-15308	python3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-15308	python3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-82560	perl-base	5.40.1-6+deb13u1	(won't fix)	High
+samba	CVE-2026-19553	libpython3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-19553	libpython3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-19553	libpython3.13-stdlib	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-19553	python3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-19553	python3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-117610	libexpat1	2.9.0-1~deb13u1		High
+samba	CVE-2025-69720	libncurses6	6.5+20250216-2	(won't fix)	High
+samba	CVE-2025-69720	libncursesw6	6.5+20250216-2	(won't fix)	High
+samba	CVE-2025-69720	libtinfo6	6.5+20250216-2	(won't fix)	High
+samba	CVE-2025-69720	ncurses-base	6.5+20250216-2	(won't fix)	High
+samba	CVE-2025-69720	ncurses-bin	6.5+20250216-2	(won't fix)	High
+samba	CVE-2026-128089	python3-dnspython	2.7.0-1+deb13u1		High
+samba	CVE-2026-118370	libexpat1	2.9.0-1~deb13u1		High
+samba	CVE-2026-9538	perl-base	5.40.1-6+deb13u1	(won't fix)	High
+samba	CVE-2026-115506	libexpat1	2.9.0-1~deb13u1	(won't fix)	High
+samba	CVE-2026-85091	zlib1g	1:1.3.dfsg+really1.3.1-1+b1	1:1.3.dfsg+really1.3.1-1+deb13u1	High
+samba	CVE-2026-113351	libexpat1	2.9.0-1~deb13u1	(won't fix)	High
+samba	CVE-2026-95619	gcc-14-base	14.2.0-19	(won't fix)	High
+samba	CVE-2026-95619	libgcc-s1	14.2.0-19	(won't fix)	High
+samba	CVE-2026-95619	libstdc++6	14.2.0-19	(won't fix)	High
+samba	CVE-2026-95692	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-95692	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-95692	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-24882	dirmngr	2.4.7-21+deb13u1+b5	(won't fix)	High
+samba	CVE-2026-24882	gnupg	2.4.7-21+deb13u1	(won't fix)	High
+samba	CVE-2026-24882	gnupg-l10n	2.4.7-21+deb13u1	(won't fix)	High
+samba	CVE-2026-24882	gpg	2.4.7-21+deb13u1+b5	(won't fix)	High
+samba	CVE-2026-24882	gpg-agent	2.4.7-21+deb13u1+b5	(won't fix)	High
+samba	CVE-2026-24882	gpgconf	2.4.7-21+deb13u1+b5	(won't fix)	High
+samba	CVE-2026-24882	gpgsm	2.4.7-21+deb13u1+b5	(won't fix)	High
+samba	CVE-2026-107778	libgssapi-krb5-2	1.21.3-5+deb13u2	(won't fix)	High
+samba	CVE-2026-107778	libk5crypto3	1.21.3-5+deb13u2	(won't fix)	High
+samba	CVE-2026-107778	libkrb5-3	1.21.3-5+deb13u2	(won't fix)	High
+samba	CVE-2026-107778	libkrb5support0	1.21.3-5+deb13u2	(won't fix)	High
+samba	CVE-2026-102010	gcc-14-base	14.2.0-19	(won't fix)	High
+samba	CVE-2026-102010	libgcc-s1	14.2.0-19	(won't fix)	High
+samba	CVE-2026-102010	libstdc++6	14.2.0-19	(won't fix)	High
+samba	CVE-2026-107496	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-107496	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-107496	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-107161	libsasl2-2	2.1.28+dfsg1-9	(won't fix)	High
+samba	CVE-2026-107161	libsasl2-modules-db	2.1.28+dfsg1-9	(won't fix)	High
+samba	CVE-2026-121482	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-121482	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-121482	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-34990	libcups2t64	2.4.10-3+deb13u2	(won't fix)	High
+samba	CVE-2026-19499	libc-bin	2.41-12+deb13u4	2.41-12+deb13u5	High
+samba	CVE-2026-19499	libc6	2.41-12+deb13u4	2.41-12+deb13u5	High
+samba	CVE-2026-95691	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-95691	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-95691	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-119379	libsqlite3-0	3.46.1-7+deb13u2	(won't fix)	High
+samba	CVE-2026-84243	libc-bin	2.41-12+deb13u4	(won't fix)	High
+samba	CVE-2026-84243	libc6	2.41-12+deb13u4	(won't fix)	High
+samba	CVE-2026-69249	python3-cryptography	43.0.0-3+deb13u1	(won't fix)	High
+samba	CVE-2026-88823	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-88823	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-88823	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-119374	libsqlite3-0	3.46.1-7+deb13u2	(won't fix)	High
+samba	CVE-2026-78408	bsdutils	1:2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	libblkid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	liblastlog2-2	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	libmount1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	libsmartcols1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	libuuid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	login	1:4.16.0-2+really2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	mount	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78408	util-linux	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-5435	libc-bin	2.41-12+deb13u4	2.41-12+deb13u5	High
+samba	CVE-2026-5435	libc6	2.41-12+deb13u4	2.41-12+deb13u5	High
+samba	CVE-2026-76642	bsdutils	1:2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	libblkid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	liblastlog2-2	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	libmount1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	libsmartcols1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	libuuid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	login	1:4.16.0-2+really2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	mount	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-76642	util-linux	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-84786	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-84786	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-84786	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-119373	libsqlite3-0	3.46.1-7+deb13u2	(won't fix)	High
+samba	CVE-2026-78410	bsdutils	1:2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	libblkid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	liblastlog2-2	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	libmount1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	libsmartcols1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	libuuid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	login	1:4.16.0-2+really2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	mount	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78410	util-linux	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-82049	libpython3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-82049	libpython3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-82049	libpython3.13-stdlib	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-82049	python3.13	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-82049	python3.13-minimal	3.13.5-2+deb13u5	(won't fix)	High
+samba	CVE-2026-78409	bsdutils	1:2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	libblkid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	liblastlog2-2	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	libmount1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	libsmartcols1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	libuuid1	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	login	1:4.16.0-2+really2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	mount	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-78409	util-linux	2.41.5-0+deb13u1	(won't fix)	High
+samba	CVE-2026-107493	libssl3t64	3.5.9-1~deb13u1		High
+samba	CVE-2026-107493	openssl	3.5.9-1~deb13u1		High
+samba	CVE-2026-107493	openssl-provider-legacy	3.5.9-1~deb13u1		High
+samba	CVE-2026-54369	libacl1	2.3.2-2+b1	(won't fix)	High
+samba	CVE-2026-54370	libacl1	2.3.2-2+b1	(won't fix)	High
