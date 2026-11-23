@@ -15,3 +15,7 @@ The eight application scenarios passed with authenticated delivery. Full enterpr
 ## Completion remediation
 
 The existing PR #18 adds an isolated Samba/LDAPS federation job and a Chromium harness that uses the existing AIIT office, PostgreSQL store, authenticated SMTP worker and scenario driver. It must run with actual Keycloak federation. Hosted job logs determine which assertions were reached. The milestone stays open until every mandatory gate is evidenced.
+
+### Hosted functional evidence
+
+On application commit `a3f92878d574d8d4279fa07d7339484aee1a13a8`, the hosted federation job passed real Samba, trusted LDAPS, full Keycloak synchronization, AIIT browser sign-in, four authenticated actors, and all eight business scenarios. The separate image scan failed on both images at the High threshold. Day 13 remains open and production remains NO-GO. [Hosted federation and security jobs](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45110000268)

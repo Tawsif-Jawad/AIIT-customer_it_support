@@ -13,3 +13,5 @@
 | Worker restart, exhaustion and replay | Established recovery/staging suites exercise pre-send and post-acceptance interruption, terminal audit and possible duplicate acceptance. Those interruption cases use the existing TLS fixture path. |
 
 Transport classification and retry policy are unchanged; a permanent 550 is still handled by bounded retry with terminal audit. SMTP acceptance can precede the durable acknowledgment, so operators reconcile duplicates by Message-ID. Mailpit and corporate authenticated relay behavior remain unverified.
+
+The hosted Samba/Keycloak/AIIT browser replay passed all eight business scenarios through the existing worker and recorded 11 authenticated local sink acceptances. [Federated scenario run](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45110000268/job/137479936697)

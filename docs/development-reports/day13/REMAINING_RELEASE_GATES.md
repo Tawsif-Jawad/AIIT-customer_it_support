@@ -7,3 +7,5 @@
 - **Governance:** Stakeholder UAT, independent review, approved PR landing and deployment authorization.
 
 Production remains NO-GO.
+
+The Day 13 synthetic federation and lifecycle replay now has passing hosted evidence. The image scan still fails for both pinned images at the High threshold. A supported patched build and passing rescan are required for Day 13 acceptance. Production authorization and stakeholder review remain separate.
