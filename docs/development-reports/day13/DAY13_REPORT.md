@@ -9,7 +9,7 @@ The eight application scenarios passed with authenticated delivery. Full enterpr
 - [Keycloak configuration and federation](KEYCLOAK_FEDERATION.md)
 - [Authenticated SMTP results](SMTP_AUTH_VALIDATION.md)
 - [Comparison matrix](SIMULATOR_COMPARISON.md)
-- [Isolation](SECURITY_ISOLATION.md), [test evidence](TEST_EVIDENCE.md), [security-dependency tracker](SECURITY_DEPENDENCY_TRACKER.md), and [release gates](REMAINING_RELEASE_GATES.md)
+- [Isolation](SECURITY_ISOLATION.md), [test evidence](TEST_EVIDENCE.md), [security-dependency tracker](SECURITY_DEPENDENCY_TRACKER.md), [pending synthetic risk exception `AIIT-SYNTH-EXC-001`](risk-exception/RISK_EXCEPTION_REQUEST.md), and [release gates](REMAINING_RELEASE_GATES.md)
 - [Day 14 handoff](DAY14_HANDOFF.md)
 
 ## Completion remediation
