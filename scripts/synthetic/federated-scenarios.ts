@@ -94,13 +94,18 @@ try {
           assert.equal(new URL(page.url()).origin, root);
           await page.locator('#username').fill(username(email));
           await page.locator('#password').fill(secret);
-          await page.locator('#kc-login').click();
           if (!success) {
-            await page.locator('#username').waitFor({ state: 'visible' });
+            const submission = page.waitForResponse(response => response.request().method() === 'POST' &&
+              new URL(response.url()).origin === root && new URL(response.url()).pathname.includes('/login-actions/authenticate'));
+            await page.locator('#kc-login').click();
+            const rejection = await submission;
+            assert.ok(rejection.status() >= 200 && rejection.status() < 600);
+            assert.equal(rejection.headers().location, undefined, 'Expected a provider rejection without a callback redirect');
             assert.equal(new URL(page.url()).origin, root);
             assert.equal((await page.context().cookies(callback)).some(cookie => cookie.name === 'itsupport_session'), false);
-            return { status: 403, cookie: '' };
+            return { status: rejection.status(), cookie: '' };
           }
+          await page.locator('#kc-login').click();
           await page.waitForURL(callback + '/app');
           const session = (await page.context().cookies(callback)).find(cookie => cookie.name === 'itsupport_session');
           assert.ok(session?.secure && session.httpOnly, 'Expected a secure application session');
@@ -144,6 +149,7 @@ try {
       }
       const tokenStatus = async () => (await fetch(issuer + '/protocol/openid-connect/userinfo', {
         headers: { authorization: 'Bearer ' + verifiedAccessToken },
+        signal: AbortSignal.timeout(15000),
       })).status;
       assert.equal(await tokenStatus(), 200);
       const issuedAt = Date.now();

@@ -15,6 +15,14 @@ cleanup() {
   trap - EXIT
   if ((status != 0)); then dc logs --no-color --tail 40 directory issuer || true; fi
   dc down --volumes --remove-orphans || status=1
+  if [[ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$project")" ||
+        -n "$(docker volume ls -q --filter "label=com.docker.compose.project=$project")" ||
+        -n "$(docker network ls -q --filter "label=com.docker.compose.project=$project")" ]]; then
+    echo 'Synthetic Compose resources remain after teardown' >&2
+    status=1
+  else
+    echo 'Synthetic containers, networks and volumes removed'
+  fi
   rm -rf -- "$root"
   exit "$status"
 }
@@ -61,7 +69,7 @@ jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
       bindCredential:[($password | rtrimstr("\n"))], authType:["simple"],
       usernameLDAPAttribute:["sAMAccountName"], rdnLDAPAttribute:["cn"], uuidLDAPAttribute:["objectGUID"],
       userObjectClasses:["person, organizationalPerson, user"], searchScope:["2"],
-      useTruststoreSpi:["always"], importEnabled:["true"], cachePolicy:["NO_CACHE"]
+      useTruststoreSpi:["always"], connectionTimeout:["5000"], readTimeout:["5000"], importEnabled:["true"], cachePolicy:["NO_CACHE"]
     }
   }]}' realm.json >"$AIIT_DAY13_REALM"
 chmod 644 "$AIIT_DAY13_REALM"
