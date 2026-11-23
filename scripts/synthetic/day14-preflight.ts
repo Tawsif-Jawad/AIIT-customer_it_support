@@ -150,7 +150,7 @@ export function verifySignedEnvelope(
   }
 }
 
-export function evaluateDay14Preflight(context: PreflightContext): PreflightResult {
+export function verifyDay14Authorization(context: Omit<PreflightContext, 'controls'>): PreflightResult {
   const clock = new Date(context.nowUtcMs ?? NaN);
   if (!context.clockTrustMode || !Number.isFinite(clock.getTime())) {
     return { allowed: false, reasons: ['Trusted UTC time is unavailable.'], checkedAtUtc: new Date().toISOString() };
@@ -263,20 +263,31 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     reasons.push('Separate Day 14 start authorization does not match the signed exception, execution, or validity window.');
   }
 
-  if (
-    payload.approvedImages?.keycloak !== APPROVED_IMAGE_DIGESTS.keycloak ||
-    context.controls.keycloakImageDigest !== APPROVED_IMAGE_DIGESTS.keycloak
-  ) {
+  if (payload.approvedImages?.keycloak !== APPROVED_IMAGE_DIGESTS.keycloak ||
+      payload.approvedImages?.sambaBase !== APPROVED_IMAGE_DIGESTS.sambaBase) {
+    reasons.push('Signed images do not match approved immutable source digests.');
+  }
+
+  return {
+    allowed: reasons.length === 0,
+    reasons,
+    checkedAtUtc,
+    expiresAtUtc: expiresMs !== null ? new Date(expiresMs).toISOString() : undefined,
+    remainingMs,
+  };
+}
+
+export function evaluateDay14Preflight(context: PreflightContext): PreflightResult {
+  const authorization = verifyDay14Authorization(context);
+  if (!authorization.allowed) return authorization;
+  const reasons: string[] = [];
+
+  if (context.controls.keycloakImageDigest !== APPROVED_IMAGE_DIGESTS.keycloak) {
     reasons.push('Keycloak image digest does not match the approved immutable digest.');
   }
-
-  if (
-    payload.approvedImages?.sambaBase !== APPROVED_IMAGE_DIGESTS.sambaBase ||
-    context.controls.sambaBaseImageDigest !== APPROVED_IMAGE_DIGESTS.sambaBase
-  ) {
+  if (context.controls.sambaBaseImageDigest !== APPROVED_IMAGE_DIGESTS.sambaBase) {
     reasons.push('Samba base image digest does not match the approved immutable digest.');
   }
-
   if (context.controls.keycloakRuntimeImageId !== KEYCLOAK_AMD64_IMAGE_ID) {
     reasons.push('Effective Keycloak image ID does not match the reviewed amd64 image.');
   }
@@ -317,13 +328,7 @@ export function evaluateDay14Preflight(context: PreflightContext): PreflightResu
     }
   }
 
-  return {
-    allowed: reasons.length === 0,
-    reasons,
-    checkedAtUtc,
-    expiresAtUtc: expiresMs !== null ? new Date(expiresMs).toISOString() : undefined,
-    remainingMs,
-  };
+  return { ...authorization, allowed: reasons.length === 0, reasons };
 }
 
 export function runLivePreflight(intendedActivity: string): PreflightResult {

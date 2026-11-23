@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash, generateKeyPairSync, sign as cryptoSign } from 'node:crypto';
 import test from 'node:test';
+import { consumeExecution } from '../scripts/synthetic/day14-registry.ts';
+import { collectRuntimeEvidence, runIsolatedProcess, type ContainerObservation } from '../scripts/synthetic/day14-runtime-evidence.ts';
+import { superviseDay14, type SupervisionDependencies } from '../scripts/synthetic/day14-supervisor.ts';
+import { disposablePostgres, postgresBinaries } from './support/disposable-postgres.ts';
 import {
   APPROVED_IMAGE_DIGESTS,
   EXCEPTION_ID,
@@ -359,5 +363,175 @@ test('Direct entry rejects caller branch labels and unrecognized activity', () =
     assert.ok(preflight.reasons.some((reason: string) => reason.includes('Environment protection')));
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function supervisorFixture() {
+  const request = { ...execution, activity };
+  const events: string[] = [];
+  const evidence = { ...validContext(), owner: 'test-owner@example.test' };
+  const dependencies: SupervisionDependencies = {
+    authority: {
+      read: async () => evidence,
+      consume: async () => true,
+    },
+    open: () => ({
+      provision: async () => { events.push('provision'); },
+      inspect: async () => validControls(),
+      run: async () => { events.push('run'); },
+      stopAndRemove: async () => { events.push('cleanup'); },
+    }),
+    audit: async event => { events.push(event.outcome); },
+  };
+  return { request, evidence, dependencies, events };
+}
+
+test('Supervisor rejects unavailable, invalid, changed and unauthorized evidence before workload', async () => {
+  const fixture = supervisorFixture();
+  assert.equal((await superviseDay14(fixture.request)).outcome, 'authority-unconfigured');
+  for (const change of ['clock', 'revoked', 'expired', 'signature', 'commit', 'scope', 'registry'] as const) {
+    const { request, evidence, dependencies, events } = supervisorFixture();
+    if (change === 'clock') evidence.nowUtcMs = undefined;
+    if (change === 'revoked') evidence.revokedExceptionIds = [EXCEPTION_ID];
+    if (change === 'expired') evidence.nowUtcMs = Date.parse(evidence.envelope!.payload.expiresAtUtc);
+    if (change === 'signature') evidence.envelope!.signatureBase64 = '';
+    if (change === 'commit') request.commit = 'b'.repeat(40);
+    if (change === 'scope') request.activity = 'day14-full-office-load';
+    if (change === 'registry') dependencies.authority.consume = async () => { throw new Error('offline'); };
+    assert.equal((await superviseDay14(request, dependencies)).allowed, false, change);
+    assert.ok(!events.includes('provision'), change);
+  }
+  const { request, dependencies, events } = supervisorFixture();
+  const open = dependencies.open;
+  dependencies.open = value => ({ ...open(value), inspect: async () => validControls({ sambaRuntimeImageId: '' }) });
+  assert.equal((await superviseDay14(request, dependencies)).outcome, 'runtime-controls-denied');
+  assert.ok(events.includes('cleanup'));
+  assert.ok(!events.includes('run'));
+});
+
+test('Supervisor terminates a harmless process on expiry or observed revocation and never releases the claim', async () => {
+  for (const condition of ['expiry', 'revocation'] as const) {
+    const { request, evidence, dependencies, events } = supervisorFixture();
+    if (condition === 'expiry') evidence.nowUtcMs = Date.parse(evidence.envelope!.payload.expiresAtUtc) - 500;
+    let claimed = false;
+    dependencies.authority.consume = async () => {
+      if (claimed) return false;
+      claimed = true;
+      return true;
+    };
+    const open = dependencies.open;
+    dependencies.open = value => ({
+      ...open(value),
+      run: async signal => {
+        events.push('run');
+        if (condition === 'revocation') evidence.revokedExceptionIds = [EXCEPTION_ID];
+        await runIsolatedProcess(process.execPath, ['-e', 'setInterval(() => {}, 100)'], tmpdir(), signal);
+      },
+    });
+    const result = await superviseDay14(request, dependencies);
+    assert.equal(result.allowed, false);
+    assert.equal(result.outcome, condition === 'expiry' ? 'authorization-expired' : 'authorization-recheck-failed');
+    assert.equal(result.cleanup, 'verified');
+    assert.ok(events.includes('run'));
+    evidence.revokedExceptionIds = [];
+    assert.equal((await superviseDay14(request, dependencies)).outcome, 'claim-failed');
+    assert.equal(events.filter(event => event === 'run').length, 1);
+  }
+});
+
+test('Supervisor records a teardown failure after partial setup', async () => {
+  const { request, dependencies, events } = supervisorFixture();
+  const open = dependencies.open;
+  dependencies.open = value => ({
+    ...open(value),
+    provision: async () => { throw new Error('partial setup'); },
+    stopAndRemove: async () => { throw new Error('cleanup failed'); },
+  });
+  assert.deepEqual(await superviseDay14(request, dependencies),
+    { allowed: false, outcome: 'teardown-failed', cleanup: 'failed' });
+  assert.ok(events.includes('teardown-failed'));
+});
+
+test('Runtime collector checks effective Docker observations, probes, fixture bytes and credentials', async () => {
+  const good = validControls();
+  const observation: ContainerObservation = {
+    Id: 'issuer', Image: good.keycloakRuntimeImageId, State: { Running: true },
+    HostConfig: {
+      Privileged: false, NetworkMode: 'isolated', PidMode: '', IpcMode: 'private', UsernsMode: '',
+      CapAdd: null, CapDrop: ['ALL'], SecurityOpt: ['no-new-privileges:true'],
+      Memory: 1536 * 1024 ** 2, Devices: [], PortBindings: null,
+    },
+    Config: { Env: ['PASSWORD=fixture'] }, Mounts: [],
+    NetworkSettings: { Networks: { isolated: { NetworkID: 'net' } }, Ports: { '443/tcp': null } },
+  };
+  const fixtureBytes = Buffer.from('fictional data');
+  const expected = { expectedMounts: [], expectedEnvironment: ['PASSWORD=fixture'] };
+  const plan = {
+    networkId: 'net', containers: [
+      { ...expected, id: 'issuer', role: 'keycloak' as const },
+      { ...expected, id: 'directory', role: 'samba' as const },
+    ],
+    keycloakImageDigest: good.keycloakImageDigest, sambaBaseImageDigest: good.sambaBaseImageDigest,
+    fixtureBytes, expectedFixtureSha256: createHash('sha256').update(fixtureBytes).digest('hex'),
+    targetEndpoints: good.targetEndpoints, teardownReady: true,
+  };
+  const network = { Id: 'net', Internal: true, Driver: 'bridge', Containers: { issuer: {}, directory: {} } };
+  const source = {
+    inspectNetwork: async () => network,
+    inspectContainer: async (id: string) => ({
+      ...observation, Id: id, Image: id === 'issuer' ? good.keycloakRuntimeImageId : good.sambaRuntimeImageId,
+    }),
+    probe: async () => 'blocked' as const,
+  };
+  const signal = new AbortController().signal;
+  assert.deepEqual(await collectRuntimeEvidence(source, plan, signal), good);
+  network.Internal = false;
+  observation.Config.Env.push('UNEXPECTED=fixture');
+  observation.NetworkSettings.Ports = { '443/tcp': [{ HostPort: '443' }] };
+  const changed = await collectRuntimeEvidence({ ...source, probe: async () => 'indeterminate' },
+    { ...plan, fixtureBytes: Buffer.from('changed') }, signal);
+  assert.equal(changed.internalNetworkOnly, false);
+  assert.equal(changed.noProductionSecrets, false);
+  assert.equal(changed.noPublishedPorts, false);
+  assert.equal(changed.egressIsolationVerified, false);
+  assert.equal(changed.syntheticDataOnly, false);
+});
+
+test('PostgreSQL registry atomically consumes once and rejects replay, expiry and revoked claims', {
+  skip: process.env.DB_REQUIRED !== 'true' && !postgresBinaries(),
+}, async () => {
+  const cluster = await disposablePostgres();
+  const { PrismaClient } = await import('@prisma/client');
+  const client = new PrismaClient({ datasourceUrl: cluster.url });
+  try {
+    const schema = readFileSync(new URL('../infra/synthetic-authorization/registry.sql', import.meta.url), 'utf8');
+    for (const statement of schema.split(';').filter(sql => sql.trim())) await client.$executeRawUnsafe(statement);
+    const fingerprint = 'a'.repeat(64);
+    const expiresAtUtc = new Date(Date.now() + 60_000).toISOString();
+    const expired = new Date(Date.now() - 60_000).toISOString();
+    await client.$executeRaw`INSERT INTO day14_authority.exceptions (exception_id) VALUES (${EXCEPTION_ID})`;
+    const claims = [['once', expiresAtUtc], ['revoked', expiresAtUtc], ['expired', expired], ['blocked', expiresAtUtc]];
+    for (const [id, expiry] of claims) {
+      await client.$executeRaw`INSERT INTO day14_authority.execution_claims (exception_id, execution_id, fingerprint, expires_at)
+        VALUES (${EXCEPTION_ID}, ${id}, ${fingerprint}, ${expiry}::timestamptz)`;
+    }
+    await client.$executeRaw`UPDATE day14_authority.execution_claims SET revoked_at = clock_timestamp()
+      WHERE execution_id = 'revoked'`;
+    const signal = new AbortController().signal;
+    const claim = (id: string, expiry = expiresAtUtc, digest = fingerprint) => consumeExecution(
+      (sql, params) => client.$queryRawUnsafe(sql, ...params), { id, fingerprint: digest, expiresAtUtc: expiry }, signal,
+    );
+    assert.equal(await claim('once', expiresAtUtc, 'b'.repeat(64)), false);
+    assert.deepEqual((await Promise.all([claim('once'), claim('once')])).sort(), [false, true]);
+    assert.equal(await claim('once'), false);
+    assert.equal(await claim('expired', expired), false);
+    assert.equal(await claim('revoked'), false);
+    assert.equal(await claim('unknown'), false);
+    await client.$executeRaw`UPDATE day14_authority.exceptions SET revoked_at = clock_timestamp()
+      WHERE exception_id = ${EXCEPTION_ID}`;
+    assert.equal(await claim('blocked'), false);
+  } finally {
+    await client.$disconnect();
+    cluster.close();
   }
 });
