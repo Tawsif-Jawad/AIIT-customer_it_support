@@ -25,3 +25,9 @@ jobs:
       - run: bash infra/synthetic-enterprise/federation.sh
         env:
           PG_BINDIR: /usr/lib/postgresql/16/bin
+  image-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/synthetic-enterprise/scan-images.sh
