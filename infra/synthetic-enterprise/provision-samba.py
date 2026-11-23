@@ -13,6 +13,10 @@ domain = 'DC=office,DC=example,DC=test'
 staff = 'OU=Staff,' + domain
 configuration = Path('/tmp/synthetic-ad/etc/smb.conf')
 def serve():
+    # A bind-mounted file retains the runner UID. Samba requires a root-owned private key.
+    key = Path('/tmp/synthetic-ad/ad-key.pem')
+    key.write_bytes((fixture / 'ad-key.pem').read_bytes())
+    key.chmod(0o600)
     os.execv('/usr/sbin/samba', ['samba', '--foreground', '--debug-stdout', '--no-process-group', '-s', str(configuration)])
 
 if Path('/tmp/synthetic-ad/provisioned').is_file():
@@ -30,7 +34,7 @@ result = provision(
 contents = configuration.read_text()
 configuration.write_text(contents.replace('[global]', '''[global]
     tls certfile = /fixture/ad.pem
-    tls keyfile = /fixture/ad-key.pem
+    tls keyfile = /tmp/synthetic-ad/ad-key.pem
     tls cafile = /fixture/ca.pem
     server services = ldap
 ''', 1))
