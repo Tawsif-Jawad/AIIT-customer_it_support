@@ -31,3 +31,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash infra/synthetic-enterprise/scan-images.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-image-security-evidence
+          path: image-security-evidence/
+          if-no-files-found: error
+  samba-bookworm-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/synthetic-enterprise/scan-images.sh bookworm
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bookworm-candidate-security-evidence
+          path: image-security-evidence/
+          if-no-files-found: error
