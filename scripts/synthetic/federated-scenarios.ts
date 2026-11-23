@@ -162,14 +162,15 @@ try {
       console.log(JSON.stringify({ lifecycle: 'directory-disabled', elapsedMs: Date.now() - issuedAt, existingAiitSessionStatus: current.status, existingTokenUserInfoStatus: await tokenStatus() }));
       directoryState('enable');
       await login(actorEmails[0]);
-      compose('stop', 'directory');
+      // Simulate an unresponsive directory while preserving its Docker network endpoint.
+      compose('pause', 'directory');
       try {
         await login(actorEmails[0], password, false);
         const outage = await fetch(callback + '/api/auth/me', { headers: { cookie: existing.cookie } });
         assert.ok([200, 401].includes(outage.status));
         console.log(JSON.stringify({ lifecycle: 'directory-outage', existingAiitSessionStatus: outage.status, existingTokenUserInfoStatus: await tokenStatus() }));
       } finally {
-        compose('start', 'directory');
+        compose('unpause', 'directory');
       }
       // Check actual LDAPS readiness without spending the application's login budget.
       const recoveryDeadline = Date.now() + 20000;
@@ -181,7 +182,7 @@ try {
             '-y', '/fixture/bind-password', '-s', 'base', '-b', '', 'defaultNamingContext');
           break;
         } catch {
-          if (Date.now() >= recoveryDeadline) throw new Error('Samba LDAPS did not become ready after restart');
+          if (Date.now() >= recoveryDeadline) throw new Error('Samba LDAPS did not become ready after resuming');
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
