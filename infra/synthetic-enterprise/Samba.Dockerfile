@@ -4,11 +4,8 @@ RUN apt-get update \
     samba-ad-dc samba-ad-provision ldap-utils ldb-tools ca-certificates \
     libc6=2.41-12+deb13u5 libc-bin=2.41-12+deb13u5 \
     zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
- && apt-get purge -y --allow-remove-essential \
-    python3-markdown \
+ && apt-get purge -y \
     dirmngr gnupg gnupg-l10n gpg gpg-agent gpgconf gpgsm \
-    bsdutils login mount util-linux \
-    ncurses-bin \
  && rm -rf /var/lib/apt/lists/*
 COPY provision-samba.py /usr/local/bin/provision-samba.py
 ENTRYPOINT ["/usr/bin/python3", "/usr/local/bin/provision-samba.py"]
