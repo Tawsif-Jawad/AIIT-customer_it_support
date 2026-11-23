@@ -1,9 +1,13 @@
 # Day 14 handoff
 
-Prioritize a separately reviewed Samba AD DC on an authorized isolated container host. Consume the generated manifest, create a short-lived LDAPS trust chain, configure Keycloak read-only federation and record actual bind and directory queries. Establish exact subject mappings from verified tokens before logging into AIIT. Exercise employee, IT, and CTO flows, account disable and re-enable, and a DC outage while measuring new login and existing session behavior separately. Run the eight scenarios through that wiring and document teardown and egress evidence.
+All Day 13 functional, federation, authenticated TLS SMTP, isolation, teardown, and full directory container stop/start recovery requirements have been implemented and verified in hosted CI ([run 45121964849 / job 137518124409](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45121964849/job/137518124409)).
 
-Keep the authenticated local SMTP path in use. Add Mailpit only after validating the selected version's TLS/authentication and egress configuration. Preserve stable notification identity and the existing bounded retry policy while comparing capture behavior.
+## Hold — Do Not Start Day 14
 
-## Hold
+Day 13 remains **PARTIAL** (and Day 14 remains **ON HOLD**) because the mandatory unchanged Grype 0.122.1 `--fail-on high` container vulnerability gate fails on upstream unpatched packages in official Keycloak `26.8.2` (1 Critical, 5 High) and Debian Trixie Samba (5 Critical, 139 High after patching `libc6`, `libc-bin`, and `zlib1g` and purging 7 non-runtime GnuPG packages).
 
-Day 13 remains open while its image gate fails. This historical handoff does not authorize Day 14. See [Day 13 security remediation](IMAGE_SECURITY_REMEDIATION.md).
+Advancing to Day 14 requires either:
+1. Upstream publication of patched Red Hat UBI 9 / Keycloak (> `26.8.2`) and Debian Trixie (`python3.13`, `openssl`, `krb5`, `sqlite3`, etc.) packages that pass the unchanged Grype `--fail-on high` gate, **or**
+2. An explicit, documented owner governance decision accepting the upstream vendor risk profile for the isolated synthetic test containers.
+
+Until one of those conditions is met, Day 14 must not be started. See [Day 13 image security remediation](IMAGE_SECURITY_REMEDIATION.md) and [vulnerability inventory](VULNERABILITY_INVENTORY.md).
