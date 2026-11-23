@@ -7,7 +7,9 @@
 
 ## 1. 14-Day Validity Rule & Expiry Calculation
 - **Start of Validity Clock:** Starts **only** when the approving authority records explicit written approval (`APPROVE AIIT-SYNTH-EXC-001`) with a real UTC timestamp.
-- **Maximum Duration:** **14 calendar days** (`+336 hours`) from the recorded UTC approval timestamp.
+- **Maximum Duration:** **14 calendar days** (`336 hours` = `1,209,600,000 ms`) from the recorded UTC approval timestamp.
+- **Automated Enforcement (`scripts/synthetic/day14-preflight.ts`):** Rejects missing/malformed timestamps, non-UTC offsets, future-dated `approvedAtUtc`, `expiresAtUtc <= approvedAtUtc`, durations `> 336 hours`, `nowUtcMs >= expiresAtUtc`, and `revoked: true` (or inclusion in `revokedExceptionIds`).
+- **Revocation Procedure:** Either set `"revoked": true` in a newly signed envelope, remove the GitHub Environment secret `AIIT_PROTECTED_ENV_ATTESTED`, or rotate/remove the trusted public key; all subsequent Day 14 runs immediately fail closed.
 - **No Automatic Renewal:** On reaching the exact UTC expiry timestamp, the exception terminates automatically.
 
 ---

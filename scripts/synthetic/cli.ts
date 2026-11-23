@@ -1,8 +1,17 @@
 import { createInterface } from 'node:readline';
+import { PERMITTED_SCOPES, runLivePreflight } from './day14-preflight.ts';
 import { startOffice } from './office.ts';
 import { runOfficeScenarios } from './scenarios.ts';
 
 const command = process.argv[2];
+if ((PERMITTED_SCOPES as readonly string[]).includes(command ?? '')) {
+  const preflight = runLivePreflight(command);
+  console.log(JSON.stringify(preflight, null, 2));
+  if (!preflight.allowed) {
+    process.exit(1);
+  }
+  throw new Error('DAY14_WORKLOAD_NOT_YET_IMPLEMENTED');
+}
 if (command !== 'up' && command !== 'demo' && command !== 'enterprise-demo') throw new Error('Use synthetic:up or synthetic:demo');
 if (command !== 'up') {
   const office = await startOffice(0, false, command === 'enterprise-demo');

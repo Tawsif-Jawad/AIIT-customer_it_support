@@ -1,0 +1,33 @@
+name: Day 14 synthetic simulation (Exception-Gated)
+on:
+  workflow_dispatch:
+    inputs:
+      activity:
+        description: 'Permitted Day 14 synthetic activity scope'
+        required: true
+        type: choice
+        options:
+          - day14-synthetic-simulation
+          - day14-full-office-load
+          - day14-synthetic-performance
+          - day14-enterprise-stress
+
+permissions:
+  contents: read
+
+jobs:
+  authorization-preflight:
+    runs-on: ubuntu-24.04
+    environment: day14-synthetic-exception
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Fail-closed AIIT-SYNTH-EXC-001 authorization preflight
+        env:
+          AIIT_GIT_BRANCH: ${{ github.ref_name }}
+          AIIT_EXCEPTION_APPROVAL_FILE: ${{ vars.AIIT_EXCEPTION_APPROVAL_FILE }}
+          AIIT_EXCEPTION_PUBLIC_KEY_PEM: ${{ secrets.AIIT_EXCEPTION_PUBLIC_KEY_PEM }}
+          AIIT_EXCEPTION_TRUSTED_APPROVERS: ${{ vars.AIIT_EXCEPTION_TRUSTED_APPROVERS }}
+          AIIT_PROTECTED_ENV_ATTESTED: ${{ secrets.AIIT_PROTECTED_ENV_ATTESTED }}
+        run: node scripts/synthetic/day14-preflight.ts "${{ inputs.activity }}"

@@ -22,3 +22,15 @@
 | **D. Identity & Session Security** | Role/SBU boundaries, rejected disabled-user logins, trusted LDAPS (and negative cert/hostname/password checks), OIDC Code + PKCE (`S256`), and full stop/start recovery | `federation.sh`, `federated-scenarios.ts`, `tests/oidc-security.test.ts` | [Job 137540306980](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45128932124/job/137540306980), [Job 137539672444](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45128932135/job/137539672444) | **VERIFIED PASS** *(Explicitly recorded: existing AIIT sessions and tokens are not guaranteed to revoke instantaneously upon directory disablement.)* |
 | **E. Security Evidence** | Raw Grype JSON, CycloneDX SBOMs, immutable image IDs, Grype DB metadata, and failed `image-scan` gate preserved without suppression | `scan-images.sh` (`--fail-on high`), `synthetic-enterprise.yml` `upload-artifact` with `if: always()` | [Job 137539672976](https://github.com/Tawsif-Jawad/AIIT-customer_it_support/actions/runs/45128932124/job/137539672976), `MINIMIZED_HIGH_CRITICAL.tsv`, `SECURITY_DEPENDENCY_TRACKER.md` | **VERIFIED PASS** (`image-scan` fails honestly as required) |
 | **F. Operational Limits** | Scope restricted to authorized synthetic testing; immediate suspension on any isolation or scope breach | Documented in `RISK_EXCEPTION_REQUEST.md` & `EXCEPTION_EXPIRY_AND_REVIEW.md` | `docs/development-reports/day13/risk-exception/` | **VERIFIED DOCUMENTED** |
+
+---
+
+## Automated Control-Drift Detection vs. Human/Environmental Verification
+
+`scripts/synthetic/day14-preflight.ts` (`inspectRepositoryControls` + `evaluateDay14Preflight`) automatically verifies before any Day 14 workload starts:
+- Pinned Keycloak (`compose.yml`) and Samba base (`Samba.Dockerfile`) immutable SHA-256 digests match `APPROVED_IMAGE_DIGESTS`.
+- `internal: true`, absence of `ports:`, `cap_drop: [ALL]`, `no-new-privileges:true`, absence of `privileged: true` / `network_mode: host`, presence of IPv4/IPv6/DNS egress probes, and teardown commands in `federation.sh`.
+- All declared `targetEndpoints` match synthetic loopback/container/`example.test` patterns (any corporate hostname fails closed).
+
+**Controls Requiring Runtime/Human Verification (Cannot Be Proven by Config Inspection Alone):**
+- Actual kernel/Docker runtime isolation on the host or CI runner, absence of real credentials in local environment variables, and live teardown confirmation after execution (verified by `keycloak-smoke` and `samba-ldaps` in CI).

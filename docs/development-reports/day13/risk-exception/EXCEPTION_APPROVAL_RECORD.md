@@ -46,7 +46,15 @@ Approval of `AIIT-SYNTH-EXC-001` is valid **only** when accompanied by explicit 
 
 ---
 
-## 4. Evidence & Document References
+## 4. Automated Preflight Enforcement & Approval Verification Procedure
+
+Editing this Markdown file alone **cannot** authorize Day 14 execution. All Day 14 CLI entry points (`scripts/synthetic/cli.ts`) and the manual-only workflow (`.github/workflows/day14-synthetic-simulation.yml`) execute `scripts/synthetic/day14-preflight.ts` (**default: DENY**):
+
+1. **Cryptographic Verification (Out-of-Repo Trust Anchor):** Requires a JSON `SignedAuthorizationEnvelope` signed with an owner-controlled **Ed25519** private key (never stored in the repository) and verified against an out-of-repo public key (`AIIT_EXCEPTION_PUBLIC_KEY_FILE` or GitHub Environment secret `AIIT_EXCEPTION_PUBLIC_KEY_PEM`).
+2. **GitHub Protected Environment Gate (CI):** `.github/workflows/day14-synthetic-simulation.yml` requires `workflow_dispatch` + protected GitHub Environment `day14-synthetic-exception` with required human reviewers, plus environment secret `AIIT_PROTECTED_ENV_ATTESTED=AIIT-SYNTH-EXC-001`.
+3. **Local Execution Clock-Trust Limitation:** Local runs use the host UTC clock (`local-signed-attestation`) and therefore cannot defend against a locally altered system clock; authoritative time enforcement is provided by the ephemeral GitHub Actions runner UTC clock (`ci-runner-utc`).
+
+## 5. Evidence & Document References
 - [RISK_EXCEPTION_REQUEST.md](RISK_EXCEPTION_REQUEST.md)
 - [SECURITY_RISK_ASSESSMENT.md](SECURITY_RISK_ASSESSMENT.md)
 - [COMPENSATING_CONTROLS.md](COMPENSATING_CONTROLS.md)
