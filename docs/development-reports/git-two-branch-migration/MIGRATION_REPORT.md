@@ -30,7 +30,7 @@ The AI IT Support System repository has been migrated to the permanent two-branc
 | Metric | Before Migration | After Core Migration | Target After Approved Cleanup |
 |---|---|---|---|
 | **Permanent Stable Branch** | `main` (`b6fae621`) | `main` (`b6fae621`) | `main` (`b6fae621`) |
-| **Permanent Development Branch** | None (day-by-day branches `codex/day3-*` .. `codex/day13-*`) | `development` (branched from `2ff77f25`, plus migration documentation commit) | `development` |
+| **Permanent Development Branch** | None (day-by-day branches `codex/day3-*` .. `codex/day13-*`) | `development` (branched from `2ff77f25`, plus migration documentation and cherry-picked Day 13 final remediation commits `833b471` / `ac50e59`, `3834fd2` / `df217e3`, `b8c58da` / `bec4606`) | `development` |
 | **Remote Branch Count (`origin`)** | 20 | 21 (`development` added; 0 deleted without authorization) | 2 (`main`, `development`) |
 | **Active Antigravity Checkout** | `codex/day6-ingress-oidc-abuse-postgres-performance` (`f0fd3a1f`) | `development` tracking `origin/development` | `development` tracking `origin/development` |
 

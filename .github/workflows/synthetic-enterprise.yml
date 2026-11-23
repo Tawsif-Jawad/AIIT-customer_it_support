@@ -1,5 +1,13 @@
 name: Synthetic enterprise infrastructure
 on:
+  push:
+    branches:
+      - development
+    paths:
+      - 'infra/synthetic-enterprise/**'
+      - 'scripts/synthetic/**'
+      - 'docs/development-reports/day13/**'
+      - '.github/workflows/synthetic-enterprise.yml'
   pull_request:
     paths:
       - 'infra/synthetic-enterprise/**'

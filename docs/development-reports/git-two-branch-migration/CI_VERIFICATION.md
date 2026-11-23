@@ -66,7 +66,16 @@ All required local checks were executed directly on the `development` checkout:
 
 ---
 
-## 4. Day 13 Security Gate Visibility & Engineering Verdict
+## 4. Day 13 Final Remediation Synchronization onto `development`
+
+Following the Day 13 final container security triage and full directory container stop/start recovery remediation originally committed on `codex/day13-synthetic-enterprise-integration` (`ac50e59cfe6f674ffe72af19aaecbca422831e8f`, `df217e31f1c673be5f910164dd3fa92c77a230b1`, `bec460691b38c83eb34537400b1ceb5aa75e6c1c`), all three commits were integrated into `development` in exact commit order with `git cherry-pick -x`:
+1. `833b471aa2c7750d55a4bc738ead4e52a0b92533` — cherry-picked from `ac50e59cfe6f674ffe72af19aaecbca422831e8f` (`Minimize Samba runtime packages and verify full directory stop/start recovery`)
+2. `3834fd236dd75cc7de0db9409206f26903b8127b` — cherry-picked from `df217e31f1c673be5f910164dd3fa92c77a230b1` (`Keep Samba dependencies supported and purge non-essential GnuPG packages`)
+3. `b8c58daff401759549544483ee0e60490bc200ad` — cherry-picked from `bec460691b38c83eb34537400b1ceb5aa75e6c1c` (`Document final Day 13 container security triage and full restart recovery evidence`)
+
+In addition, `.github/workflows/synthetic-enterprise.yml` was updated to trigger on `push` to `development` (in addition to `pull_request` and `workflow_dispatch`) so that `keycloak-smoke`, `image-scan`, `samba-bookworm-candidate`, and `samba-ldaps` execute automatically on `development` candidate pushes without requiring a separate day-specific PR branch.
+
+## 5. Day 13 Security Gate Visibility & Engineering Verdict
 
 Per strict governance rules:
 1. **Container Image Vulnerability Scan Failure Remains Visible:** The Grype container image scan (`infra/synthetic-enterprise/scan-images.sh`) in `image-scan` and `samba-bookworm-candidate` fails on high/critical vulnerabilities in the synthetic Samba container base image.
