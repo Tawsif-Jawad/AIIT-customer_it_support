@@ -27,11 +27,13 @@ openssl req -new -newkey rsa:2048 -nodes -subj /CN=directory -keyout "$AIIT_DAY1
 printf 'subjectAltName=DNS:directory\nextendedKeyUsage=serverAuth\n' >"$root/ad.ext"
 openssl x509 -req -in "$root/ad.csr" -CA "$AIIT_DAY13_FIXTURE/ca.pem" -CAkey "$root/ca-key.pem" \
   -CAcreateserial -days 1 -extfile "$root/ad.ext" -out "$AIIT_DAY13_FIXTURE/ad.pem" 2>/dev/null
-openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
-  -addext subjectAltName=DNS:localhost -keyout "$AIIT_DAY13_TLS_DIR/key.pem" -out "$AIIT_DAY13_TLS_DIR/cert.pem" 2>/dev/null
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=127.0.0.1 \
+  -addext subjectAltName=IP:127.0.0.1 -keyout "$AIIT_DAY13_TLS_DIR/key.pem" -out "$AIIT_DAY13_TLS_DIR/cert.pem" 2>/dev/null
 # Keycloak is non-root. The private parent still restricts host access.
 chmod 644 "$AIIT_DAY13_TLS_DIR/"*.pem "$AIIT_DAY13_FIXTURE/ca.pem"
 jq --rawfile password "$AIIT_DAY13_FIXTURE/bind-password" '
+  .clients[0].redirectUris = ["https://127.0.0.1:38444/api/auth/oidc/callback"] |
+  .clients[0].webOrigins = ["https://127.0.0.1:38444"] |
   .components = {"org.keycloak.storage.UserStorageProvider": [{
     name:"synthetic-samba", providerId:"ldap",
     subComponents:{"org.keycloak.storage.ldap.mappers.LDAPStorageMapper":[
@@ -128,10 +130,10 @@ done
 dc up -d issuer
 issuer=$(dc ps -q issuer)
 address=$(docker inspect "$issuer" | jq -er '.[0].NetworkSettings.Networks | to_entries[0].value.IPAddress | select(length > 0)')
-curl -fsS --noproxy '*' --connect-to "localhost:38443:$address:8443" \
+curl -fsS --noproxy '*' --connect-to "127.0.0.1:38443:$address:8443" \
   --retry 25 --retry-all-errors --retry-delay 2 --max-time 5 --cacert "$AIIT_DAY13_TLS_DIR/cert.pem" \
-  https://localhost:38443/realms/aiit-synthetic-office/.well-known/openid-configuration \
-  | jq -e '.issuer == "https://localhost:38443/realms/aiit-synthetic-office"' >/dev/null
+  https://127.0.0.1:38443/realms/aiit-synthetic-office/.well-known/openid-configuration \
+  | jq -e '.issuer == "https://127.0.0.1:38443/realms/aiit-synthetic-office"' >/dev/null
 echo 'Verified real Samba directory counts, disabled flags, LDAPS binds and Keycloak realm discovery.'
 
 if dc exec -T directory env LDAPTLS_CACERT=/fixture/ca.pem LDAPTLS_REQCERT=demand ldapsearch -LLL -o nettimeout=3 -s base -b '' \

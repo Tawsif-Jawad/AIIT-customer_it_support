@@ -13,10 +13,10 @@ assert.match(address, /^172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}$/);
 assert.equal(net.isIP(address), 4);
 const project = process.env.AIIT_DAY13_COMPOSE_PROJECT ?? '';
 assert.match(project, /^aiit-federation-[a-z0-9]+$/);
-const root = 'https://localhost:38443';
+const root = 'https://127.0.0.1:38443';
 const realm = 'aiit-synthetic-office';
 const issuer = root + '/realms/' + realm;
-const callback = 'https://localhost:38444';
+const callback = 'https://127.0.0.1:38444';
 const clientId = 'aiit-office';
 const password = readFileSync(path.join(process.env.AIIT_DAY13_FIXTURE!, 'user-password'), 'utf8').trim();
 const sockets = new Set<net.Socket>();
@@ -89,7 +89,8 @@ try {
       async function login(email: string, secret = password, success = true) {
         const page = await browser.newPage();
         try {
-          await page.goto(callback + '/api/auth/oidc/login');
+          const response = await page.goto(callback + '/api/auth/oidc/login');
+          assert.ok(response?.ok(), 'OIDC login initiation failed with HTTP ' + response?.status());
           assert.equal(new URL(page.url()).origin, root);
           await page.locator('#username').fill(username(email));
           await page.locator('#password').fill(secret);

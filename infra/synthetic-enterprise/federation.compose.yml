@@ -10,6 +10,13 @@ services:
     init: true
     security_opt: [no-new-privileges:true]
   issuer:
+    command:
+      - start-dev
+      - --import-realm
+      - --http-enabled=false
+      - --https-certificate-file=/opt/keycloak/conf/day13-cert.pem
+      - --https-certificate-key-file=/opt/keycloak/conf/day13-key.pem
+      - --hostname=https://127.0.0.1:38443
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: fixture-admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${AIIT_DAY13_ADMIN_PASSWORD:?Run the federation harness}

@@ -55,7 +55,7 @@ export async function startOffice(preferredPort = 0, autoWorker = false, authent
     const closePortal = () => closeServer(portal);
     cleanup.push(closePortal);
     const port = await listen(portal, preferredPort);
-    const publicUrl = federated ? `https://localhost:${port}` : `http://${loopback}:${port}`;
+    const publicUrl = federated ? `https://${loopback}:${port}` : `http://${loopback}:${port}`;
     const fixture = officeDataset();
     const accounts = new Map(fixture.snapshot.users.map(user => [user.email, { subject: user.oidcSubject, active: user.isActive }]));
     const issuer = federated ?? await startTestIssuer({ redirect: publicUrl + '/api/auth/oidc/callback', clientId: 'synthetic-office', accounts, password: demoPassword });
